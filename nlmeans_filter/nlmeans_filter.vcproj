@@ -140,6 +140,7 @@
 			<Tool
 				Name="VCLinkerTool"
 				AdditionalOptions="/EXPORT:GetFilterTable"
+				AdditionalDependencies="d3d9.lib d3dx9.lib"
 				OutputFile="D:\user\aviutl\$(ProjectName).auf"
 				LinkIncremental="1"
 				GenerateDebugInformation="false"

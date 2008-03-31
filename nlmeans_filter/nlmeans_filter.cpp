@@ -51,7 +51,7 @@ void outputLogMessage(const string& message)
 //---------------------------------------------------------------------
 #define	TRACK_N	2									//	トラックバーの数
 TCHAR	*track_name[] =		{"範囲", "分散"};	//	トラックバーの名前
-int		track_default[] =	{1, 20};	//	トラックバーの初期値
+int		track_default[] =	{3, 50};	//	トラックバーの初期値
 int		track_s[] =			{1, 0,};	//	トラックバーの下限値
 int		track_e[] =			{16, 100,};	//	トラックバーの上限値
 #define	CHECK_N	1														//	チェックボックスの数
@@ -148,7 +148,7 @@ BOOL filterByCpu(FILTER *fp,FILTER_PROC_INFO *fpip)
 
 	const int searchRadius = fp->track[0];
 	const int neighborhoodRadius = 1;
-	const double H = pow(10, (double)fp->track[1] / 10.0);
+	const double H = pow(10, (double)fp->track[1] / 25.0);
 	const double H2 = 1.0 / (H * H);
 
 	for (int channel = 0; channel < 3; ++channel){
@@ -214,14 +214,64 @@ void set(FILTER_PROC_INFO *fpip, int x, int y, int channel, int value)
 //---------------------------------------------------------------------
 //		GPUによる演算ルーチン
 //---------------------------------------------------------------------
+static const string PIXEL_SHADER =
+"sampler2D textureSampler;\n"
+"float2 textureSizeInverse;\n"
+"float H2;\n"
+"static const int searchRadius = SEARCH_RADIUS;\n"
+"\n"
+"float3 weight(float2 current, float2 target) {\n"
+"	float3 sum2 = 0;\n"
+"	for (int dx = -1; dx <= 1; ++dx) {\n"
+"		for (int dy = -1; dy <= 1; ++dy) {\n"
+"			const float2 delta = float2(dx, dy);\n"
+"			const float3 diff = tex2D(textureSampler, (current + delta) * textureSizeInverse) - tex2D(textureSampler, (target + delta) * textureSizeInverse);\n"
+"			sum2 += diff * diff;\n"
+"		}\n"
+"	}\n"
+"\n"
+"	return exp(-sqrt(sum2) * H2);\n"
+"}\n"
+"\n"
+"float4 process(float2 tex : VPOS) : COLOR0\n"
+"{\n"
+"	//あらかじめ摂動を入れてサンプルポイントが画素の中央を指すようにする\n"
+"	tex += 0.25;\n"
+"\n"
+"	float3 sum = 0;\n"
+"	{\n"
+"		for (int dx = -searchRadius; dx <= searchRadius; ++dx) {\n"
+"			for (int dy = -searchRadius; dy <= searchRadius; ++dy) {\n"
+"				const float2 delta = float2(dx, dy);\n"
+"				sum += weight(tex, tex + delta);\n"
+"			}\n"
+"		}\n"
+"	}\n"
+"\n"
+"	float3 value = 0;\n"
+"	{\n"
+"		int index = 0;\n"
+"		for (int dx = -searchRadius; dx <= searchRadius; ++dx) {\n"
+"			for (int dy = -searchRadius; dy <= searchRadius; ++dy) {\n"
+"				const float2 delta = float2(dx, dy);\n"
+"				const float3 w = weight(tex, tex + delta);\n"
+"				const float3 r = tex2D(textureSampler, (tex + delta) * textureSizeInverse);\n"
+"				value += r * w;\n"
+"			}\n"
+"		}\n"
+"		value /= sum;\n"
+"	}\n"
+"\n"
+"	return float4(value, 0);\n"
+"}\n";
+
 struct VERTEX
 {
 	D3DXVECTOR3 pos;
 	D3DXVECTOR2 tex;
 };
 static const D3DVERTEXELEMENT9 VERTEX_ELEMENTS[] = {
-	{0,  0, D3DDECLTYPE_FLOAT3, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_POSITIONT, 0},
-	{0,  12, D3DDECLTYPE_FLOAT2, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_TEXCOORD, 0},
+	{0,  0, D3DDECLTYPE_FLOAT2, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_POSITION, 0},
 	D3DDECL_END()
 };
 
@@ -409,6 +459,8 @@ bool releaseInstance()
 		UnregisterClass(SOFTWARE_NAME.c_str(), windowClass.hInstance);
 	}
 
+	gpuInstanceInitialized = false;
+
 	return true;
 }
 
@@ -440,8 +492,9 @@ BOOL filterByGpu(FILTER *fp,FILTER_PROC_INFO *fpip)
 		//コンパイル
 		CComPtr<ID3DXBuffer> buffer;
 		CComPtr<ID3DXBuffer> errorMessage;
-		//if (FAILED(D3DXCompileShaderFromFile("nlm.psh", macros, NULL, "process", "ps_3_0", 0, &buffer, &errorMessage, NULL))){
-		if (FAILED(D3DXCompileShaderFromFile("nlm.psh", macros, NULL, "debug", "ps_3_0", 0, &buffer, &errorMessage, NULL))){
+
+		if (FAILED(D3DXCompileShader(PIXEL_SHADER.c_str(), PIXEL_SHADER.size(), macros, NULL, "process", "ps_3_0", 0, &buffer, &errorMessage, NULL))){
+			releaseInstance();
 			outputLogMessage("ピクセルシェーダのコンパイルに失敗しました");
 			outputLogMessage((char*)errorMessage->GetBufferPointer());
 			return FALSE;
@@ -449,6 +502,7 @@ BOOL filterByGpu(FILTER *fp,FILTER_PROC_INFO *fpip)
 
 		//ピクセルシェーダの作成
 		if (FAILED(device->CreatePixelShader((DWORD*)buffer->GetBufferPointer(), &pixelShader))){
+			releaseInstance();
 			outputLogMessage("ピクセルシェーダの作成に失敗しました");
 			return FALSE;
 		}
@@ -463,6 +517,7 @@ BOOL filterByGpu(FILTER *fp,FILTER_PROC_INFO *fpip)
 
 	//テクスチャチェック
 	if (!checkAndRecreateTexture(width, height)){
+		releaseInstance();
 		outputLogMessage("テクスチャの作成に失敗しました");
 		return FALSE;
 	}
@@ -471,6 +526,7 @@ BOOL filterByGpu(FILTER *fp,FILTER_PROC_INFO *fpip)
 	{
 		D3DLOCKED_RECT lockedRect = {0};
 		if (FAILED(memorySurface->LockRect(&lockedRect, NULL, D3DLOCK_DISCARD))){
+			releaseInstance();
 			outputLogMessage("メモリサーフィスのロックに失敗しました");
 			return FALSE;
 		}
@@ -487,19 +543,21 @@ BOOL filterByGpu(FILTER *fp,FILTER_PROC_INFO *fpip)
 		}
 
 		if (FAILED(memorySurface->UnlockRect())){
+			releaseInstance();
 			outputLogMessage("メモリサーフィスのロック解除に失敗しました");
 			return FALSE;
 		}
 
-		D3DXSaveSurfaceToFile("beforeMemory.bmp", D3DXIFF_BMP, memorySurface, NULL, NULL);
+		//D3DXSaveSurfaceToFile("beforeMemory.bmp", D3DXIFF_BMP, memorySurface, NULL, NULL);
 
 		//メモリからGPUに転送開始
 		if (FAILED(device->UpdateSurface(memorySurface, NULL, sourceSurface, NULL))){
+			releaseInstance();
 			outputLogMessage("メモリサーフィスから処理元サーフィスへのデータ転送に失敗しました");
 			return FALSE;
 		}
 
-		D3DXSaveSurfaceToFile("beforeSource.bmp", D3DXIFF_BMP, sourceSurface, NULL, NULL);
+		//D3DXSaveSurfaceToFile("beforeSource.bmp", D3DXIFF_BMP, sourceSurface, NULL, NULL);
 	}
 
 	//レンダリング開始
@@ -511,7 +569,7 @@ BOOL filterByGpu(FILTER *fp,FILTER_PROC_INFO *fpip)
 	viewPort.MinZ = 0.0f;
 	viewPort.MaxZ = 0.0;
 
-	const double H = pow(10, (double)fp->track[1] / 10.0);
+	const double H = pow(10, (double)fp->track[1] / 50.0);
 	const double H2 = 1.0 / (H * H);
 
 	D3DXVECTOR4 pixelShaderConstant[2];
@@ -521,6 +579,7 @@ BOOL filterByGpu(FILTER *fp,FILTER_PROC_INFO *fpip)
 	pixelShaderConstant[1].x = (float)H2;
 
 	if (FAILED(renderToSurface->BeginScene(destSurface, &viewPort))){
+		releaseInstance();
 		outputLogMessage("描画の開始に失敗しました");
 		return FALSE;
 	}
@@ -528,47 +587,53 @@ BOOL filterByGpu(FILTER *fp,FILTER_PROC_INFO *fpip)
 	device->Clear(0, NULL, D3DCLEAR_TARGET, 0x80808080, 0, 0);
 
 	if (FAILED(device->SetTexture(0, sourceTexture))){
+		releaseInstance();
 		outputLogMessage("テクスチャの設定に失敗しました");
 		return false;
 	}
 
 	if (FAILED(device->SetPixelShaderConstantF(0, (float*)pixelShaderConstant, 2))){
+		releaseInstance();
 		outputLogMessage("ピクセルシェーダ定数の設定に失敗しました");
 		return FALSE;
 	}
 
 	const VERTEX polygon[4] = {
-		{D3DXVECTOR3(0, 0, 0), D3DXVECTOR2(0, 0)},
-		{D3DXVECTOR3(0, height, 0), D3DXVECTOR2(0, height)},
-		{D3DXVECTOR3(width, 0, 0), D3DXVECTOR2(width, 0)},
-		{D3DXVECTOR3(width, height, 0), D3DXVECTOR2(width, height)},
+		{D3DXVECTOR2(-1, -1)},
+		{D3DXVECTOR2(-1, 1)},
+		{D3DXVECTOR2(1, -1)},
+		{D3DXVECTOR2(1, 1)},
 	};
 
 	if (FAILED(device->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, polygon, 20))){
+		releaseInstance();
 		outputLogMessage("プリミティブの描画に失敗しました");
 		return FALSE;
 	}
 
 	if (FAILED(renderToSurface->EndScene(D3DX_FILTER_NONE))){
+		releaseInstance();
 		outputLogMessage("描画の終了に失敗しました");
 		return FALSE;
 	}
 
 	//画像データをVRAMから取得する
 	{
-		D3DXSaveSurfaceToFile("afterDest.bmp", D3DXIFF_BMP, destSurface, NULL, NULL);
+		//D3DXSaveSurfaceToFile("afterDest.bmp", D3DXIFF_BMP, destSurface, NULL, NULL);
 
 		//GPUからメモリに転送開始
 		if (FAILED(device->GetRenderTargetData(destSurface, memorySurface))){
+			releaseInstance();
 			outputLogMessage("処理先サーフィスからメモリサーフィスへのデータ転送に失敗しました");
 			return FALSE;
 		}
 
-		D3DXSaveSurfaceToFile("afterMemory.bmp", D3DXIFF_BMP, memorySurface, NULL, NULL);
+		//D3DXSaveSurfaceToFile("afterMemory.bmp", D3DXIFF_BMP, memorySurface, NULL, NULL);
 
 		//メモリテクスチャからaviutlに書き戻す
 		D3DLOCKED_RECT lockedRect;
 		if (FAILED(memorySurface->LockRect(&lockedRect, NULL, D3DLOCK_READONLY))){
+			releaseInstance();
 			outputLogMessage("描画先テクスチャのロックに失敗しました");
 			return FALSE;
 		}
@@ -585,6 +650,7 @@ BOOL filterByGpu(FILTER *fp,FILTER_PROC_INFO *fpip)
 		}
 
 		if (FAILED(memorySurface->UnlockRect())){
+			releaseInstance();
 			outputLogMessage("描画先テクスチャのロック解除に失敗しました");
 			return FALSE;
 		}
