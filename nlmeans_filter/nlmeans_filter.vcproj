@@ -63,6 +63,7 @@
 			<Tool
 				Name="VCLinkerTool"
 				AdditionalOptions="/EXPORT:GetFilterTable"
+				AdditionalDependencies="d3d9.lib d3dx9.lib"
 				OutputFile="D:\user\aviutl\$(ProjectName).auf"
 				LinkIncremental="2"
 				GenerateDebugInformation="true"
@@ -231,6 +232,10 @@
 			UniqueIdentifier="{93995380-89BD-4b04-88EB-625FBE52EBFB}"
 			>
 			<File
+				RelativePath=".\aviutl_plugin_sdk\filter.h"
+				>
+			</File>
+			<File
 				RelativePath=".\stdafx.h"
 				>
 			</File>
@@ -244,6 +249,10 @@
 			Filter="rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav"
 			UniqueIdentifier="{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}"
 			>
+			<File
+				RelativePath="..\..\..\user\aviutl\nlm.psh"
+				>
+			</File>
 		</Filter>
 		<File
 			RelativePath=".\ReadMe.txt"
