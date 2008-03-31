@@ -217,10 +217,11 @@ void set(FILTER_PROC_INFO *fpip, int x, int y, int channel, int value)
 struct VERTEX
 {
 	D3DXVECTOR3 pos;
+	D3DXVECTOR2 tex;
 };
 static const D3DVERTEXELEMENT9 VERTEX_ELEMENTS[] = {
 	{0,  0, D3DDECLTYPE_FLOAT3, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_POSITIONT, 0},
-	{0, 12, D3DDECLTYPE_FLOAT2, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_TEXCOORD, 0},
+	{0,  12, D3DDECLTYPE_FLOAT2, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_TEXCOORD, 0},
 	D3DDECL_END()
 };
 
@@ -537,10 +538,10 @@ BOOL filterByGpu(FILTER *fp,FILTER_PROC_INFO *fpip)
 	}
 
 	const VERTEX polygon[4] = {
-		{D3DXVECTOR3( 0,  0, 0), D3DXVECTOR2(    0,      0)},
-		{D3DXVECTOR3( 1,  0, 0), D3DXVECTOR2(width,      0)},
-		{D3DXVECTOR3( 0,  1, 0), D3DXVECTOR2(    0, height)},
-		{D3DXVECTOR3( 1,  1, 0), D3DXVECTOR2(width, height)},
+		{D3DXVECTOR3(0, 0, 0), D3DXVECTOR2(0, 0)},
+		{D3DXVECTOR3(0, height, 0), D3DXVECTOR2(0, height)},
+		{D3DXVECTOR3(width, 0, 0), D3DXVECTOR2(width, 0)},
+		{D3DXVECTOR3(width, height, 0), D3DXVECTOR2(width, height)},
 	};
 
 	if (FAILED(device->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, polygon, 20))){
