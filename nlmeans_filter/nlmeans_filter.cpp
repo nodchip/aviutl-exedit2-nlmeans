@@ -155,7 +155,7 @@ BOOL filterByCpu(FILTER *fp,FILTER_PROC_INFO *fpip)
 		for (int y = 0; y < height; ++y){
 			for (int x = 0; x < width; ++x){
 				//重みを計算する
-				double weights[1024];
+				double weights[2048];
 				double sum = 0;
 				int index = 0;
 				for (int dy = -searchRadius; dy <= searchRadius; ++dy){
@@ -268,10 +268,9 @@ static const string PIXEL_SHADER =
 struct VERTEX
 {
 	D3DXVECTOR3 pos;
-	D3DXVECTOR2 tex;
 };
 static const D3DVERTEXELEMENT9 VERTEX_ELEMENTS[] = {
-	{0,  0, D3DDECLTYPE_FLOAT2, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_POSITION, 0},
+	{0,  0, D3DDECLTYPE_FLOAT3, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_POSITIONT, 0},
 	D3DDECL_END()
 };
 
@@ -599,13 +598,13 @@ BOOL filterByGpu(FILTER *fp,FILTER_PROC_INFO *fpip)
 	}
 
 	const VERTEX polygon[4] = {
-		{D3DXVECTOR2(-1, -1)},
-		{D3DXVECTOR2(-1, 1)},
-		{D3DXVECTOR2(1, -1)},
-		{D3DXVECTOR2(1, 1)},
+		{D3DXVECTOR3(0, 0, 0)},
+		{D3DXVECTOR3(0, height, 0)},
+		{D3DXVECTOR3(width, 0, 0)},
+		{D3DXVECTOR3(width, height, 0)},
 	};
 
-	if (FAILED(device->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, polygon, 20))){
+	if (FAILED(device->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, polygon, 12))){
 		releaseInstance();
 		outputLogMessage("プリミティブの描画に失敗しました");
 		return FALSE;
