@@ -20,6 +20,7 @@
 // Windows ヘッダー ファイル:
 #include <windows.h>
 
+#include <omp.h>
 #include <cmath>
 #include <ctime>
 #include <algorithm>

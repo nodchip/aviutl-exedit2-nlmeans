@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "stdafx.h"
+#include <omp.h>
 #include <cmath>
 #include <ctime>
 #include <algorithm>
@@ -73,7 +74,7 @@ FILTER_DLL filter = {
 	NULL,NULL,
 	NULL,
 	NULL,
-	"NL-Meansフィルタ version 0.01 by nod_chip",
+	"NL-Meansフィルタ version 0.02 by nod_chip",
 	NULL,NULL,
 	NULL,NULL,NULL,
 	NULL,
@@ -148,12 +149,15 @@ BOOL filterByCpu(FILTER *fp,FILTER_PROC_INFO *fpip)
 
 	const int searchRadius = fp->track[0];
 	const int neighborhoodRadius = 1;
-	const double H = pow(10, (double)fp->track[1] / 25.0);
+	const double H = pow(10, (double)fp->track[1] / 22.0);
 	const double H2 = 1.0 / (H * H);
 
-	for (int channel = 0; channel < 3; ++channel){
-		for (int y = 0; y < height; ++y){
-			for (int x = 0; x < width; ++x){
+	int y;
+	//何も書かないとすべてprivate変数扱いとなるらしい
+#pragma omp parallel for
+	for (y = 0; y < height; ++y){
+		for (int x = 0; x < width; ++x){
+			for (int channel = 0; channel < 3; ++channel){
 				//重みを計算する
 				double weights[2048];
 				double sum = 0;
@@ -531,7 +535,9 @@ BOOL filterByGpu(FILTER *fp,FILTER_PROC_INFO *fpip)
 		}
 
 		const char* dest = (char*)lockedRect.pBits;
-		for (int y = 0; y < height; ++y){
+		int y;
+#pragma omp parallel for
+		for (y = 0; y < height; ++y){
 			for (int x = 0; x < width; ++x){
 				unsigned short* destBeggining = (unsigned short*)&dest[x * 2 * 4 + y * lockedRect.Pitch];
 				const short* sourcePixel = (short*)(&fpip->ycp_edit[x + y * fpip->max_w]);
@@ -638,7 +644,9 @@ BOOL filterByGpu(FILTER *fp,FILTER_PROC_INFO *fpip)
 		}
 
 		const char* source = (char*)lockedRect.pBits;
-		for (int y = 0; y < height; ++y){
+		int y;
+#pragma omp parallel for
+		for (y = 0; y < height; ++y){
 			for (int x = 0; x < width; ++x){
 				const unsigned short* sourceBeggining = (const unsigned short*)&source[x * 2 * 4 + y * lockedRect.Pitch];
 				short* destPixel = (short*)(&fpip->ycp_edit[x + y * fpip->max_w]);
