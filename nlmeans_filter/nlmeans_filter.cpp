@@ -326,19 +326,19 @@ bool checkAndRecreateTexture(int width, int height)
 	memoryTexture = NULL;
 
 	//テクスチャ作成
-	if (FAILED(D3DXCreateTexture(device, width, height, 1, D3DUSAGE_DYNAMIC , D3DFMT_A32B32G32R32F, D3DPOOL_SYSTEMMEM, &memoryTexture))){
+	if (FAILED(D3DXCreateTexture(device, width, height, 1, D3DUSAGE_DYNAMIC , D3DFMT_A16B16G16R16, D3DPOOL_SYSTEMMEM, &memoryTexture))){
 		releaseInstance();
 		outputLogMessage("メモリテクスチャの作成に失敗しました");
 		return false;
 	}
 
-	if (FAILED(D3DXCreateTexture(device, width, height, 1, 0, D3DFMT_A32B32G32R32F, D3DPOOL_DEFAULT, &sourceTexture))){
+	if (FAILED(D3DXCreateTexture(device, width, height, 1, 0, D3DFMT_A16B16G16R16, D3DPOOL_DEFAULT, &sourceTexture))){
 		releaseInstance();
 		outputLogMessage("処理元テクスチャの作成に失敗しました");
 		return false;
 	}
 
-	if (FAILED(D3DXCreateTexture(device, width, height, 1, D3DUSAGE_RENDERTARGET, D3DFMT_A32B32G32R32F, D3DPOOL_DEFAULT, &destTexture))){
+	if (FAILED(D3DXCreateTexture(device, width, height, 1, D3DUSAGE_RENDERTARGET, D3DFMT_A16B16G16R16, D3DPOOL_DEFAULT, &destTexture))){
 		releaseInstance();
 		outputLogMessage("処理先テクスチャの作成に失敗しました");
 		return false;
@@ -362,7 +362,7 @@ bool checkAndRecreateTexture(int width, int height)
 		return false;
 	}
 
-	if (FAILED(D3DXCreateRenderToSurface(device, width, height, D3DFMT_A32B32G32R32F, FALSE, D3DFMT_UNKNOWN, &renderToSurface))){
+	if (FAILED(D3DXCreateRenderToSurface(device, width, height, D3DFMT_A16B16G16R16, FALSE, D3DFMT_UNKNOWN, &renderToSurface))){
 		releaseInstance();
 		outputLogMessage("レンダリングインタフェースの作成に失敗しました");
 		return false;
@@ -530,14 +530,14 @@ BOOL filterByGpu(FILTER *fp,FILTER_PROC_INFO *fpip)
 			return FALSE;
 		}
 
-		char* dest = (char*)lockedRect.pBits;
+		const char* dest = (char*)lockedRect.pBits;
 		for (int y = 0; y < height; ++y){
 			for (int x = 0; x < width; ++x){
-				float* destBeggining = (float*)&dest[x * 4 * 4 + y * lockedRect.Pitch];
+				unsigned short* destBeggining = (unsigned short*)&dest[x * 2 * 4 + y * lockedRect.Pitch];
 				const short* sourcePixel = (short*)(&fpip->ycp_edit[x + y * fpip->max_w]);
-				destBeggining[0] = sourcePixel[0];
-				destBeggining[1] = sourcePixel[1];
-				destBeggining[2] = sourcePixel[2];
+				destBeggining[0] = ((int)sourcePixel[0]) << 3;
+				destBeggining[1] = (((int)sourcePixel[1]) + 2048) << 3;
+				destBeggining[2] = (((int)sourcePixel[2]) + 2048) << 3;
 			}
 		}
 
@@ -568,7 +568,7 @@ BOOL filterByGpu(FILTER *fp,FILTER_PROC_INFO *fpip)
 	viewPort.MinZ = 0.0f;
 	viewPort.MaxZ = 0.0;
 
-	const double H = pow(10, (double)fp->track[1] / 50.0);
+	const double H = pow(10, (double)(fp->track[1]-100) / 60.0);
 	const double H2 = 1.0 / (H * H);
 
 	D3DXVECTOR4 pixelShaderConstant[2];
@@ -637,14 +637,14 @@ BOOL filterByGpu(FILTER *fp,FILTER_PROC_INFO *fpip)
 			return FALSE;
 		}
 
-		char* source = (char*)lockedRect.pBits;
+		const char* source = (char*)lockedRect.pBits;
 		for (int y = 0; y < height; ++y){
 			for (int x = 0; x < width; ++x){
-				const float* sourceBeggining = (float*)&source[x * 4 * 4 + y * lockedRect.Pitch];
+				const unsigned short* sourceBeggining = (const unsigned short*)&source[x * 2 * 4 + y * lockedRect.Pitch];
 				short* destPixel = (short*)(&fpip->ycp_edit[x + y * fpip->max_w]);
-				destPixel[0] = sourceBeggining[0];
-				destPixel[1] = sourceBeggining[1];
-				destPixel[2] = sourceBeggining[2];
+				destPixel[0] = (short)(((int)sourceBeggining[0]) >> 3);
+				destPixel[1] = (short)((((int)sourceBeggining[1]) >> 3) - 2048);
+				destPixel[2] = (short)((((int)sourceBeggining[2]) >> 3) - 2048);
 			}
 		}
 
