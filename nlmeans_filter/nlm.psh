@@ -2,45 +2,83 @@ sampler2D textureSampler;
 float2 textureSizeInverse;
 float H2;
 static const int searchRadius = SEARCH_RADIUS;
+static const float2 DELTA[9] = {
+	float2(-1, -1),
+	float2( 0, -1),
+	float2( 1, -1),
+	float2(-1,  0),
+	float2( 0,  0),
+	float2( 1,  0),
+	float2(-1,  1),
+	float2( 0,  1),
+	float2( 1,  1)
+};
 
-float3 weight(float2 current, float2 target) {
-	float3 sum2 = 0;
-	for (int dx = -1; dx <= 1; ++dx) {
-		for (int dy = -1; dy <= 1; ++dy) {
-			const float2 delta = float2(dx, dy);
-			const float3 diff = tex2D(textureSampler, (current + delta) * textureSizeInverse) - tex2D(textureSampler, (target + delta) * textureSizeInverse);
-			sum2 += diff * diff;
-		}
-	}
-
-	return exp(-sqrt(sum2) * H2);
-}
-
-float4 process(float2 tex : TEXCOORD0) : COLOR0
+float4 process(float2 pos : VPOS) : COLOR0
 {
+	//あらかじめ摂動を入れてサンプルポイントが画素の中央を指すようにする
+	pos += 0.25;
+	pos *= textureSizeInverse;
+	
+	const float2 delta[9] = {
+		DELTA[0] * textureSizeInverse,
+		DELTA[1] * textureSizeInverse,
+		DELTA[2] * textureSizeInverse,
+		DELTA[3] * textureSizeInverse,
+		DELTA[4] * textureSizeInverse,
+		DELTA[5] * textureSizeInverse,
+		DELTA[6] * textureSizeInverse,
+		DELTA[7] * textureSizeInverse,
+		DELTA[8] * textureSizeInverse,
+	};
+	
+	const float3 currentPixels[9] = {
+		tex2D(textureSampler, pos + DELTA[0]).xyz,
+		tex2D(textureSampler, pos + DELTA[1]).xyz,
+		tex2D(textureSampler, pos + DELTA[2]).xyz,
+		tex2D(textureSampler, pos + DELTA[3]).xyz,
+		tex2D(textureSampler, pos + DELTA[4]).xyz,
+		tex2D(textureSampler, pos + DELTA[5]).xyz,
+		tex2D(textureSampler, pos + DELTA[6]).xyz,
+		tex2D(textureSampler, pos + DELTA[7]).xyz,
+		tex2D(textureSampler, pos + DELTA[8]).xyz,
+	};
+
 	float3 sum = 0;
-	{
-		for (int dx = -searchRadius; dx <= searchRadius; ++dx) {
-			for (int dy = -searchRadius; dy <= searchRadius; ++dy) {
-				const float2 delta = float2(dx, dy);
-				sum += weight(tex, tex + delta);
-			}
+	float3 value = 0;
+	for (int dx = -searchRadius; dx <= searchRadius; ++dx) {
+		for (int dy = -searchRadius; dy <= searchRadius; ++dy) {
+			const float2 targetPos = pos + float2(dx, dy) * textureSizeInverse;
+			
+			float3 sum2 = 0;
+			float3 targetCenter;
+			float3 diff;
+			diff = currentPixels[0] - tex2D(textureSampler, targetPos + delta[0]);
+			sum2 += diff * diff;
+			diff = currentPixels[1] - tex2D(textureSampler, targetPos + delta[1]);
+			sum2 += diff * diff;
+			diff = currentPixels[2] - tex2D(textureSampler, targetPos + delta[2]);
+			sum2 += diff * diff;
+			diff = currentPixels[3] - tex2D(textureSampler, targetPos + delta[3]);
+			sum2 += diff * diff;
+			diff = currentPixels[4] - (targetCenter = tex2D(textureSampler, targetPos + delta[4]));
+			sum2 += diff * diff;
+			diff = currentPixels[5] - tex2D(textureSampler, targetPos + delta[5]);
+			sum2 += diff * diff;
+			diff = currentPixels[6] - tex2D(textureSampler, targetPos + delta[6]);
+			sum2 += diff * diff;
+			diff = currentPixels[7] - tex2D(textureSampler, targetPos + delta[7]);
+			sum2 += diff * diff;
+			diff = currentPixels[8] - tex2D(textureSampler, targetPos + delta[8]);
+			sum2 += diff * diff;
+			
+			const float3 w = exp(-sqrt(sum2) * H2);
+			sum += w;
+			value += targetCenter * w;
 		}
 	}
 	
-	float3 value = 0;
-	{
-		int index = 0;
-		for (int dx = -searchRadius; dx <= searchRadius; ++dx) {
-			for (int dy = -searchRadius; dy <= searchRadius; ++dy) {
-				const float2 delta = float2(dx, dy);
-				const float3 w = weight(tex, tex + delta);
-				const float3 r = tex2D(textureSampler, (tex + delta) * textureSizeInverse);
-				value += r * w;
-			}
-		}
-		value /= sum;
-	}
+	value /= sum;
 
 	return float4(value, 0);
-}
+};

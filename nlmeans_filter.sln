@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 10.00
 # Visual Studio 2008
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "nlmeans_filter", "nlmeans_filter\nlmeans_filter.vcproj", "{039D7CCA-427C-48C1-884A-8E9E4F932912}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "nlmeans_filter", "nlmeans_filter\nlmeans_filter.vcproj", "{9A8B82FD-4252-4C70-A4CE-901A9FC019C0}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -9,10 +9,10 @@ Global
 		Release|Win32 = Release|Win32
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{039D7CCA-427C-48C1-884A-8E9E4F932912}.Debug|Win32.ActiveCfg = Debug|Win32
-		{039D7CCA-427C-48C1-884A-8E9E4F932912}.Debug|Win32.Build.0 = Debug|Win32
-		{039D7CCA-427C-48C1-884A-8E9E4F932912}.Release|Win32.ActiveCfg = Release|Win32
-		{039D7CCA-427C-48C1-884A-8E9E4F932912}.Release|Win32.Build.0 = Release|Win32
+		{9A8B82FD-4252-4C70-A4CE-901A9FC019C0}.Debug|Win32.ActiveCfg = Debug|Win32
+		{9A8B82FD-4252-4C70-A4CE-901A9FC019C0}.Debug|Win32.Build.0 = Debug|Win32
+		{9A8B82FD-4252-4C70-A4CE-901A9FC019C0}.Release|Win32.ActiveCfg = Release|Win32
+		{9A8B82FD-4252-4C70-A4CE-901A9FC019C0}.Release|Win32.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "stdafx.h"
-#include <omp.h>
+//#include "stdafx.h"
+//#include <omp.h>	//インクルードするとAviUtlから認識されなくなる。関数のエクスポート周りの問題？TAGETVERの問題？
 #include <cmath>
 #include <ctime>
 #include <algorithm>
@@ -74,7 +74,7 @@ FILTER_DLL filter = {
 	NULL,NULL,
 	NULL,
 	NULL,
-	"NL-Meansフィルタ version 0.02 by nod_chip",
+	"NL-Meansフィルタ version 0.03 by nod_chip",
 	NULL,NULL,
 	NULL,NULL,NULL,
 	NULL,
@@ -159,8 +159,9 @@ BOOL filterByCpu(FILTER *fp,FILTER_PROC_INFO *fpip)
 		for (int x = 0; x < width; ++x){
 			for (int channel = 0; channel < 3; ++channel){
 				//重みを計算する
-				double weights[2048];
+				//非局所平均化
 				double sum = 0;
+				double value = 0;
 				int index = 0;
 				for (int dy = -searchRadius; dy <= searchRadius; ++dy){
 					for (int dx = -searchRadius; dx <= searchRadius; ++dx){
@@ -172,18 +173,8 @@ BOOL filterByCpu(FILTER *fp,FILTER_PROC_INFO *fpip)
 							}
 						}
 						const double w = exp(-sum2 * H2);
-						weights[index++] = w;
 						sum += w;
-					}
-				}
-
-				//非局所平均化
-				double value = 0;
-				index = 0;
-				for (int dy = -searchRadius; dy <= searchRadius; ++dy){
-					for (int dx = -searchRadius; dx <= searchRadius; ++dx){
-						const double r = get(fpip, x + dx, y + dy, channel) * weights[index++];
-						value += r;
+						value += get(fpip, x + dx, y + dy, channel) * w;
 					}
 				}
 
@@ -218,7 +209,7 @@ void set(FILTER_PROC_INFO *fpip, int x, int y, int channel, int value)
 //---------------------------------------------------------------------
 //		GPUによる演算ルーチン
 //---------------------------------------------------------------------
-static const string PIXEL_SHADER =
+static const char* PIXEL_SHADER =
 "sampler2D textureSampler;\n"
 "float2 textureSizeInverse;\n"
 "float H2;\n"
@@ -243,36 +234,26 @@ static const string PIXEL_SHADER =
 "	tex += 0.25;\n"
 "\n"
 "	float3 sum = 0;\n"
-"	{\n"
-"		for (int dx = -searchRadius; dx <= searchRadius; ++dx) {\n"
-"			for (int dy = -searchRadius; dy <= searchRadius; ++dy) {\n"
-"				const float2 delta = float2(dx, dy);\n"
-"				sum += weight(tex, tex + delta);\n"
-"			}\n"
-"		}\n"
-"	}\n"
-"\n"
 "	float3 value = 0;\n"
-"	{\n"
-"		int index = 0;\n"
-"		for (int dx = -searchRadius; dx <= searchRadius; ++dx) {\n"
-"			for (int dy = -searchRadius; dy <= searchRadius; ++dy) {\n"
-"				const float2 delta = float2(dx, dy);\n"
-"				const float3 w = weight(tex, tex + delta);\n"
-"				const float3 r = tex2D(textureSampler, (tex + delta) * textureSizeInverse);\n"
-"				value += r * w;\n"
-"			}\n"
+"	for (int dx = -searchRadius; dx <= searchRadius; ++dx) {\n"
+"		for (int dy = -searchRadius; dy <= searchRadius; ++dy) {\n"
+"			const float2 delta = float2(dx, dy);\n"
+"			const float3 w = weight(tex, tex + delta);\n"
+"			const float3 r = tex2D(textureSampler, (tex + delta) * textureSizeInverse);\n"
+"			sum += w;\n"
+"			value += r * w;\n"
 "		}\n"
-"		value /= sum;\n"
 "	}\n"
-"\n"
+"	value /= sum;\n"
 "	return float4(value, 0);\n"
-"}\n";
+"};\n";
 
 struct VERTEX
 {
 	D3DXVECTOR3 pos;
 };
+
+//VertexShaderを通らないようにする
 static const D3DVERTEXELEMENT9 VERTEX_ELEMENTS[] = {
 	{0,  0, D3DDECLTYPE_FLOAT3, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_POSITIONT, 0},
 	D3DDECL_END()
@@ -300,7 +281,6 @@ CComPtr<IDirect3DSurface9> destSurface;
 CComPtr<ID3DXRenderToSurface> renderToSurface;
 CComPtr<IDirect3DPixelShader9> pixelShader;
 int searchRadiusOfCreatedPixelShader = 0;
-static const int TEXTURE_SIZE = 2048;
 
 bool checkAndRecreateTexture(int width, int height)
 {
@@ -496,7 +476,7 @@ BOOL filterByGpu(FILTER *fp,FILTER_PROC_INFO *fpip)
 		CComPtr<ID3DXBuffer> buffer;
 		CComPtr<ID3DXBuffer> errorMessage;
 
-		if (FAILED(D3DXCompileShader(PIXEL_SHADER.c_str(), PIXEL_SHADER.size(), macros, NULL, "process", "ps_3_0", 0, &buffer, &errorMessage, NULL))){
+		if (FAILED(D3DXCompileShader(PIXEL_SHADER, strlen(PIXEL_SHADER), macros, NULL, "process", "ps_3_0", 0, &buffer, &errorMessage, NULL))){
 			releaseInstance();
 			outputLogMessage("ピクセルシェーダのコンパイルに失敗しました");
 			outputLogMessage((char*)errorMessage->GetBufferPointer());
@@ -541,9 +521,11 @@ BOOL filterByGpu(FILTER *fp,FILTER_PROC_INFO *fpip)
 			for (int x = 0; x < width; ++x){
 				unsigned short* destBeggining = (unsigned short*)&dest[x * 2 * 4 + y * lockedRect.Pitch];
 				const short* sourcePixel = (short*)(&fpip->ycp_edit[x + y * fpip->max_w]);
-				destBeggining[0] = ((int)sourcePixel[0]) << 3;
-				destBeggining[1] = (((int)sourcePixel[1]) + 2048) << 3;
-				destBeggining[2] = (((int)sourcePixel[2]) + 2048) << 3;
+				//入力データが範囲を超えている場合があるので
+				//符号なし16bit整数の0x4000～0xbfffにマッピングする
+				destBeggining[0] = ((int)sourcePixel[0] + 2048) << 3;
+				destBeggining[1] = (((int)sourcePixel[1]) + 4096) << 3;
+				destBeggining[2] = (((int)sourcePixel[2]) + 4096) << 3;
 			}
 		}
 
@@ -574,7 +556,7 @@ BOOL filterByGpu(FILTER *fp,FILTER_PROC_INFO *fpip)
 	viewPort.MinZ = 0.0f;
 	viewPort.MaxZ = 0.0;
 
-	const double H = pow(10, (double)(fp->track[1]-100) / 60.0);
+	const double H = pow(10, (double)(fp->track[1]-100) / 55.0);
 	const double H2 = 1.0 / (H * H);
 
 	D3DXVECTOR4 pixelShaderConstant[2];
@@ -589,8 +571,6 @@ BOOL filterByGpu(FILTER *fp,FILTER_PROC_INFO *fpip)
 		return FALSE;
 	}
 
-	device->Clear(0, NULL, D3DCLEAR_TARGET, 0x80808080, 0, 0);
-
 	if (FAILED(device->SetTexture(0, sourceTexture))){
 		releaseInstance();
 		outputLogMessage("テクスチャの設定に失敗しました");
@@ -603,10 +583,12 @@ BOOL filterByGpu(FILTER *fp,FILTER_PROC_INFO *fpip)
 		return FALSE;
 	}
 
+	//一部のGeForce環境で画面の右上しか表示されない不具合があるため
+	//座標が負の領域も十分にカバーする
 	const VERTEX polygon[4] = {
-		{D3DXVECTOR3(0, 0, 0)},
-		{D3DXVECTOR3(0, height, 0)},
-		{D3DXVECTOR3(width, 0, 0)},
+		{D3DXVECTOR3(-width, -height, 0)},
+		{D3DXVECTOR3(-width, height, 0)},
+		{D3DXVECTOR3(width, -width, 0)},
 		{D3DXVECTOR3(width, height, 0)},
 	};
 
@@ -650,9 +632,9 @@ BOOL filterByGpu(FILTER *fp,FILTER_PROC_INFO *fpip)
 			for (int x = 0; x < width; ++x){
 				const unsigned short* sourceBeggining = (const unsigned short*)&source[x * 2 * 4 + y * lockedRect.Pitch];
 				short* destPixel = (short*)(&fpip->ycp_edit[x + y * fpip->max_w]);
-				destPixel[0] = (short)(((int)sourceBeggining[0]) >> 3);
-				destPixel[1] = (short)((((int)sourceBeggining[1]) >> 3) - 2048);
-				destPixel[2] = (short)((((int)sourceBeggining[2]) >> 3) - 2048);
+				destPixel[0] = (short)((((int)sourceBeggining[0]) >> 3) - 2048);
+				destPixel[1] = (short)((((int)sourceBeggining[1]) >> 3) - 4096);
+				destPixel[2] = (short)((((int)sourceBeggining[2]) >> 3) - 4096);
 			}
 		}
 
