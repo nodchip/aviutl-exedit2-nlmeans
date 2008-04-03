@@ -33,15 +33,15 @@ float4 process(float2 pos : VPOS) : COLOR0
 	};
 	
 	const float3 currentPixels[9] = {
-		tex2D(textureSampler, pos + DELTA[0]).xyz,
-		tex2D(textureSampler, pos + DELTA[1]).xyz,
-		tex2D(textureSampler, pos + DELTA[2]).xyz,
-		tex2D(textureSampler, pos + DELTA[3]).xyz,
-		tex2D(textureSampler, pos + DELTA[4]).xyz,
-		tex2D(textureSampler, pos + DELTA[5]).xyz,
-		tex2D(textureSampler, pos + DELTA[6]).xyz,
-		tex2D(textureSampler, pos + DELTA[7]).xyz,
-		tex2D(textureSampler, pos + DELTA[8]).xyz,
+		tex2D(textureSampler, pos + delta[0]).xyz,
+		tex2D(textureSampler, pos + delta[1]).xyz,
+		tex2D(textureSampler, pos + delta[2]).xyz,
+		tex2D(textureSampler, pos + delta[3]).xyz,
+		tex2D(textureSampler, pos + delta[4]).xyz,
+		tex2D(textureSampler, pos + delta[5]).xyz,
+		tex2D(textureSampler, pos + delta[6]).xyz,
+		tex2D(textureSampler, pos + delta[7]).xyz,
+		tex2D(textureSampler, pos + delta[8]).xyz,
 	};
 
 	float3 sum = 0;
