@@ -1,7 +1,6 @@
-sampler2D textureSampler;
-float2 textureSizeInverse;
-float H2;
-static const int searchRadius = SEARCH_RADIUS;
+static const int spaceSearchRadius = SPACE_SEARCH_RADIUS;
+static const int timeSearchRadius = TIME_SEARCH_RADIUS;
+static const int timeSearchDiameter = TIME_SEARCH_RADIUS * 2 + 1;
 static const float2 DELTA[9] = {
 	float2(-1, -1),
 	float2( 0, -1),
@@ -13,6 +12,9 @@ static const float2 DELTA[9] = {
 	float2( 0,  1),
 	float2( 1,  1)
 };
+sampler2D textureSampler[timeSearchDiameter];
+float2 textureSizeInverse;
+float H2;
 
 float4 process(float2 pos : VPOS) : COLOR0
 {
@@ -33,48 +35,50 @@ float4 process(float2 pos : VPOS) : COLOR0
 	};
 	
 	const float3 currentPixels[9] = {
-		tex2D(textureSampler, pos + delta[0]).xyz,
-		tex2D(textureSampler, pos + delta[1]).xyz,
-		tex2D(textureSampler, pos + delta[2]).xyz,
-		tex2D(textureSampler, pos + delta[3]).xyz,
-		tex2D(textureSampler, pos + delta[4]).xyz,
-		tex2D(textureSampler, pos + delta[5]).xyz,
-		tex2D(textureSampler, pos + delta[6]).xyz,
-		tex2D(textureSampler, pos + delta[7]).xyz,
-		tex2D(textureSampler, pos + delta[8]).xyz,
+		tex2D(textureSampler[timeSearchRadius], pos + delta[0]).xyz,
+		tex2D(textureSampler[timeSearchRadius], pos + delta[1]).xyz,
+		tex2D(textureSampler[timeSearchRadius], pos + delta[2]).xyz,
+		tex2D(textureSampler[timeSearchRadius], pos + delta[3]).xyz,
+		tex2D(textureSampler[timeSearchRadius], pos + delta[4]).xyz,
+		tex2D(textureSampler[timeSearchRadius], pos + delta[5]).xyz,
+		tex2D(textureSampler[timeSearchRadius], pos + delta[6]).xyz,
+		tex2D(textureSampler[timeSearchRadius], pos + delta[7]).xyz,
+		tex2D(textureSampler[timeSearchRadius], pos + delta[8]).xyz,
 	};
 
 	float3 sum = 0;
 	float3 value = 0;
-	for (int dx = -searchRadius; dx <= searchRadius; ++dx) {
-		for (int dy = -searchRadius; dy <= searchRadius; ++dy) {
-			const float2 targetPos = pos + float2(dx, dy) * textureSizeInverse;
-			
-			float3 sum2 = 0;
-			float3 targetCenter;
-			float3 diff;
-			diff = currentPixels[0] - tex2D(textureSampler, targetPos + delta[0]);
-			sum2 += diff * diff;
-			diff = currentPixels[1] - tex2D(textureSampler, targetPos + delta[1]);
-			sum2 += diff * diff;
-			diff = currentPixels[2] - tex2D(textureSampler, targetPos + delta[2]);
-			sum2 += diff * diff;
-			diff = currentPixels[3] - tex2D(textureSampler, targetPos + delta[3]);
-			sum2 += diff * diff;
-			diff = currentPixels[4] - (targetCenter = tex2D(textureSampler, targetPos + delta[4]));
-			sum2 += diff * diff;
-			diff = currentPixels[5] - tex2D(textureSampler, targetPos + delta[5]);
-			sum2 += diff * diff;
-			diff = currentPixels[6] - tex2D(textureSampler, targetPos + delta[6]);
-			sum2 += diff * diff;
-			diff = currentPixels[7] - tex2D(textureSampler, targetPos + delta[7]);
-			sum2 += diff * diff;
-			diff = currentPixels[8] - tex2D(textureSampler, targetPos + delta[8]);
-			sum2 += diff * diff;
-			
-			const float3 w = exp(-sqrt(sum2) * H2);
-			sum += w;
-			value += targetCenter * w;
+	for (int dx = -spaceSearchRadius; dx <= spaceSearchRadius; ++dx) {
+		for (int dy = -spaceSearchRadius; dy <= spaceSearchRadius; ++dy) {
+			for (int dt = 0; dt <= timeSearchRadius * 2; ++dt){
+				const float2 targetPos = pos + float2(dx, dy) * textureSizeInverse;
+				
+				float3 sum2 = 0;
+				float3 targetCenter;
+				float3 diff;
+				diff = currentPixels[0] - tex2D(textureSampler[dt], targetPos + delta[0]);
+				sum2 += diff * diff;
+				diff = currentPixels[1] - tex2D(textureSampler[dt], targetPos + delta[1]);
+				sum2 += diff * diff;
+				diff = currentPixels[2] - tex2D(textureSampler[dt], targetPos + delta[2]);
+				sum2 += diff * diff;
+				diff = currentPixels[3] - tex2D(textureSampler[dt], targetPos + delta[3]);
+				sum2 += diff * diff;
+				diff = currentPixels[4] - (targetCenter = tex2D(textureSampler[dt], targetPos + delta[4]));
+				sum2 += diff * diff;
+				diff = currentPixels[5] - tex2D(textureSampler[dt], targetPos + delta[5]);
+				sum2 += diff * diff;
+				diff = currentPixels[6] - tex2D(textureSampler[dt], targetPos + delta[6]);
+				sum2 += diff * diff;
+				diff = currentPixels[7] - tex2D(textureSampler[dt], targetPos + delta[7]);
+				sum2 += diff * diff;
+				diff = currentPixels[8] - tex2D(textureSampler[dt], targetPos + delta[8]);
+				sum2 += diff * diff;
+				
+				const float3 w = exp(-sqrt(sum2) * H2);
+				sum += w;
+				value += targetCenter * w;
+			}
 		}
 	}
 	

@@ -46,7 +46,7 @@
 				MinimalRebuild="true"
 				BasicRuntimeChecks="3"
 				RuntimeLibrary="1"
-				OpenMP="true"
+				OpenMP="false"
 				UsePrecompiledHeader="0"
 				WarningLevel="3"
 				DebugInformationFormat="4"
@@ -184,6 +184,14 @@
 				RelativePath=".\nlmeans_filter.cpp"
 				>
 			</File>
+			<File
+				RelativePath=".\ProcessorCpu.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\ProcessorGpu.cpp"
+				>
+			</File>
 		</Filter>
 		<Filter
 			Name="ヘッダー ファイル"
@@ -192,6 +200,22 @@
 			>
 			<File
 				RelativePath=".\filter.h"
+				>
+			</File>
+			<File
+				RelativePath=".\filter.hpp"
+				>
+			</File>
+			<File
+				RelativePath=".\Processor.h"
+				>
+			</File>
+			<File
+				RelativePath=".\ProcessorCpu.h"
+				>
+			</File>
+			<File
+				RelativePath=".\ProcessorGpu.h"
 				>
 			</File>
 		</Filter>
