@@ -47,7 +47,7 @@
 				BasicRuntimeChecks="3"
 				RuntimeLibrary="1"
 				OpenMP="false"
-				UsePrecompiledHeader="0"
+				UsePrecompiledHeader="2"
 				WarningLevel="3"
 				DebugInformationFormat="4"
 			/>
@@ -124,7 +124,7 @@
 				RuntimeLibrary="0"
 				EnableFunctionLevelLinking="true"
 				OpenMP="true"
-				UsePrecompiledHeader="0"
+				UsePrecompiledHeader="2"
 				WarningLevel="3"
 				DebugInformationFormat="3"
 			/>
@@ -181,7 +181,31 @@
 			UniqueIdentifier="{4FC737F1-C7A5-4376-A066-2A32D752A2FF}"
 			>
 			<File
+				RelativePath=".\InputTexture.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\InputTextureCached.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\InputTextureRaw.cpp"
+				>
+			</File>
+			<File
 				RelativePath=".\nlmeans_filter.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\PixelShader.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\PixelShaderCached.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\PixelShaderRaw.cpp"
 				>
 			</File>
 			<File
@@ -191,6 +215,26 @@
 			<File
 				RelativePath=".\ProcessorGpu.cpp"
 				>
+			</File>
+			<File
+				RelativePath=".\stdafx.cpp"
+				>
+				<FileConfiguration
+					Name="Debug|Win32"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						UsePrecompiledHeader="1"
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release|Win32"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						UsePrecompiledHeader="1"
+					/>
+				</FileConfiguration>
 			</File>
 		</Filter>
 		<Filter
@@ -207,6 +251,30 @@
 				>
 			</File>
 			<File
+				RelativePath=".\InputTexture.h"
+				>
+			</File>
+			<File
+				RelativePath=".\InputTextureCached.h"
+				>
+			</File>
+			<File
+				RelativePath=".\InputTextureRaw.h"
+				>
+			</File>
+			<File
+				RelativePath=".\PixelShader.h"
+				>
+			</File>
+			<File
+				RelativePath=".\PixelShaderCached.h"
+				>
+			</File>
+			<File
+				RelativePath=".\PixelShaderRaw.h"
+				>
+			</File>
+			<File
 				RelativePath=".\Processor.h"
 				>
 			</File>
@@ -216,6 +284,10 @@
 			</File>
 			<File
 				RelativePath=".\ProcessorGpu.h"
+				>
+			</File>
+			<File
+				RelativePath=".\stdafx.h"
 				>
 			</File>
 		</Filter>

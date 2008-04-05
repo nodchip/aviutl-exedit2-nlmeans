@@ -1,3 +1,4 @@
+#include "stdafx.h"
 #include <cmath>
 #include <algorithm>
 #include <atlbase.h>
