@@ -27,6 +27,7 @@
 #include <d3d9types.h>
 #include "ProcessorCpu.h"
 #include "ProcessorGpu.h"
+#include "ProcessorSse2N099.h"
 
 //---------------------------------------------------------------------
 //		サンプルインターレース解除プラグイン  for AviUtl ver0.98以降
@@ -35,29 +36,15 @@
 
 using namespace std;
 
-//---------------------------------------------------------------------
-//		デバッグ出力用ルーチン
-//---------------------------------------------------------------------
-static const string LOG_FILE_NAME = "nlmeans_log.txt";
-ofstream ofs(LOG_FILE_NAME.c_str(), ios_base::out | ios_base::app);
-void outputLogMessage(const string& message)
-{
-	char buffer[1024];
-	time_t t = time(NULL);
-	strftime(buffer, sizeof(buffer), "%Y/%m/%d %H:%M:%S ", localtime(&t));
-	ofs << buffer << message << endl;
-}
-
-
 
 //---------------------------------------------------------------------
 //		フィルタ構造体定義
 //---------------------------------------------------------------------
-#define	TRACK_N	3								//	トラックバーの数
-TCHAR	*track_name[] =		{"空間範囲", "時間範囲", "分散"};	//	トラックバーの名前
-int		track_default[] =	{3, 0, 50};	//	トラックバーの初期値
-int		track_s[] =			{1, 0, 0,};	//	トラックバーの下限値
-int		track_e[] =			{16, 7, 100,};	//	トラックバーの上限値
+#define	TRACK_N	4						//	トラックバーの数
+TCHAR	*track_name[] =		{"空間範囲", "時間範囲", "分散", "CPUモード"};	//	トラックバーの名前
+int		track_default[] =	{3, 0, 50, 0};	//	トラックバーの初期値
+int		track_s[] =			{1, 0, 0, 0};	//	トラックバーの下限値
+int		track_e[] =			{16, 7, 100, 1};	//	トラックバーの上限値
 #define	CHECK_N	1														//	チェックボックスの数
 TCHAR	*check_name[] = 	{"可能な場合はGPUによる計算を行う"};				//	チェックボックスの名前
 int		check_default[] = 	{1};				//	チェックボックスの初期値 (値は0か1)
@@ -73,11 +60,11 @@ FILTER_DLL filter = {
 	func_init,
 	func_exit,
 	NULL,
-	NULL,
+	func_WndProc,
 	NULL,NULL,
 	NULL,
 	NULL,
-	"NL-Meansフィルタ version 0.05 by nod_chip",
+	"NL-Meansフィルタ version 0.06 by nod_chip",
 	NULL,NULL,
 	NULL,NULL,NULL,
 	NULL,
@@ -99,30 +86,59 @@ EXTERN_C FILTER_DLL __declspec(dllexport) * __stdcall GetFilterTable( void )
 //---------------------------------------------------------------------
 boost::shared_ptr<ProcessorCpu> processorCpu;
 boost::shared_ptr<ProcessorGpu> processorGpu;
+boost::shared_ptr<ProcessorSse2N099> processorSse2N099;
+static const int NUMBER_OF_ROUTINES = 3;
+boost::shared_ptr<Processor> processors[NUMBER_OF_ROUTINES];
+boost::shared_ptr<Processor> currentProcessor;
 
 static BOOL func_proc( FILTER *fp,FILTER_PROC_INFO *fpip )
 {
 	const int useGpu = fp->check[0];
-	const bool gpuPrepared = processorGpu->isPrepared();
-
-	if (useGpu && gpuPrepared && processorGpu->proc(*fp, *fpip)){
-		return TRUE;
+	int routineIndex = fp->track[3];
+	if (useGpu){
+		routineIndex = NUMBER_OF_ROUTINES - 1;
 	}
 
-	return processorCpu->proc(*fp, *fpip);
+	if (processors[routineIndex]->isPrepared()){
+		currentProcessor = processors[routineIndex];
+	} else {
+		currentProcessor = processorCpu;
+	}
+
+	return currentProcessor->proc(*fp, *fpip);
 }
 
 static BOOL func_init(FILTER *fp)
 {
 	processorCpu = boost::shared_ptr<ProcessorCpu>(new ProcessorCpu());
 	processorGpu = boost::shared_ptr<ProcessorGpu>(new ProcessorGpu());
+	processorSse2N099 = boost::shared_ptr<ProcessorSse2N099>(new ProcessorSse2N099());
+
+	processors[0] = processorCpu;
+	processors[1] = processorSse2N099;
+	processors[2] = processorGpu;
+
 	return TRUE;
 }
 
 static BOOL func_exit(FILTER *fp)
 {
+	processorSse2N099.reset();
 	processorGpu.reset();
 	processorCpu.reset();
 
 	return TRUE;
+}
+
+//------------------------------------------------------------------------
+// 設定ウィンドウにウィンドウメッセージが来た時に呼ばれる関数
+//------------------------------------------------------------------------
+BOOL func_WndProc(HWND hwnd, UINT message, WPARAM wparam,
+                  LPARAM lparam, void *editp, FILTER *fp)
+{
+	if (currentProcessor == NULL){
+		return FALSE;
+	}
+
+	return currentProcessor->wndProc(hwnd, message, wparam, lparam, editp, fp);
 }

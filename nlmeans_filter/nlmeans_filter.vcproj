@@ -123,6 +123,7 @@
 				PreprocessorDefinitions="WIN32;NDEBUG;_WINDOWS;_USRDLL;NLMEANS_FILTER_EXPORTS"
 				RuntimeLibrary="0"
 				EnableFunctionLevelLinking="true"
+				EnableEnhancedInstructionSet="0"
 				OpenMP="true"
 				UsePrecompiledHeader="2"
 				WarningLevel="3"
@@ -197,6 +198,28 @@
 				>
 			</File>
 			<File
+				RelativePath=".\nlmSse2N099.c"
+				>
+				<FileConfiguration
+					Name="Debug|Win32"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						EnableEnhancedInstructionSet="2"
+						UsePrecompiledHeader="0"
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release|Win32"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						EnableEnhancedInstructionSet="2"
+						UsePrecompiledHeader="0"
+					/>
+				</FileConfiguration>
+			</File>
+			<File
 				RelativePath=".\PixelShader.cpp"
 				>
 			</File>
@@ -214,6 +237,10 @@
 			</File>
 			<File
 				RelativePath=".\ProcessorGpu.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\ProcessorSse2N099.cpp"
 				>
 			</File>
 			<File
@@ -284,6 +311,10 @@
 			</File>
 			<File
 				RelativePath=".\ProcessorGpu.h"
+				>
+			</File>
+			<File
+				RelativePath=".\ProcessorSse2N099.h"
 				>
 			</File>
 			<File

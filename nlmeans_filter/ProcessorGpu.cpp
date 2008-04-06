@@ -281,11 +281,6 @@ BOOL ProcessorGpu::proc(FILTER& fp, FILTER_PROC_INFO& fpip)
 	return TRUE;
 }
 
-bool ProcessorGpu::isPrepared()
-{
-	return prepared;
-}
-
 bool ProcessorGpu::prepareTexture(int width, int height)
 {
 	if (memoryTexture != NULL && textureWidth == width && textureHeight == height){

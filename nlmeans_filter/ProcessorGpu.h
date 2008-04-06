@@ -25,8 +25,9 @@ class ProcessorGpu : public Processor
 public:
 	ProcessorGpu();
 	virtual ~ProcessorGpu();
-	bool isPrepared();
 	BOOL proc(FILTER& fp, FILTER_PROC_INFO& fpip);
+	bool isPrepared() const{return prepared;}
+	BOOL wndProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam, void *editp, FILTER *fp){return FALSE;}
 private:
 	bool create();
 	bool release();

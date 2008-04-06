@@ -23,6 +23,8 @@ public:
 	ProcessorCpu();
 	virtual ~ProcessorCpu();
 	BOOL proc(FILTER& fp, FILTER_PROC_INFO& fpip);
+	bool isPrepared() const{return true;}
+	BOOL wndProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam, void *editp, FILTER *fp){return FALSE;}
 private:
 	int currentYcpFilteringCacheSize;
 	int getPixelValue(FILTER_PROC_INFO& fpip, PIXEL_YC* frames[], int x, int y, int channel, int t);

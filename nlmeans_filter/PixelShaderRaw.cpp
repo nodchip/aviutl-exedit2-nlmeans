@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "stdafx.h"
+#include <sstream>
 #include <d3dx9.h>
 #include "PixelShaderRaw.h"
 
@@ -136,15 +137,17 @@ CComPtr<IDirect3DPixelShader9> PixelShaderRaw::create(int spaceSearchRadius, int
 	CComPtr<ID3DXBuffer> errorMessage;
 
 	if (FAILED(D3DXCompileShader(PIXEL_SHADER, strlen(PIXEL_SHADER), macros, NULL, "process", "ps_3_0", D3DXSHADER_PREFER_FLOW_CONTROL, &buffer, &errorMessage, NULL))){
-		//outputLogMessage("ピクセルシェーダのコンパイルに失敗しました");
-		//outputLogMessage((char*)errorMessage->GetBufferPointer());
+		ostringstream oss;
+		oss << "ピクセルシェーダのコンパイルに失敗しました" << endl;
+		oss << (char*)errorMessage->GetBufferPointer();
+		AfxMessageBox(oss.str().c_str());
 		return FALSE;
 	}
 
 	//ピクセルシェーダの作成
 	CComPtr<IDirect3DPixelShader9> pixelShader;
 	if (FAILED(device->CreatePixelShader((DWORD*)buffer->GetBufferPointer(), &pixelShader))){
-		//outputLogMessage("ピクセルシェーダの作成に失敗しました");
+		AfxMessageBox("ピクセルシェーダの作成に失敗しました");
 		return FALSE;
 	}
 

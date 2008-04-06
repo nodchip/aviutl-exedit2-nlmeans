@@ -23,7 +23,9 @@ protected:
 	Processor(){}
 public:
 	virtual ~Processor(){}
+	virtual bool isPrepared() const = 0;
 	virtual BOOL proc(FILTER& fp, FILTER_PROC_INFO& fpip) = 0;
+	virtual BOOL wndProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam, void *editp, FILTER *fp) = 0;
 };
 
 #endif
