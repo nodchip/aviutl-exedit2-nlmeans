@@ -147,9 +147,10 @@ BOOL ProcessorGpu::proc(FILTER& fp, FILTER_PROC_INFO& fpip)
 	const int frameIndex = fp.exfunc->get_frame(fpip.editp);
 
 	//ƒLƒƒƒbƒVƒ…‚ÌÝ’è
-	if (frameCacheSize != 1){
-		fp.exfunc->set_ycp_filtering_cache_size(&fp, width, height, 1, NULL);
-		frameCacheSize = 1;
+	const int numberOfCaches = 1;
+	if (frameCacheSize != numberOfCaches){
+		fp.exfunc->set_ycp_filtering_cache_size(&fp, width, height, numberOfCaches, NULL);
+		frameCacheSize = numberOfCaches;
 	}
 
 	const int spaceSearchRadius = fp.track[0];

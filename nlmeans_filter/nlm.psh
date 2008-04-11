@@ -1,4 +1,5 @@
 static const int spaceSearchRadius = SPACE_SEARCH_RADIUS;
+static const int spaceSearchDiameter = SPACE_SEARCH_RADIUS * 2 + 1;
 static const int timeSearchRadius = TIME_SEARCH_RADIUS;
 static const int timeSearchDiameter = TIME_SEARCH_RADIUS * 2 + 1;
 static const float2 DELTA[9] = {
@@ -48,10 +49,10 @@ float4 process(float2 pos : VPOS) : COLOR0
 
 	float3 sum = 0;
 	float3 value = 0;
-	for (int dx = -spaceSearchRadius; dx <= spaceSearchRadius; ++dx) {
-		for (int dy = -spaceSearchRadius; dy <= spaceSearchRadius; ++dy) {
-			for (int dt = 0; dt <= timeSearchRadius * 2; ++dt){
-				const float2 targetPos = pos + float2(dx, dy) * textureSizeInverse;
+	for (int dx = 0; dx < spaceSearchDiameter; ++dx) {
+		for (int dy = 0; dy < spaceSearchDiameter; ++dy) {
+			for (int dt = 0; dt < timeSearchDiameter; ++dt){
+				const float2 targetPos = pos + float2(dx - spaceSearchRadius, dy - spaceSearchRadius) * textureSizeInverse;
 				
 				float3 sum2 = 0;
 				float3 targetCenter;

@@ -36,6 +36,10 @@ CComPtr<IDirect3DTexture9> InputTextureCached::get(FILTER& fp, const FILTER_PROC
 		this->width = width;
 		this->height = height;
 		this->numberOfFrames = numberOfFrames;
+
+		//前のキャッシュが残る不具合(?)対策
+		fp.exfunc->set_ycp_filtering_cache_size(&fp, width, height, 0, NULL);
+		fp.exfunc->set_ycp_filtering_cache_size(&fp, width, height, 1, NULL);
 	}
 
 	frameIndex = max(0, min(numberOfFrames - 1, frameIndex));

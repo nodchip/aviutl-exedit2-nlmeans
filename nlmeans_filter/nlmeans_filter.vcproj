@@ -123,11 +123,11 @@
 				PreprocessorDefinitions="WIN32;NDEBUG;_WINDOWS;_USRDLL;NLMEANS_FILTER_EXPORTS"
 				RuntimeLibrary="0"
 				EnableFunctionLevelLinking="true"
-				EnableEnhancedInstructionSet="0"
+				EnableEnhancedInstructionSet="2"
 				OpenMP="true"
 				UsePrecompiledHeader="2"
 				WarningLevel="3"
-				DebugInformationFormat="3"
+				DebugInformationFormat="0"
 			/>
 			<Tool
 				Name="VCManagedResourceCompilerTool"
@@ -144,7 +144,7 @@
 				AdditionalDependencies="d3d9.lib d3dx9.lib"
 				OutputFile="D:\user\aviutl\$(ProjectName).auf"
 				LinkIncremental="1"
-				GenerateDebugInformation="true"
+				GenerateDebugInformation="false"
 				SubSystem="2"
 				OptimizeReferences="2"
 				EnableCOMDATFolding="2"
@@ -205,7 +205,6 @@
 					>
 					<Tool
 						Name="VCCLCompilerTool"
-						EnableEnhancedInstructionSet="2"
 						UsePrecompiledHeader="0"
 					/>
 				</FileConfiguration>
@@ -214,7 +213,6 @@
 					>
 					<Tool
 						Name="VCCLCompilerTool"
-						EnableEnhancedInstructionSet="2"
 						UsePrecompiledHeader="0"
 					/>
 				</FileConfiguration>

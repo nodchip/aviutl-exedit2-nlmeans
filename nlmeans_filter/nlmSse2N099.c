@@ -1,5 +1,5 @@
-// Copyright 2008 N099
-// Copyright 2008 nod_chip (é·ä±ÇÃèCê≥ÇÃÇ›)
+// Copyright 2008 N099		(â∫ãLéQè∆)
+// Copyright 2008 nod_chip	(é·ä±ÇÃèCê≥ÇÃÇ›)
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
