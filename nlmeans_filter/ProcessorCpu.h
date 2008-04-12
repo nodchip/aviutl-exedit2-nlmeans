@@ -29,6 +29,9 @@ private:
 	int currentYcpFilteringCacheSize;
 	int getPixelValue(FILTER_PROC_INFO& fpip, PIXEL_YC* frames[], int x, int y, int channel, int t);
 	void setPixelValue(FILTER_PROC_INFO& fpip, int x, int y, int channel, int value);
+	int width;
+	int height;
+	int numberOfFrames;
 };
 
 #endif

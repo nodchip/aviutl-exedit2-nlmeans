@@ -56,10 +56,15 @@ BOOL ProcessorCpu::proc(FILTER& fp, FILTER_PROC_INFO& fpip)
 	const int timeSearchDiameter = timeSearchRadius * 2 + 1;
 	PIXEL_YC* frames[16];
 
-	//キャッシュサイズを指定する
-	if (currentYcpFilteringCacheSize != timeSearchDiameter){
+	if (this->width != width || this->height != height || this->numberOfFrames != numberOfFrames || currentYcpFilteringCacheSize != timeSearchDiameter){
+		this->width = width;
+		this->height = height;
+		this->numberOfFrames = numberOfFrames;
+		this->currentYcpFilteringCacheSize = timeSearchDiameter;
+
+		//前のキャッシュが残る不具合(?)対策
+		fp.exfunc->set_ycp_filtering_cache_size(&fp, width, height, 0, NULL);
 		fp.exfunc->set_ycp_filtering_cache_size(&fp, width, height, timeSearchDiameter, NULL);
-		currentYcpFilteringCacheSize = timeSearchDiameter;
 	}
 
 	//フレームを読み込む
