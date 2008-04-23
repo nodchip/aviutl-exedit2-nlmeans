@@ -173,7 +173,7 @@ void copyS3toS4(__m64 * const pOut,
 		__m64 tail = *(__m64*)(pCrntInX - sp);
 		pCrntOutXClamp = (__m64*)pCrntOutX - sp;
 		for(int x=0; x < clamp_w + 1; ++x) {
-			_mm_stream_pi(pCrntOutXClamp++,head);
+			_mm_stream_pi(pCrntOutXClamp++,tail);
 		}
 	}
 

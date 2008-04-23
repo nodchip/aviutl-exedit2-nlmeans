@@ -65,7 +65,7 @@ FILTER_DLL filter = {
 	NULL,NULL,
 	NULL,
 	NULL,
-	"NL-Meansフィルタ version 0.08 by nod_chip",
+	"NL-Meansフィルタ version 0.09 by nod_chip",
 	NULL,NULL,
 	NULL,NULL,NULL,
 	NULL,
