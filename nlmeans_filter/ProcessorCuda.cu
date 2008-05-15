@@ -1,3 +1,80 @@
+#include <windows.h>
+#include "ProcessorCuda.h"
+
+//デバイスメモリの管理クラス
+class DeviceMemory
+{
+public:
+	DeviceMemory();
+	DeviceMemory(void* pointer, int size);
+	virtual ~DeviceMemory();
+	void* get() const;
+private:
+	bool create(void* pointer, int size);
+	bool release();
+};
+
+DeviceMemory::DeviceMemory()
+{
+}
+
+DeviceMemory::DeviceMemory(void* pointer, int size)
+{
+}
+
+DeviceMemory::~DeviceMemory()
+{
+}
+
+void* DeviceMemory::get() const
+{
+	return NULL;
+}
+
+bool DeviceMemory::create(void* pointer, int size)
+{
+	return false;
+}
+
+bool DeviceMemory::release()
+{
+	return false;
+}
+
+//フィルタ本体
+ProcessorCuda::ProcessorCuda()
+{
+}
+
+ProcessorCuda::~ProcessorCuda()
+{
+}
+
+bool ProcessorCuda::create()
+{
+	return false;
+}
+
+bool ProcessorCuda::release()
+{
+	return false;
+}
+
+bool ProcessorCuda::isPrepared() const
+{
+	return false;
+}
+
+BOOL ProcessorCuda::proc(FILTER& fp, FILTER_PROC_INFO& fpip)
+{
+	return FALSE;
+}
+
+BOOL ProcessorCuda::wndProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam, void *editp, FILTER *fp)
+{
+	return FALSE;
+}
+
 /*
  * Copyright 1993-2007 NVIDIA Corporation.  All rights reserved.
  *
@@ -48,7 +125,8 @@
 #include <cutil.h>
 
 // includes, kernels
-#include <template_kernel.cu>
+//#include <template_kernel.cu>
+__global__ void testKernel(float* d_idata[],float* d_odata);
 
 ////////////////////////////////////////////////////////////////////////////////
 // declaration, forward
@@ -60,13 +138,13 @@ void computeGold( float* reference, float* idata, const unsigned int len);
 ////////////////////////////////////////////////////////////////////////////////
 // Program main
 ////////////////////////////////////////////////////////////////////////////////
-int
-main( int argc, char** argv) 
-{
-    runTest( argc, argv);
-
-    CUT_EXIT(argc, argv);
-}
+//int
+//main( int argc, char** argv) 
+//{
+//    runTest( argc, argv);
+//
+//    CUT_EXIT(argc, argv);
+//}
 
 ////////////////////////////////////////////////////////////////////////////////
 //! Run a simple test for CUDA
@@ -108,7 +186,7 @@ runTest( int argc, char** argv)
     dim3  threads( num_threads, 1, 1);
 
     // execute the kernel
-    testKernel<<< grid, threads, mem_size >>>( d_idata, d_odata);
+    testKernel<<< grid, threads, mem_size >>>( &d_idata, d_odata);
 
     // check if kernel execution generated and error
     CUT_CHECK_ERROR("Kernel execution failed");
@@ -148,4 +226,9 @@ runTest( int argc, char** argv)
     free( reference);
     CUDA_SAFE_CALL(cudaFree(d_idata));
     CUDA_SAFE_CALL(cudaFree(d_odata));
+}
+
+
+__global__ void testKernel(float* d_idata[],float* d_odata)
+{
 }
