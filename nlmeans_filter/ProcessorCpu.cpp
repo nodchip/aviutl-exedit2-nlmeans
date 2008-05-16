@@ -131,7 +131,7 @@ int ProcessorCpu::getPixelValue(FILTER_PROC_INFO& fpip, PIXEL_YC* frames[], int 
 void ProcessorCpu::setPixelValue(FILTER_PROC_INFO& fpip, int x, int y, int channel, int value)
 {
 	x = max(0, min(fpip.w - 1, x));
-	y = max(0, min(fpip.w - 1, y));
+	y = max(0, min(fpip.h - 1, y));
 	short* p = (short*)(&fpip.ycp_temp[x + y * fpip.max_w]);
 	p[channel] = (short)value;
 }

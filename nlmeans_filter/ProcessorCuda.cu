@@ -1,234 +1,453 @@
+#include <cstdio>
+#include <ctime>
+#include <list>
+#include <map>
 #include <windows.h>
 #include "ProcessorCuda.h"
 
-//デバイスメモリの管理クラス
+using namespace std;
+
+static FILE* logFile = NULL;
+static const char* cudaLogFileName = "cudaLog.txt";
+
+////////////////////////////////////////////////////////////////////////////////
+//簡易ログファイル開閉用クラス
+//本当はこんな簡易クラスを作らずにちゃんとしたロガーを使うべきなのだが、
+//そもそもCUDAがどのような動作をするのかがわからないので、
+//まぁいいや。
+////////////////////////////////////////////////////////////////////////////////
+class Log
+{
+public:
+	Log();
+	virtual ~Log();
+	void write(const char* s);
+};
+
+Log::Log()
+{
+	logFile = fopen(cudaLogFileName, "at");
+};
+
+Log::~Log()
+{
+	fclose(logFile);
+	logFile = NULL;
+};
+
+void Log::write(const char* s)
+{
+	time_t t;
+	time(&t);
+	char* timeString = ctime(&t);
+	timeString[strlen(timeString) - 1] = '\0';
+	fprintf(logFile, "%s - %s\n", timeString, s);
+	printf("%s\n", ctime(&t), s);
+}
+
+static Log LOG;
+
+////////////////////////////////////////////////////////////////////////////////
+//デバイスメモリの抽象化
+////////////////////////////////////////////////////////////////////////////////
 class DeviceMemory
 {
 public:
 	DeviceMemory();
-	DeviceMemory(void* pointer, int size);
+	DeviceMemory(void* hostMemory, int size);
 	virtual ~DeviceMemory();
 	void* get() const;
 private:
-	bool create(void* pointer, int size);
+	bool create(void* hostMemory, int size);
 	bool release();
+
+	void* deviceMemory;
+	int size;
 };
 
-DeviceMemory::DeviceMemory()
+DeviceMemory::DeviceMemory() : deviceMemory(NULL), size(0)
 {
 }
 
-DeviceMemory::DeviceMemory(void* pointer, int size)
+DeviceMemory::DeviceMemory(void* hostMemory, int size) : deviceMemory(NULL), size(0)
 {
+	create(hostMemory, size);
 }
 
 DeviceMemory::~DeviceMemory()
 {
+	release();
 }
 
 void* DeviceMemory::get() const
 {
-	return NULL;
+	return deviceMemory;
 }
 
-bool DeviceMemory::create(void* pointer, int size)
+bool DeviceMemory::create(void* hostMemory, int size)
 {
-	return false;
+	if (cudaMalloc(&deviceMemory, size) != cudaSuccess){
+		LOG.write("DeviceMemory::create() - デバイスメモリの確保に失敗しました");
+		release();
+		return false;
+	}
+
+	if (cudaMemcpy(deviceMemory, hostMemory, size, cudaMemcpyHostToDevice) != cudaSuccess){
+		LOG.write("DeviceMemory::create() - デバイスメモリへのコピーに失敗しました");
+		release();
+		return false;
+	}
+
+	this->size = size;
+
+	return true;
 }
 
 bool DeviceMemory::release()
 {
-	return false;
+	if (deviceMemory == NULL && size == 0){
+		return true;
+	}
+
+	if (cudaFree(deviceMemory) != cudaSuccess){
+		LOG.write("DeviceMemory::create() - デバイスメモリの開放に失敗しました");
+		deviceMemory = NULL;
+		size = 0;
+		return false;
+	}
+
+	deviceMemory = NULL;
+	size = 0;
+
+	return true;
 }
 
-//フィルタ本体
-ProcessorCuda::ProcessorCuda()
+////////////////////////////////////////////////////////////////////////////////
+//デバイスメモリの管理クラス
+//LRUアルゴリズム部分を分離できるが、面倒なのでこのままいく
+//なぜboost::shared_ptrが使えない？
+//生のポインタとか使いたくない
+////////////////////////////////////////////////////////////////////////////////
+class DeviceMemoryManager
 {
+public:
+	DeviceMemoryManager(int limit);
+	virtual ~DeviceMemoryManager();
+	void* get(FILTER& fp, FILTER_PROC_INFO& fpip, int frameIndex);
+	int getLimit() const;
+private:
+	DeviceMemory* createDeviceMemory(FILTER& fp, FILTER_PROC_INFO& fpip, int frameIndex);
+	int limit;
+	list<int> frameIndexOrder;
+	map<int, pair<DeviceMemory*, list<int>::iterator> > frameIndexToDeviceMemory;
+};
+
+DeviceMemoryManager::DeviceMemoryManager(int limit) : limit(limit)
+{
+}
+
+DeviceMemoryManager::~DeviceMemoryManager()
+{
+	for (map<int, pair<DeviceMemory*, list<int>::iterator> >::iterator it = frameIndexToDeviceMemory.begin(); it != frameIndexToDeviceMemory.end(); ++it){
+		delete it->second.first;
+	}
+}
+
+void* DeviceMemoryManager::get(FILTER& fp, FILTER_PROC_INFO& fpip, int frameIndex)
+{
+	const int numberOfFrames = fp.exfunc->get_frame_n(fpip.editp);
+	frameIndex = max(0, min(numberOfFrames - 1, frameIndex));
+
+	map<int, pair<DeviceMemory*, list<int>::iterator> >::iterator it;
+
+	if ((it = frameIndexToDeviceMemory.find(frameIndex)) != frameIndexToDeviceMemory.end()){
+		frameIndexOrder.erase(it->second.second);
+		frameIndexOrder.push_front(frameIndex);
+		it->second.second = frameIndexOrder.begin();
+		return it->second.first->get();
+	}
+
+	DeviceMemory* deviceMemory = createDeviceMemory(fp, fpip, frameIndex);
+
+	frameIndexOrder.push_front(frameIndex);
+	frameIndexToDeviceMemory.insert(make_pair(frameIndex, make_pair(deviceMemory, frameIndexOrder.begin())));
+
+	if (frameIndexOrder.size() > limit){
+
+		it = frameIndexToDeviceMemory.find(frameIndexOrder.back());
+		delete it->second.first;
+		frameIndexToDeviceMemory.erase(it);
+		frameIndexOrder.pop_back();
+	}
+
+	return deviceMemory->get();
+}
+
+int DeviceMemoryManager::getLimit() const
+{
+	return limit;
+}
+
+DeviceMemory* DeviceMemoryManager::createDeviceMemory(FILTER& fp, FILTER_PROC_INFO& fpip, int frameIndex)
+{
+	const int width = fpip.w;
+	const int height = fpip.h;
+	const PIXEL_YC* source = fp.exfunc->get_ycp_filtering_cache_ex(&fp, fpip.editp, frameIndex, NULL, NULL);
+	const int size = sizeof(PIXEL_YC) * width * height;
+
+	return new DeviceMemory((void*)source, size);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+//結果出力用メモリ管理クラス
+////////////////////////////////////////////////////////////////////////////////
+class ResultMemory
+{
+public:
+	ResultMemory();
+	virtual ~ResultMemory();
+	short3* get(int width, int height);
+private:
+	bool release();
+	bool resize(int width, int height);
+	int width;
+	int height;
+	short3* buffer;
+};
+
+ResultMemory::ResultMemory() : width(0), height(0), buffer(NULL)
+{
+}
+
+ResultMemory::~ResultMemory()
+{
+	release();
+}
+
+short3* ResultMemory::get(int width, int height)
+{
+	if (!resize(width, height)){
+		return NULL;
+	}
+
+	return buffer;
+}
+
+bool ResultMemory::release()
+{
+	if (buffer == NULL){
+		return true;
+	}
+
+	if (cudaFree(buffer) != cudaSuccess){
+		LOG.write("ResultMemory::release() - 結果出力用のメモリの開放に失敗しました");
+		return false;
+	}
+
+	buffer = NULL;
+	width = 0;
+	height = 0;
+
+	return true;
+}
+
+bool ResultMemory::resize(int width, int height)
+{
+	if (this->width == width && this->height == height){
+		return true;
+	}
+
+	release();
+
+	const int size = width * height * sizeof(short3);
+	cudaError error;
+	if ((error = cudaMalloc((void**)&buffer, size)) != cudaSuccess){
+		LOG.write("ResultMemory::resize() - 結果出力用のメモリの確保に失敗しました");
+		LOG.write(cudaGetErrorString(error));
+		release();
+		return false;
+	}
+
+	this->width = width;
+	this->height = height;
+
+	return true;
+}
+
+
+////////////////////////////////////////////////////////////////////////////////
+//フィルタ本体
+////////////////////////////////////////////////////////////////////////////////
+ProcessorCuda::ProcessorCuda() : prepared(false)
+{
+	create();
 }
 
 ProcessorCuda::~ProcessorCuda()
 {
+	release();
 }
 
 bool ProcessorCuda::create()
 {
-	return false;
+	LOG.write("ProcessorCuda::create() - デバイスの初期化を開始しました");
+
+	cudaError error;
+	int deviceCount;
+
+	if ((error = cudaGetDeviceCount(&deviceCount)) != cudaSuccess){
+		LOG.write("ProcessorCuda::create() - デバイス数の取得に失敗しました");
+		LOG.write(cudaGetErrorString(error));
+		release();
+		return false;
+	}
+
+	if (deviceCount == 0) {
+		LOG.write("ProcessorCuda::create() - CUDAをサポートするデバイスが見つかりません");
+		release();
+		return false;
+	}
+
+	int dev = 0;
+	cudaDeviceProp deviceProp;
+	if ((error = cudaGetDeviceProperties(&deviceProp, dev)) != cudaSuccess){
+		LOG.write("ProcessorCuda::create() - デバイスプロパティの取得に失敗しました");
+		LOG.write(cudaGetErrorString(error));
+		release();
+		return false;
+	}
+
+	if (deviceProp.major < 1){
+		LOG.write("ProcessorCuda::create() - デバイスがCUDAをサポートしていません");
+		release();
+		return false;
+	}
+
+	cudaSetDevice(dev);
+
+	char buffer[1024];
+	sprintf(buffer, "ProcessorCuda::create() - デバイス %d: %s を使用します", dev, deviceProp.name);
+	LOG.write(buffer);
+
+	prepared = true;
+	return true;
 }
 
 bool ProcessorCuda::release()
 {
-	return false;
+	prepared = false;
+
+	return true;
 }
 
 bool ProcessorCuda::isPrepared() const
 {
-	return false;
+	return prepared;
 }
+
+__global__ void kernelProccess(const short3* in[], int width, int height, int maxWidth, int maxHeight, int spaceSearchRadius, int timeSearchRadius, float h2, short3* out);
 
 BOOL ProcessorCuda::proc(FILTER& fp, FILTER_PROC_INFO& fpip)
 {
-	return FALSE;
+	if (!prepared){
+		return FALSE;
+	}
+
+	const int width = fpip.w;
+	const int height = fpip.h;
+	const int maxWidth = fpip.max_w;
+	const int maxHeight = fpip.max_h;
+	const int frameIndex = fp.exfunc->get_frame(fpip.editp);
+
+	const int spaceSearchRadius = fp.track[0];
+	const int timeSearchRadius = fp.track[1];
+	const int timeSearchDiameter = timeSearchRadius * 2 + 1;
+
+	if (deviceMemoryManager.get() == NULL || deviceMemoryManager->getLimit() != timeSearchDiameter){
+		deviceMemoryManager = auto_ptr<DeviceMemoryManager>(new DeviceMemoryManager(timeSearchDiameter));
+	}
+
+	if (resultMemory.get() == NULL){
+		resultMemory = auto_ptr<ResultMemory>(new ResultMemory());
+	}
+	short3* resultMemoryPointer = resultMemory->get(maxWidth, maxHeight);
+
+	const short3* deviceMemories[32];
+	memset(deviceMemories, 0, sizeof(deviceMemories));
+	for (int dt = -timeSearchRadius; dt <= timeSearchRadius; ++dt){
+		deviceMemories[dt + timeSearchRadius] = (const short3*)deviceMemoryManager->get(fp, fpip, frameIndex + dt);
+	}
+
+	const float H = (float)pow(10, (double)(fp.track[2]-100) / 55.0);
+	const float H2 = (float)1.0 / (H * H);
+
+	const dim3 db = make_uint3(512, 512, 1);
+	const dim3 dg = make_uint3((width - 1) / db.x + 1, (height - 1) / db.y + 1, 1);
+
+	kernelProccess<<<dg, db>>>(deviceMemories, width, height, maxWidth, maxHeight, spaceSearchRadius, timeSearchRadius, H2, resultMemoryPointer);
+
+	if (cudaMemcpy(fpip.ycp_edit, resultMemoryPointer, maxWidth * maxHeight * sizeof(short3), cudaMemcpyDeviceToHost) != cudaSuccess){
+		LOG.write("ProcessorCuda::proc() - 結果のコピーに失敗しました");
+		release();
+		return FALSE;
+	}
+
+	return TRUE;
 }
 
 BOOL ProcessorCuda::wndProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam, void *editp, FILTER *fp)
 {
-	return FALSE;
+	return DefWindowProc( hwnd, message, wparam, lparam );
 }
 
-/*
- * Copyright 1993-2007 NVIDIA Corporation.  All rights reserved.
- *
- * NOTICE TO USER:
- *
- * This source code is subject to NVIDIA ownership rights under U.S. and
- * international Copyright laws.  Users and possessors of this source code
- * are hereby granted a nonexclusive, royalty-free license to use this code
- * in individual and commercial software.
- *
- * NVIDIA MAKES NO REPRESENTATION ABOUT THE SUITABILITY OF THIS SOURCE
- * CODE FOR ANY PURPOSE.  IT IS PROVIDED "AS IS" WITHOUT EXPRESS OR
- * IMPLIED WARRANTY OF ANY KIND.  NVIDIA DISCLAIMS ALL WARRANTIES WITH
- * REGARD TO THIS SOURCE CODE, INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY, NONINFRINGEMENT, AND FITNESS FOR A PARTICULAR PURPOSE.
- * IN NO EVENT SHALL NVIDIA BE LIABLE FOR ANY SPECIAL, INDIRECT, INCIDENTAL,
- * OR CONSEQUENTIAL DAMAGES, OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS
- * OF USE, DATA OR PROFITS,  WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE
- * OR OTHER TORTIOUS ACTION,  ARISING OUT OF OR IN CONNECTION WITH THE USE
- * OR PERFORMANCE OF THIS SOURCE CODE.
- *
- * U.S. Government End Users.   This source code is a "commercial item" as
- * that term is defined at  48 C.F.R. 2.101 (OCT 1995), consisting  of
- * "commercial computer  software"  and "commercial computer software
- * documentation" as such terms are  used in 48 C.F.R. 12.212 (SEPT 1995)
- * and is provided to the U.S. Government only as a commercial end item.
- * Consistent with 48 C.F.R.12.212 and 48 C.F.R. 227.7202-1 through
- * 227.7202-4 (JUNE 1995), all U.S. Government End Users acquire the
- * source code with only those rights set forth herein.
- *
- * Any use of this source code in individual and commercial software must
- * include, in the user documentation and internal comments to the code,
- * the above Disclaimer and U.S. Government End Users Notice.
- */
-
-/* Template project which demonstrates the basics on how to setup a project 
-* example application.
-* Host code.
-*/
-
-// includes, system
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-#include <math.h>
-
-// includes, project
-#include <cutil.h>
-
-// includes, kernels
-//#include <template_kernel.cu>
-__global__ void testKernel(float* d_idata[],float* d_odata);
-
-////////////////////////////////////////////////////////////////////////////////
-// declaration, forward
-void runTest( int argc, char** argv);
-
-extern "C"
-void computeGold( float* reference, float* idata, const unsigned int len);
-
-////////////////////////////////////////////////////////////////////////////////
-// Program main
-////////////////////////////////////////////////////////////////////////////////
-//int
-//main( int argc, char** argv) 
-//{
-//    runTest( argc, argv);
-//
-//    CUT_EXIT(argc, argv);
-//}
-
-////////////////////////////////////////////////////////////////////////////////
-//! Run a simple test for CUDA
-////////////////////////////////////////////////////////////////////////////////
-void
-runTest( int argc, char** argv) 
+__global__ void kernelProccess(const short3* in[], int width, int height, int maxWidth, int maxHeight, int spaceSearchRadius, int timeSearchRadius, float h2, short3* out)
 {
+	const int sourceX = blockIdx.x * blockDim.x + threadIdx.x;
+	const int sourceY = blockIdx.y * blockDim.y + threadIdx.y;
 
-    CUT_DEVICE_INIT(argc, argv);
+	if (sourceX >= width || sourceY >= height){
+		return;
+	}
 
-    unsigned int timer = 0;
-    CUT_SAFE_CALL( cutCreateTimer( &timer));
-    CUT_SAFE_CALL( cutStartTimer( timer));
+	const int timeSearchDiameter = timeSearchRadius * 2 + 1;
 
-    unsigned int num_threads = 32;
-    unsigned int mem_size = sizeof( float) * num_threads;
+	float3 sum = make_float3(0, 0, 0);
+	float3 value = make_float3(0, 0, 0);
+	for (int dt = 0; dt < timeSearchDiameter; ++dt){
+		for (int dx = -spaceSearchRadius; dx <= spaceSearchRadius; ++dx){
+			for (int dy = -spaceSearchRadius; dy <= spaceSearchRadius; ++dy){
+				int3 sum2 = make_int3(0, 0, 0);
+				for (int xx = -1; xx <= 1; ++xx){
+					for (int yy = -1; yy <= 1; ++yy){
+						const int x0 = max(0, min(width - 1, sourceX + xx));
+						const int y0 = max(0, min(height - 1, sourceY + yy));
+						const int x1 = max(0, min(width - 1, sourceX + dx + xx));
+						const int y1 = max(0, min(height - 1, sourceY + dy + yy));
 
-    // allocate host memory
-    float* h_idata = (float*) malloc( mem_size);
-    // initalize the memory
-    for( unsigned int i = 0; i < num_threads; ++i) 
-    {
-        h_idata[i] = (float) i;
-    }
+						const short3 source = in[timeSearchRadius][x0 + width * y0];
+						const short3 dest = in[dt][x0 + height * y0];
 
-    // allocate device memory
-    float* d_idata;
-    CUDA_SAFE_CALL( cudaMalloc( (void**) &d_idata, mem_size));
-    // copy host memory to device
-    CUDA_SAFE_CALL( cudaMemcpy( d_idata, h_idata, mem_size,
-                                cudaMemcpyHostToDevice) );
+						const int3 diff = make_int3(source.x - dest.x, source.y - dest.y, source.z - dest.z);
 
-    // allocate device memory for result
-    float* d_odata;
-    CUDA_SAFE_CALL( cudaMalloc( (void**) &d_odata, mem_size));
+						sum2.x += diff.x * diff.x;
+						sum2.y += diff.y * diff.y;
+						sum2.z += diff.z * diff.z;
+					}
+				}
 
-    // setup execution parameters
-    dim3  grid( 1, 1, 1);
-    dim3  threads( num_threads, 1, 1);
+				const float3 w = make_float3(__expf(-sum2.x * h2), __expf(-sum2.y * h2), __expf(-sum2.y * h2));
+				sum.x += w.x;
+				sum.y += w.y;
+				sum.z += w.z;
+				value.x += w.x * in[timeSearchRadius][sourceX + width * sourceY].x;
+				value.y += w.y * in[timeSearchRadius][sourceX + width * sourceY].y;
+				value.z += w.z * in[timeSearchRadius][sourceX + width * sourceY].z;
+			}
+		}
+	}
 
-    // execute the kernel
-    testKernel<<< grid, threads, mem_size >>>( &d_idata, d_odata);
-
-    // check if kernel execution generated and error
-    CUT_CHECK_ERROR("Kernel execution failed");
-
-    // allocate mem for the result on host side
-    float* h_odata = (float*) malloc( mem_size);
-    // copy result from device to host
-    CUDA_SAFE_CALL( cudaMemcpy( h_odata, d_odata, sizeof( float) * num_threads,
-                                cudaMemcpyDeviceToHost) );
-
-    CUT_SAFE_CALL( cutStopTimer( timer));
-    printf( "Processing time: %f (ms)\n", cutGetTimerValue( timer));
-    CUT_SAFE_CALL( cutDeleteTimer( timer));
-
-    // compute reference solution
-    float* reference = (float*) malloc( mem_size);
-    computeGold( reference, h_idata, num_threads);
-
-    // check result
-    if( cutCheckCmdLineFlag( argc, (const char**) argv, "regression")) 
-    {
-        // write file for regression test
-        CUT_SAFE_CALL( cutWriteFilef( "./data/regression.dat",
-                                      h_odata, num_threads, 0.0));
-    }
-    else 
-    {
-        // custom output handling when no regression test running
-        // in this case check if the result is equivalent to the expected soluion
-        CUTBoolean res = cutComparef( reference, h_odata, num_threads);
-        printf( "Test %s\n", (1 == res) ? "PASSED" : "FAILED");
-    }
-
-    // cleanup memory
-    free( h_idata);
-    free( h_odata);
-    free( reference);
-    CUDA_SAFE_CALL(cudaFree(d_idata));
-    CUDA_SAFE_CALL(cudaFree(d_odata));
-}
-
-
-__global__ void testKernel(float* d_idata[],float* d_odata)
-{
+	value.x /= sum.x;
+	value.y /= sum.y;
+	value.z /= sum.z;
+	out[sourceX + maxWidth * sourceY] = make_short3((short)value.x, (short)value.y, (short)value.y);
 }

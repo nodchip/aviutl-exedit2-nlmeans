@@ -29,6 +29,7 @@
 #include "ProcessorGpu.h"
 #include "ProcessorSse2N099.h"
 #include "ProcessorSse2Aroo.h"
+#include "ProcessorCuda.h"
 
 //---------------------------------------------------------------------
 //		ƒTƒ“ƒvƒ‹ƒCƒ“ƒ^[ƒŒ[ƒX‰ğœƒvƒ‰ƒOƒCƒ“  for AviUtl ver0.98ˆÈ~
@@ -46,9 +47,9 @@ TCHAR	*track_name[] =		{"‹óŠÔ”ÍˆÍ", "ŠÔ”ÍˆÍ", "•ªU", "CPUƒ‚[ƒh"};	//	ƒgƒ‰ƒbƒ
 int		track_default[] =	{3, 0, 50, 2};	//	ƒgƒ‰ƒbƒNƒo[‚Ì‰Šú’l
 int		track_s[] =			{1, 0, 0, 0};	//	ƒgƒ‰ƒbƒNƒo[‚Ì‰ºŒÀ’l
 int		track_e[] =			{16, 7, 100, 2};	//	ƒgƒ‰ƒbƒNƒo[‚ÌãŒÀ’l
-#define	CHECK_N	1														//	ƒ`ƒFƒbƒNƒ{ƒbƒNƒX‚Ì”
-TCHAR	*check_name[] = 	{"‰Â”\‚Èê‡‚ÍGPU‚É‚æ‚éŒvZ‚ğs‚¤"};				//	ƒ`ƒFƒbƒNƒ{ƒbƒNƒX‚Ì–¼‘O
-int		check_default[] = 	{1};				//	ƒ`ƒFƒbƒNƒ{ƒbƒNƒX‚Ì‰Šú’l (’l‚Í0‚©1)
+#define	CHECK_N	2														//	ƒ`ƒFƒbƒNƒ{ƒbƒNƒX‚Ì”
+TCHAR	*check_name[] = 	{"‰Â”\‚Èê‡‚ÍGPU‚É‚æ‚éŒvZ‚ğs‚¤", "‰Â”\‚Èê‡‚ÍCUDA‚É‚æ‚éŒvZ‚ğs‚¤(—Dæ)"};				//	ƒ`ƒFƒbƒNƒ{ƒbƒNƒX‚Ì–¼‘O
+int		check_default[] = 	{1, 0};				//	ƒ`ƒFƒbƒNƒ{ƒbƒNƒX‚Ì‰Šú’l (’l‚Í0‚©1)
 
 FILTER_DLL filter = {
 	FILTER_FLAG_EX_INFORMATION,
@@ -65,7 +66,7 @@ FILTER_DLL filter = {
 	NULL,NULL,
 	NULL,
 	NULL,
-	"NL-MeansƒtƒBƒ‹ƒ^ version 0.09 by nod_chip",
+	"NL-MeansƒtƒBƒ‹ƒ^ version 0.10 by nod_chip",
 	NULL,NULL,
 	NULL,NULL,NULL,
 	NULL,
@@ -89,15 +90,22 @@ boost::shared_ptr<ProcessorCpu> processorCpu;
 boost::shared_ptr<ProcessorGpu> processorGpu;
 boost::shared_ptr<ProcessorSse2N099> processorSse2N099;
 boost::shared_ptr<ProcessorSse2Aroo> processorSse2Aroo;
-static const int NUMBER_OF_ROUTINES = 4;
+boost::shared_ptr<ProcessorCuda> processorCuda;
+static const int NUMBER_OF_ROUTINES = 5;
 boost::shared_ptr<Processor> processors[NUMBER_OF_ROUTINES];
 boost::shared_ptr<Processor> currentProcessor;
 
 static BOOL func_proc( FILTER *fp,FILTER_PROC_INFO *fpip )
 {
 	const int useGpu = fp->check[0];
+	const int useCuda = fp->check[1];
 	int routineIndex = fp->track[3];
+
 	if (useGpu){
+		routineIndex = NUMBER_OF_ROUTINES - 2;
+	}
+
+	if (useCuda){
 		routineIndex = NUMBER_OF_ROUTINES - 1;
 	}
 
@@ -116,17 +124,20 @@ static BOOL func_init(FILTER *fp)
 	processorGpu = boost::shared_ptr<ProcessorGpu>(new ProcessorGpu());
 	processorSse2N099 = boost::shared_ptr<ProcessorSse2N099>(new ProcessorSse2N099());
 	processorSse2Aroo = boost::shared_ptr<ProcessorSse2Aroo>(new ProcessorSse2Aroo());
+	processorCuda = boost::shared_ptr<ProcessorCuda>(new ProcessorCuda());
 
 	processors[0] = processorCpu;
 	processors[1] = processorSse2N099;
 	processors[2] = processorSse2Aroo;
 	processors[3] = processorGpu;
+	processors[4] = processorCuda;
 
 	return TRUE;
 }
 
 static BOOL func_exit(FILTER *fp)
 {
+	processorCuda.reset();
 	processorSse2Aroo.reset();
 	processorSse2N099.reset();
 	processorGpu.reset();
