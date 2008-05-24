@@ -1,5 +1,5 @@
 //----------------------------------------------------------------------------------
-//	出力プラグイン ヘッダーファイル for AviUtl version 0.98 以降
+//	出力プラグイン ヘッダーファイル for AviUtl version 0.99d 以降
 //	By ＫＥＮくん
 //----------------------------------------------------------------------------------
 
@@ -48,7 +48,8 @@ typedef struct {
 	void	*(*func_get_video_ex)( int frame,DWORD format );
 							//	DIB形式の画像データを取得します。
 							//	frame	: フレーム番号
-							//	format	: 画像フォーマット( NULL = RGB24bit / 'Y''U''Y''2' = YUY2 )
+							//	format	: 画像フォーマット( NULL = RGB24bit / 'Y''U''Y''2' = YUY2 / 'Y''C''4''8' = PIXEL_YC )
+							//			  ※PIXEL_YC形式 は YUY2フィルタモードでは使用出来ません。
 							//	戻り値	: データへのポインタ
 } OUTPUT_INFO;
 #define	OUTPUT_INFO_FLAG_VIDEO	1

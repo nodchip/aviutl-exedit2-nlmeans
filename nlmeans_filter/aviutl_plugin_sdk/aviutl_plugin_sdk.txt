@@ -1,5 +1,5 @@
 -----------------------------------------------------------------------
-	AviUtl Plugin SDK  for ver0.99c  by ＫＥＮくん
+	AviUtl Plugin SDK  for ver0.99d2  by ＫＥＮくん
 -----------------------------------------------------------------------
 
 
@@ -195,5 +195,13 @@
 		[auf]外部関数にdraw_text()を追加。
 		[auf]サンプルフィルタを少し変更。
 		[auf]設定ウィンドウのサイズ指定方法を追加。
+
+2008/5/18	[aui]画像をPIXEL_YCで入力出来るようにした。
+		[auo]func_get_video_ex()でPIXEL_YCの画像データを取得できるようにした。
+		[auf]FILE_INFOにframe_nの項目を追加。
+		[auf]外部関数にavi_file_open(),avi_file_close(),avi_file_read_video(),avi_file_read_audio()を追加。
+
+2008/5/22	[auf]外部関数のrgb2yc(),yc2rgb()をMULTI_THREAD_FUNC関数内から呼べるようにした。
+		[auf]SYS_INFOにhfontの項目を追加。
 
 

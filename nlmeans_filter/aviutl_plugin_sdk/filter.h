@@ -1,5 +1,5 @@
 //----------------------------------------------------------------------------------
-//	フィルタプラグイン ヘッダーファイル for AviUtl version 0.99c 以降
+//	フィルタプラグイン ヘッダーファイル for AviUtl version 0.99d2 以降
 //	By ＫＥＮくん
 //----------------------------------------------------------------------------------
 
@@ -81,12 +81,13 @@ typedef struct {
 	int		flag;					//	ファイルのフラグ
 									//	FILE_INFO_FLAG_VIDEO	: 映像が存在する
 									//	FILE_INFO_FLAG_AUDIO	: 音声が存在する
-	LPSTR	name;					//	編集ファイル名
+	LPSTR	name;					//	ファイル名 ( avi_file_open()ではNULLになります )
 	int		w,h;					//	元のサイズ
 	int		video_rate,video_scale;	//	フレームレート
 	int		audio_rate;				//	音声サンプリングレート
 	int		audio_ch;				//	音声チャンネル数
-	int		reserve[8];				//	拡張用に予約されてます
+	int		frame_n;				//	総フレーム数
+	int		reserve[7];				//	拡張用に予約されてます
 } FILE_INFO;
 #define FILE_INFO_FLAG_VIDEO	1
 #define FILE_INFO_FLAG_AUDIO	2
@@ -109,7 +110,8 @@ typedef struct {
 	int		vram_w,vram_h;			//	編集用画像領域のサイズ
 	int		vram_yc_size;			//	編集用画像領域の画素のバイト数
 	int		vram_line_size;			//	編集用画像領域の幅のバイト数
-	int		reserve[4];				//	拡張用に予約されてます
+	HFONT	hfont;					//	フィルタ設定ウィンドウで使用しているフォントのハンドル
+	int		reserve[3];				//	拡張用に予約されてます
 } SYS_INFO;
 #define SYS_INFO_FLAG_EDIT		1
 #define SYS_INFO_FLAG_VFAPI		2
@@ -122,6 +124,9 @@ typedef void (*MULTI_THREAD_FUNC)( int thread_id,int thread_num,void *param1,voi
 								//	thread_num	: スレッド数 ( 1 ～ )
 								//	param1		: 汎用パラメータ
 								//	param2		: 汎用パラメータ
+
+//	AVI入力ファイルハンドル
+typedef void*	AVI_FILE_HANDLE;
 
 //	外部関数構造体
 typedef struct {
@@ -452,7 +457,7 @@ typedef struct {
 								//			  画像データポインタの内容はキャッシュから破棄されるまで有効
 	BOOL		(*exec_multi_thread_func)( MULTI_THREAD_FUNC func,void *param1,void *param2 );
 								//	指定した関数をシステムの設定値に応じたスレッド数で呼び出します
-								//	呼び出された関数内からWin32APIや外部関数を使用しないでください
+								//	呼び出された関数内からWin32APIや外部関数(rgb2yc,yc2rgbは除く)を使用しないでください
 								//	func	: マルチスレッドで呼び出す関数
 								//	param1 	: 呼び出す関数に渡す汎用パラメータ
 								//	param2 	: 呼び出す関数に渡す汎用パラメータ
@@ -465,7 +470,7 @@ typedef struct {
 	void		(*delete_yc)( PIXEL_YC *ycp );
 								//	create_ycで作成した領域を削除します
 	BOOL 		(*load_image)( PIXEL_YC *ycp,LPSTR file,int *w,int *h,int flag );
-								//	フレーム画像データにBMPファイルから画像を読み込みます。
+								//	フレーム画像データにBMPファイルから画像を読み込みます
 								//	ycp     : 画像を読み込むフレーム画像へのポインタ (NULLなら描画をせずにサイズを返します)
 								//	file	: 読み込むBMPファイル名
 								//	w,h		: 読み込んだ画像のサイズ (NULLを指定できます)
@@ -476,7 +481,7 @@ typedef struct {
 								//	元画像の任意の画像領域をリサイズすることも出来ます
 								//	ycp     : リサイズ後のフレーム画像を格納するポインタ
 								//	w,h     : リサイズの解像度
-								//	ycp_src	: 元画像のフレーム画像へのポインタ(NULLならycp_dstと同じ)
+								//	ycp_src	: 元画像のフレーム画像へのポインタ(NULLならycpと同じ)
 								//	sx,sy	: 元画像のリサイズ対象領域の左上の座標
 								//	sw,sh	: 元画像のリサイズ対象領域のサイズ
 	void 		(*copy_yc)( PIXEL_YC *ycp,int x,int y,PIXEL_YC *ycp_src,int sx,int sy,int sw,int sh,int tr );
@@ -499,7 +504,30 @@ typedef struct {
 								//	tr      : 透明度 (0～4096)
 								//	hfont	: 描画で使用するフォント (NULLならデフォルトのフォント)
 								//	w,h		: 描画したテキスト領域のサイズ (NULLを指定できます)
-	int			reserve[6];
+	AVI_FILE_HANDLE (*avi_file_open)( LPSTR file,FILE_INFO *fip,int flag );
+								//	AVIファイルをオープンしてavi_file_read_video(),avi_file_read_audio()で
+								//	データを読み込む為のハンドルを取得します。
+								//	※編集中のファイルとフォーマット(fpsやサンプリングレート等)が異なる場合があるので注意してください。
+								//	file    : 読み込むAVIファイル名 (入力プラグインで読み込めるファイルも指定できます)
+								//  fip		: ファイルインフォメーション構造体へのポインタ (読み込んだファイルの情報が入ります)
+								//	flag 	: NULLを指定してください
+								//  戻り値	: AVIファイルハンドル (NULLなら失敗)
+	void 		(*avi_file_close)( AVI_FILE_HANDLE afh );
+								//	AVIファイルをクローズします
+								//	afh		: AVIファイルハンドル
+	BOOL 		(*avi_file_read_video)( AVI_FILE_HANDLE afh,PIXEL_YC *ycp,int n );
+								//	フレーム画像データにAVIファイルから画像データを読み込みます
+								//	afh		: AVIファイルハンドル
+								//	ycp     : 画像データを読み込むフレーム画像へのポインタ
+								//	n		: フレーム番号
+								//  戻り値	: TRUEなら成功
+	int 		(*avi_file_read_audio)( AVI_FILE_HANDLE afh,void *buf,int n );
+								//	AVIファイルから音声データを読み込みます
+								//	afh		: AVIファイルハンドル
+								//	buf     : 音声を読み込むバッファへのポインタ
+								//	n		: フレーム番号
+								//  戻り値	: 読み込んだサンプル数
+	int			reserve[2];
 } EXFUNC;
 
 //	フィルタ構造体
@@ -568,7 +596,7 @@ typedef struct {
 								//	WM_FILTER_CHANGE_WINDOW	: フィルタウィンドウの表示/非表示が変更された直後に送られます
 								//	WM_FILTER_CHANGE_PARAM	: 自分のフィルタの設定が変更された直後に送られます
 								//	WM_FILTER_CHANGE_EDIT	: 編集中/非編集中が変更された直後に送られます
-								//	これ以降のメッセージはFILTER_FLAG_MAIN_INPUT_MESSAGE設定時のみ送られます
+								//	これ以降のメッセージはFILTER_FLAG_MAIN_MESSAGE設定時のみ送られます
 								//	WM_FILTER_MAIN_MOUSE_DOWN	: メインウィンドウでマウスのボタンが押された時に送られます
 								//	WM_FILTER_MAIN_MOUSE_UP		: メインウィンドウでマウスが移動した時に送られます
 								//	WM_FILTER_MAIN_MOUSE_MOVE	: メインウィンドウでマウスのボタンが離された時に送られます

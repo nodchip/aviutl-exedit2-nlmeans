@@ -82,7 +82,7 @@ void multi_thread_func( int thread_id,int thread_num,void *param1,void *param2 )
 //	param1		: 汎用パラメータ
 //	param2		: 汎用パラメータ
 //
-//	この関数内からWin32APIや外部関数を使用しないでください。
+//	この関数内からWin32APIや外部関数(rgb2yc,yc2rgbは除く)を使用しないでください。
 //
 	FILTER *fp				= (FILTER *)param1;
 	FILTER_PROC_INFO *fpip	= (FILTER_PROC_INFO *)param2;
