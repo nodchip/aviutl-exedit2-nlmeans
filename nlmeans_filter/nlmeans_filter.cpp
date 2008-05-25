@@ -90,7 +90,7 @@ boost::shared_ptr<ProcessorCpu> processorCpu;
 boost::shared_ptr<ProcessorGpu> processorGpu;
 boost::shared_ptr<ProcessorSse2N099> processorSse2N099;
 boost::shared_ptr<ProcessorSse2Aroo> processorSse2Aroo;
-boost::shared_ptr<ProcessorCuda> processorCuda;
+//boost::shared_ptr<ProcessorCuda> processorCuda;
 static const int NUMBER_OF_ROUTINES = 5;
 boost::shared_ptr<Processor> processors[NUMBER_OF_ROUTINES];
 boost::shared_ptr<Processor> currentProcessor;
@@ -105,9 +105,9 @@ static BOOL func_proc( FILTER *fp,FILTER_PROC_INFO *fpip )
 		routineIndex = NUMBER_OF_ROUTINES - 2;
 	}
 
-	if (useCuda){
-		routineIndex = NUMBER_OF_ROUTINES - 1;
-	}
+	//if (useCuda){
+	//	routineIndex = NUMBER_OF_ROUTINES - 1;
+	//}
 
 	if (processors[routineIndex]->isPrepared()){
 		currentProcessor = processors[routineIndex];
@@ -124,20 +124,20 @@ static BOOL func_init(FILTER *fp)
 	processorGpu = boost::shared_ptr<ProcessorGpu>(new ProcessorGpu());
 	processorSse2N099 = boost::shared_ptr<ProcessorSse2N099>(new ProcessorSse2N099());
 	processorSse2Aroo = boost::shared_ptr<ProcessorSse2Aroo>(new ProcessorSse2Aroo());
-	processorCuda = boost::shared_ptr<ProcessorCuda>(new ProcessorCuda());
+	//processorCuda = boost::shared_ptr<ProcessorCuda>(new ProcessorCuda());
 
 	processors[0] = processorCpu;
 	processors[1] = processorSse2N099;
 	processors[2] = processorSse2Aroo;
 	processors[3] = processorGpu;
-	processors[4] = processorCuda;
+	//processors[4] = processorCuda;
 
 	return TRUE;
 }
 
 static BOOL func_exit(FILTER *fp)
 {
-	processorCuda.reset();
+	//processorCuda.reset();
 	processorSse2Aroo.reset();
 	processorSse2N099.reset();
 	processorGpu.reset();

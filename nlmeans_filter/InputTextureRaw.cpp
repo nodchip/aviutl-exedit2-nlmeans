@@ -17,6 +17,11 @@
 
 using namespace std;
 
+struct TEXTURE_PIXEL
+{
+	unsigned short r, g, b, a;
+};
+
 InputTextureRaw::InputTextureRaw(const CComPtr<IDirect3DDevice9>& device)
 {
 	this->device = device;
@@ -40,19 +45,19 @@ CComPtr<IDirect3DTexture9> InputTextureRaw::get(FILTER& fp, const FILTER_PROC_IN
 	}
 
 	const PIXEL_YC* source = fp.exfunc->get_ycp_filtering_cache_ex(&fp, fpip.editp, frameIndex, NULL, NULL);
+	TEXTURE_PIXEL* dest = (TEXTURE_PIXEL*)lockedRect.pBits;
+	const int pitch = lockedRect.Pitch / sizeof(TEXTURE_PIXEL);
 
-	const char* dest = (char*)lockedRect.pBits;
-	int y;
 #pragma omp parallel for
-	for (y = 0; y < height; ++y){
+	for (int y = 0; y < height; ++y){
 		for (int x = 0; x < width; ++x){
-			unsigned short* destBeggining = (unsigned short*)&dest[x * sizeof(short) * 4 + y * lockedRect.Pitch];
 			const PIXEL_YC& sourcePixel = source[x + y * width];
+			TEXTURE_PIXEL& destPixel = dest[x + y * width];
 			//入力データが範囲を超えている場合があるので
 			//符号なし16bit整数の0x4000～0xbfffにマッピングする
-			destBeggining[0] = ((int)sourcePixel.y + 2048) << 3;
-			destBeggining[1] = (((int)sourcePixel.cb) + 4096) << 3;
-			destBeggining[2] = (((int)sourcePixel.cr) + 4096) << 3;
+			destPixel.r = (sourcePixel.y + 2048) << 3;
+			destPixel.g = (sourcePixel.cb + 4096) << 3;
+			destPixel.b = (sourcePixel.cr + 4096) << 3;
 		}
 	}
 

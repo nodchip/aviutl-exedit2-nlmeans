@@ -34,6 +34,11 @@ struct VERTEX
 	D3DXVECTOR3 pos;
 };
 
+struct TEXTURE_PIXEL
+{
+	unsigned short r, g, b, a;
+};
+
 LRESULT WINAPI ProcessorGpu::msgProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
 	return DefWindowProc( hWnd, msg, wParam, lParam );
@@ -259,16 +264,16 @@ BOOL ProcessorGpu::proc(FILTER& fp, FILTER_PROC_INFO& fpip)
 			return FALSE;
 		}
 
-		const char* source = (char*)lockedRect.pBits;
-		int y;
+		const TEXTURE_PIXEL* source = (TEXTURE_PIXEL*)lockedRect.pBits;
+		const int pitch = lockedRect.Pitch / sizeof(TEXTURE_PIXEL);
 #pragma omp parallel for
-		for (y = 0; y < height; ++y){
+		for (int y = 0; y < height; ++y){
 			for (int x = 0; x < width; ++x){
-				const unsigned short* sourceBeggining = (const unsigned short*)&source[x * 2 * 4 + y * lockedRect.Pitch];
-				short* destPixel = (short*)(&fpip.ycp_edit[x + y * fpip.max_w]);
-				destPixel[0] = (short)((((int)sourceBeggining[0]) >> 3) - 2048);
-				destPixel[1] = (short)((((int)sourceBeggining[1]) >> 3) - 4096);
-				destPixel[2] = (short)((((int)sourceBeggining[2]) >> 3) - 4096);
+				const TEXTURE_PIXEL& sourcePixel = source[x + y * pitch];
+				PIXEL_YC& destPixel = fpip.ycp_edit[y * fpip.max_w + x];
+				destPixel.y  = (sourcePixel.r >> 3) - 2048;
+				destPixel.cb = (sourcePixel.g >> 3) - 4096;
+				destPixel.cr = (sourcePixel.b >> 3) - 4096;
 			}
 		}
 
