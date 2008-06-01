@@ -19,9 +19,16 @@
 #define WINVER 0x0500
 #endif
 
+#include <afxwin.h>
+#include <afxmt.h>
+#include <atlbase.h>
+#include <atlutil.h>
+
 #include <cmath>
 #include <ctime>
 
+#include <vector>
+#include <set>
 #include <map>
 #include <utility>
 #include <algorithm>
@@ -31,9 +38,7 @@
 #include <list>
 
 #include <boost/shared_ptr.hpp>
-
-#include <afxwin.h>
-#include <atlbase.h>
+#include <boost/format.hpp>
 
 #include <d3d9.h>
 #include <d3dx9.h>

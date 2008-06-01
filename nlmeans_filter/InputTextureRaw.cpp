@@ -31,12 +31,15 @@ InputTextureRaw::~InputTextureRaw()
 {
 }
 
-CComPtr<IDirect3DTexture9> InputTextureRaw::get(FILTER& fp, const FILTER_PROC_INFO& fpip, int frameIndex, const CComPtr<IDirect3DSurface9>& memorySurface)
+CComPtr<IDirect3DTexture9> InputTextureRaw::get(FILTER& fp, const FILTER_PROC_INFO& fpip, int frameIndex, const CComPtr<IDirect3DSurface9>& memorySurface, int threadId, int numberOfThreads, int spaceSearchRadius, int timeSearchRadius)
 {
 	const int width = fpip.w;
 	const int height = fpip.h;
 	const int numberOfFrames = fp.exfunc->get_frame_n(fpip.editp);
 	frameIndex = max(0, min(numberOfFrames - 1, frameIndex));
+
+	const int yBegin = max(0, height * threadId / numberOfThreads - spaceSearchRadius - 1);
+	const int yEnd = min(height, height * (threadId + 1) / numberOfThreads + spaceSearchRadius + 1);
 
 	//フレームをメインメモリ上のテクスチャにコピーする
 	D3DLOCKED_RECT lockedRect = {0};
@@ -44,12 +47,14 @@ CComPtr<IDirect3DTexture9> InputTextureRaw::get(FILTER& fp, const FILTER_PROC_IN
 		return FALSE;
 	}
 
+	//mutex.Lock();
 	const PIXEL_YC* source = fp.exfunc->get_ycp_filtering_cache_ex(&fp, fpip.editp, frameIndex, NULL, NULL);
+	//mutex.Unlock();
 	TEXTURE_PIXEL* dest = (TEXTURE_PIXEL*)lockedRect.pBits;
 	const int pitch = lockedRect.Pitch / sizeof(TEXTURE_PIXEL);
 
 #pragma omp parallel for
-	for (int y = 0; y < height; ++y){
+	for (int y = yBegin; y < yEnd; ++y){
 		for (int x = 0; x < width; ++x){
 			const PIXEL_YC& sourcePixel = source[x + y * width];
 			TEXTURE_PIXEL& destPixel = dest[x + y * width];

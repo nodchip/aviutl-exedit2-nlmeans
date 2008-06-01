@@ -25,9 +25,10 @@ class InputTextureCached : public InputTexture
 public:
 	InputTextureCached(boost::shared_ptr<InputTexture> parent);
 	virtual ~InputTextureCached();
-	CComPtr<IDirect3DTexture9> get(FILTER& fp, const FILTER_PROC_INFO& fpip, int frameIndex, const CComPtr<IDirect3DSurface9>& memorySurface);
-	void setMaxNumberOfCache(int maxNumberOfCache);
+	CComPtr<IDirect3DTexture9> get(FILTER& fp, const FILTER_PROC_INFO& fpip, int frameIndex, const CComPtr<IDirect3DSurface9>& memorySurface, int threadId, int numberOfThreads, int spaceSearchRadius, int timeSearchRadius);
 private:
+	void setMaxNumberOfCache(int maxNumberOfCache);
+
 	boost::shared_ptr<InputTexture> parent;
 	std::map<int, CComPtr<IDirect3DTexture9> > memo;
 	std::list<int> lru;

@@ -15,6 +15,8 @@
 #ifndef PROCESSOR_GPU_H
 #define PROCESSOR_GPU_H
 
+#include <vector>
+#include <atlutil.h>
 #include "Processor.h"
 
 class PixelShader;
@@ -28,27 +30,53 @@ public:
 	BOOL proc(FILTER& fp, FILTER_PROC_INFO& fpip);
 	bool isPrepared() const{return prepared;}
 	BOOL wndProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam, void *editp, FILTER *fp){return FALSE;}
+	int getNumberOfAdapters();
 private:
 	bool create();
 	bool release();
-	bool prepareTexture(int width, int height);
+	bool prepareTexture(int threadId, int width, int height);
+	bool procBody(int threadId, int numberOfThreads);
+	static DWORD WINAPI threadProc(LPVOID lpParameter);
 
-	bool prepared;
+	struct THREAD_PARAMETER
+	{
+		ProcessorGpu* processor;
+		int threadId;
+		HANDLE handle;
+	};
+	std::vector<THREAD_PARAMETER> threadParameters;
+
+	struct GPU
+	{
+		GPU() : textureWidth(-1), textureHeight(-1){}
+		virtual ~GPU(){}
+		CComPtr<IDirect3DDevice9> device;
+		CComPtr<IDirect3DTexture9> memoryTexture;
+		CComPtr<IDirect3DSurface9> memorySurface;
+		CComPtr<ID3DXRenderToSurface> renderToSurface;
+		boost::shared_ptr<PixelShader> pixelShaderCreator;
+		boost::shared_ptr<InputTexture> inputTextureCreator;
+		int textureWidth;
+		int textureHeight;
+	};
+
+	volatile bool prepared;
 	static LRESULT WINAPI msgProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 	static const char* softwareName;
 	static const WNDCLASSEX windowClass;
 	static const D3DVERTEXELEMENT9 VERTEX_ELEMENTS[];
+
+	char titleBuffer[1024];
+
 	HWND hwnd;
 	CComPtr<IDirect3D9> direct3D;
-	CComPtr<IDirect3DDevice9> device;
-	CComPtr<IDirect3DTexture9> memoryTexture;
-	CComPtr<IDirect3DSurface9> memorySurface;
-	CComPtr<ID3DXRenderToSurface> renderToSurface;
-	int textureWidth;
-	int textureHeight;
-	boost::shared_ptr<PixelShader> pixelShaderCreator;
-	boost::shared_ptr<InputTexture> inputTextureCreator;
-	int frameCacheSize;
+	std::vector<GPU> gpus;
+
+	//ここvolatileつけないとだめだと思う・・・
+	FILTER* currentFp;
+	FILTER_PROC_INFO* currentFpip;
+
+	volatile int frameCacheSize;
 };
 
 #endif

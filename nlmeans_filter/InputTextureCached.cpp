@@ -24,11 +24,14 @@ InputTextureCached::~InputTextureCached()
 {
 }
 
-CComPtr<IDirect3DTexture9> InputTextureCached::get(FILTER& fp, const FILTER_PROC_INFO& fpip, int frameIndex, const CComPtr<IDirect3DSurface9>& memorySurface)
+CComPtr<IDirect3DTexture9> InputTextureCached::get(FILTER& fp, const FILTER_PROC_INFO& fpip, int frameIndex, const CComPtr<IDirect3DSurface9>& memorySurface, int threadId, int numberOfThreads, int spaceSearchRadius, int timeSearchRadius)
 {
 	const int width = fpip.w;
 	const int height = fpip.h;
 	const int numberOfFrames = fp.exfunc->get_frame_n(fpip.editp);
+	const int numberOfCaches = numberOfThreads * 2;
+
+	setMaxNumberOfCache(timeSearchRadius * 2 + 2);
 
 	if (this->width != width || this->height != height || this->numberOfFrames != numberOfFrames){
 		memo.clear();
@@ -38,8 +41,9 @@ CComPtr<IDirect3DTexture9> InputTextureCached::get(FILTER& fp, const FILTER_PROC
 		this->numberOfFrames = numberOfFrames;
 
 		//前のキャッシュが残る不具合(?)対策
+		//複数のスレッドから呼ばれるので別スレッドにキャッシュを消されないように多めに取ってみる
 		fp.exfunc->set_ycp_filtering_cache_size(&fp, width, height, 0, NULL);
-		fp.exfunc->set_ycp_filtering_cache_size(&fp, width, height, 1, NULL);
+		fp.exfunc->set_ycp_filtering_cache_size(&fp, width, height, numberOfCaches, NULL);
 	}
 
 	frameIndex = max(0, min(numberOfFrames - 1, frameIndex));
@@ -50,7 +54,7 @@ CComPtr<IDirect3DTexture9> InputTextureCached::get(FILTER& fp, const FILTER_PROC
 		return memo[frameIndex];
 	}
 
-	CComPtr<IDirect3DTexture9> texture = parent->get(fp, fpip, frameIndex, memorySurface);
+	CComPtr<IDirect3DTexture9> texture = parent->get(fp, fpip, frameIndex, memorySurface, threadId, numberOfThreads, spaceSearchRadius, timeSearchRadius);
 	memo[frameIndex] = texture;
 	lru.push_front(frameIndex);
 
