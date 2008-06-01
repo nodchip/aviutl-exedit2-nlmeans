@@ -104,9 +104,7 @@ const char* PixelShaderRaw::PIXEL_SHADER =
 "		}\n"
 "	}\n"
 "\n"
-"	value /= sum;\n"
-"\n"
-"	return float4(value, 0);\n"
+"	return float4(value / sum, 0);\n"
 "};\n";
 
 PixelShaderRaw::PixelShaderRaw(const CComPtr<IDirect3DDevice9>& device)

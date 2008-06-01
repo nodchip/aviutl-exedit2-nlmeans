@@ -17,6 +17,7 @@
 
 #include <vector>
 #include <atlutil.h>
+#include <boost/shared_ptr.hpp>
 #include "Processor.h"
 
 class PixelShader;
@@ -36,15 +37,19 @@ private:
 	bool release();
 	bool prepareTexture(int threadId, int width, int height);
 	bool procBody(int threadId, int numberOfThreads);
-	static DWORD WINAPI threadProc(LPVOID lpParameter);
+	static UINT threadProc(LPVOID pParam);
 
 	struct THREAD_PARAMETER
 	{
 		ProcessorGpu* processor;
 		int threadId;
-		HANDLE handle;
+		CWinThread* thread;
+		HANDLE threadHandle;
+		boost::shared_ptr<CEvent> eventWaitForNextRendering;
+		boost::shared_ptr<CEvent> eventWaitForRenderingDone;
 	};
 	std::vector<THREAD_PARAMETER> threadParameters;
+	CMutex mutex;
 
 	struct GPU
 	{

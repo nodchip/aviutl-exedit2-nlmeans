@@ -26,7 +26,7 @@
 
 using namespace std;
 
-const char* ProcessorGpu::softwareName = "NL-Means filter";
+const char* ProcessorGpu::softwareName = "NL-Meansフィルタ";
 const WNDCLASSEX ProcessorGpu::windowClass = {sizeof(WNDCLASSEX), CS_CLASSDC, msgProc, 0L, 0L, GetModuleHandle(NULL), NULL, NULL, NULL, NULL, softwareName, NULL};
 const D3DVERTEXELEMENT9 ProcessorGpu::VERTEX_ELEMENTS[] = {
 	{0,  0, D3DDECLTYPE_FLOAT3, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_POSITIONT, 0},
@@ -88,6 +88,8 @@ bool ProcessorGpu::create()
 
 	const int numberOfAdapters = direct3D->GetAdapterCount();
 
+	threadParameters.resize(numberOfAdapters);
+
 	for (int adapterIndex = 0; adapterIndex < numberOfAdapters; ++adapterIndex){
 		D3DCAPS9 caps;
 		if (FAILED(direct3D->GetDeviceCaps(adapterIndex, D3DDEVTYPE_HAL, &caps))){
@@ -129,30 +131,40 @@ bool ProcessorGpu::create()
 		gpu.device->SetSamplerState(0, D3DSAMP_MINFILTER, D3DTEXF_POINT);
 		gpu.device->SetRenderState(D3DRS_CULLMODE, D3DCULL_NONE);
 
-		prepared = true;
-
 		gpu.pixelShaderCreator = PixelShader::createInstance(gpu.device);
 		gpu.inputTextureCreator = InputTexture::createInstance(gpu.device);
 
 		gpus.push_back(gpu);
 
-		THREAD_PARAMETER threadParameter = {0};
+		THREAD_PARAMETER& threadParameter = threadParameters[adapterIndex];
 		threadParameter.processor = this;
 		threadParameter.threadId = adapterIndex;
-		threadParameters.push_back(threadParameter);
+		threadParameter.eventWaitForNextRendering = boost::shared_ptr<CEvent>(new CEvent());
+		threadParameter.eventWaitForRenderingDone = boost::shared_ptr<CEvent>(new CEvent());
+		threadParameter.thread = ::AfxBeginThread(threadProc, &threadParameter);
 	}
+
+	prepared = true;
 
 	return true;
 }
 
 bool ProcessorGpu::release()
 {
+	mutex.Lock();
 	prepared = false;
+	mutex.Unlock();
 
-	//const int numberOfAdapters = getNumberOfAdapters();
-	//for (int threadId = 0; threadId < numberOfAdapters; ++threadId){
+	const int numberOfAdapters = getNumberOfAdapters();
+	for (int threadId = 0; threadId < numberOfAdapters; ++threadId){
+		THREAD_PARAMETER& threadParameter = threadParameters[threadId];
+		threadParameter.eventWaitForNextRendering->SetEvent();
+		//::WaitForSingleObject(threadParameter.thread->m_hThread, INFINITE);
+	}
 
-	//}
+	//スレッドインスタンスが消されるまで待っている(つもり)
+	//本当はこうやっていはいけない
+	Sleep(100);
 
 	gpus.clear();
 
@@ -168,14 +180,25 @@ bool ProcessorGpu::release()
 	return true;
 }
 
-DWORD WINAPI ProcessorGpu::threadProc(LPVOID lpParameter)
+UINT ProcessorGpu::threadProc(LPVOID pParam)
 {
-	THREAD_PARAMETER* threadParameter = (THREAD_PARAMETER*)lpParameter;
-	ProcessorGpu* processor = threadParameter->processor;
-	const int threadId = threadParameter->threadId;
-	const int numberOfAdapters = processor->getNumberOfAdapters();
+	THREAD_PARAMETER& threadParameter = *(THREAD_PARAMETER*)pParam;
+	ProcessorGpu& processor = *threadParameter.processor;
+	const int threadId = threadParameter.threadId;
+	const int numberOfAdapters = processor.getNumberOfAdapters();
 
-	processor->procBody(threadId, numberOfAdapters);
+
+	while (::WaitForSingleObject(threadParameter.eventWaitForNextRendering->m_hObject, INFINITE) == WAIT_OBJECT_0){
+		processor.mutex.Lock();
+		if (!processor.prepared){
+			processor.mutex.Unlock();
+			break;
+		}
+		processor.mutex.Unlock();
+
+		processor.procBody(threadId, numberOfAdapters);
+		threadParameter.eventWaitForRenderingDone->SetEvent();
+	}
 
 	return 0;
 }
@@ -183,8 +206,12 @@ DWORD WINAPI ProcessorGpu::threadProc(LPVOID lpParameter)
 BOOL ProcessorGpu::proc(FILTER& fp, FILTER_PROC_INFO& fpip)
 {
 	const int numberOfAdapters = getNumberOfAdapters();
-	{
-		sprintf(titleBuffer, "NL-Meansフィルタ(%dGPU並列動作中)", numberOfAdapters);
+	const bool useMultiGpu = fp.check[1] != 0;
+	if (useMultiGpu){
+		sprintf(titleBuffer, "NL-Meansフィルタ(%d並列動作中)", numberOfAdapters);
+		::SetWindowText(fp.hwnd, titleBuffer);
+	} else {
+		sprintf(titleBuffer, "NL-Meansフィルタ");
 		::SetWindowText(fp.hwnd, titleBuffer);
 	}
 
@@ -200,18 +227,15 @@ BOOL ProcessorGpu::proc(FILTER& fp, FILTER_PROC_INFO& fpip)
 		frameCacheSize = numberOfCaches;
 	}
 
-	const bool useMultiGpu = fp.check[1] != 0;
-
 	if (useMultiGpu){
 		for (int threadId = 0; threadId < numberOfAdapters; ++threadId){
 			THREAD_PARAMETER& threadParameter = threadParameters[threadId];
-			threadParameter.handle = CreateThread(NULL, 0, threadProc, &threadParameter, NULL, NULL);
+			threadParameter.eventWaitForNextRendering->SetEvent();
 		}
 
 		for (int threadId = 0; threadId < numberOfAdapters; ++threadId){
 			THREAD_PARAMETER& threadParameter = threadParameters[threadId];
-			WaitForSingleObject(threadParameter.handle, INFINITE);
-			threadParameter.handle = NULL;
+			::WaitForSingleObject(threadParameter.eventWaitForRenderingDone->m_hObject, INFINITE);
 		}
 
 		return TRUE;
@@ -321,6 +345,12 @@ bool ProcessorGpu::procBody(int threadId, int numberOfThreads)
 	}
 
 	//シーンのレンダリング開始
+	if (FAILED(gpu.device->Clear(0, NULL, D3DCLEAR_TARGET, 0, 0, 0))){
+		release();
+		AfxMessageBox("フレームのクリアに失敗しました");
+		return FALSE;
+	}
+
 	D3DVIEWPORT9 viewPort;
 	viewPort.X = 0;
 	viewPort.Y = 0;

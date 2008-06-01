@@ -21,7 +21,6 @@
 
 #include <afxwin.h>
 #include <afxmt.h>
-#include <atlbase.h>
 #include <atlutil.h>
 
 #include <cmath>
