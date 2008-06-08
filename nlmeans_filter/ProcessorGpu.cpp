@@ -59,7 +59,7 @@ LRESULT WINAPI ProcessorGpu::msgProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM 
 	return DefWindowProc( hWnd, msg, wParam, lParam );
 }
 
-ProcessorGpu::ProcessorGpu() : prepared(false), hwnd(NULL), frameCacheSize(-1)
+ProcessorGpu::ProcessorGpu() : prepared(false), hwnd(NULL), frameCacheSize(-1), baseFrameIndex(0), priorReadThreadStarted(false), eventPriorReadStopper(FALSE, TRUE)
 {
 	create();
 }
@@ -134,6 +134,9 @@ bool ProcessorGpu::release()
 {
 	prepared = false;
 
+	//先読みスレッドを止めるための苦肉の策
+	Sleep(100);
+
 	inputTextureCreator.reset();
 	pixelShaderCreator.reset();
 	renderToSurface = NULL;
@@ -154,6 +157,9 @@ bool ProcessorGpu::release()
 
 BOOL ProcessorGpu::proc(FILTER& fp, FILTER_PROC_INFO& fpip)
 {
+	currentFp = &fp;
+	currentFpip = &fpip;
+
 	//キャッシュの設定
 	const int width = fpip.w;
 	const int height = fpip.h;
@@ -170,12 +176,73 @@ BOOL ProcessorGpu::proc(FILTER& fp, FILTER_PROC_INFO& fpip)
 		return FALSE;
 	}
 
-	boost::shared_ptr<vector<PIXEL_YC> > output;
-	if (!createFilteredFrame(fp, fpip, fp.exfunc->get_frame(fpip.editp), output)){
+	const int currentFrameIndex = fp.exfunc->get_frame(fpip.editp);
+	boost::shared_ptr<vector<PIXEL_YC> > frame = getFilteredFrame(fp, fpip, currentFrameIndex);
+
+	if (frame->empty()){
 		return FALSE;
 	}
 
-	memcpy(fpip.ycp_edit, &*output->begin(), fpip.max_w * fpip.h * sizeof(PIXEL_YC));
+	memcpy(fpip.ycp_edit, &*frame->begin(), fpip.max_w * fpip.h * sizeof(PIXEL_YC));
+
+	return TRUE;
+}
+
+boost::shared_ptr<std::vector<PIXEL_YC> > ProcessorGpu::getFilteredFrame(FILTER& fp, FILTER_PROC_INFO& fpip, int frameIndex)
+{
+	const bool priorReadThread = fp.check[1] != 0;
+	if (priorReadThread){
+		if (!priorReadThreadStarted){
+			//先読みスレッド開始
+			priorReadThreadStarted = true;
+			AfxBeginThread(priorReadThreadProc, this);
+		}
+
+		criticalSectionCache.Lock();
+		boost::shared_ptr<FRAME_DATA> frameData = cache[frameIndex];
+		criticalSectionCache.Unlock();
+
+		baseFrameIndex = frameIndex;
+		eventPriorReadStopper.SetEvent();
+		frameData->event->Lock();
+
+		return frameData->frame;
+	} else {
+		boost::shared_ptr<vector<PIXEL_YC> > frame;
+		createFilteredFrame(fp, fpip, frameIndex, frame);
+		return frame;
+	}
+}
+
+UINT ProcessorGpu::priorReadThreadProc(LPVOID param)
+{
+	ProcessorGpu& processor = *(ProcessorGpu*)param;
+	return processor.priorRead(*processor.currentFp, *processor.currentFpip);
+}
+
+UINT ProcessorGpu::priorRead(FILTER& fp, FILTER_PROC_INFO& fpip)
+{
+	int processingFrameIndex = baseFrameIndex;
+	while (prepared && priorReadThreadStarted){
+		eventPriorReadStopper.Lock();
+
+		criticalSectionCache.Lock();
+		const int targetFrameIndex = baseFrameIndex;
+		if (!cache.count(targetFrameIndex)){
+			processingFrameIndex = baseFrameIndex;
+		}
+
+		boost::shared_ptr<FRAME_DATA> frameData = cache[processingFrameIndex];
+		criticalSectionCache.Unlock();
+
+		++processingFrameIndex;
+
+		//キャッシュの中に入っているフレームの数の最大値がpriorReadSize
+		const int priorReadSize = fp.track[4];
+		if (processingFrameIndex - baseFrameIndex >= priorReadSize){
+			eventPriorReadStopper.ResetEvent();
+		}
+	}
 
 	return TRUE;
 }

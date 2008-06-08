@@ -36,7 +36,9 @@ private:
 	bool release();
 	bool prepareTemporaryArea(FILTER_PROC_INFO& fpip);
 	BOOL createFilteredFrame(FILTER& fp, FILTER_PROC_INFO& fpip, int frameIndex, boost::shared_ptr<std::vector<PIXEL_YC> >& output);
+	boost::shared_ptr<std::vector<PIXEL_YC> > getFilteredFrame(FILTER& fp, FILTER_PROC_INFO& fpip, int frameIndex);
 
+	volatile int frameCacheSize;
 	volatile bool prepared;
 	static LRESULT WINAPI msgProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 	static const char* softwareName;
@@ -55,7 +57,24 @@ private:
 	int textureWidth;
 	int textureHeight;
 
-	volatile int frameCacheSize;
+	//êÊì«Ç›óp
+	struct FRAME_DATA
+	{
+		boost::shared_ptr<CEvent> event;
+		boost::shared_ptr<std::vector<PIXEL_YC> > frame;
+		FRAME_DATA() : event(new CEvent(FALSE, TRUE)){}
+	};
+	std::list<int> cacheOrder;
+	std::map<int, boost::shared_ptr<FRAME_DATA> > cache;
+	CCriticalSection criticalSectionCache;
+	volatile int baseFrameIndex;
+	FILTER* currentFp;
+	FILTER_PROC_INFO* currentFpip;
+	volatile bool priorReadThreadStarted;
+
+	static UINT priorReadThreadProc(LPVOID param);
+	UINT priorRead(FILTER& fp, FILTER_PROC_INFO& fpip);
+	CEvent eventPriorReadStopper;
 };
 
 #endif
