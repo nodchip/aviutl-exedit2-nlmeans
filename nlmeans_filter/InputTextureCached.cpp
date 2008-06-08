@@ -14,10 +14,9 @@
 
 #include "stdafx.h"
 #include "InputTextureCached.h"
+#include "Cache.h"
 
-int InputTextureCached::maxNumberOfCache = 0;
-
-InputTextureCached::InputTextureCached(boost::shared_ptr<InputTexture> parent) : width(-1), height(-1), numberOfFrames(-1)
+InputTextureCached::InputTextureCached(boost::shared_ptr<InputTexture> parent) : width(-1), height(-1), numberOfFrames(-1), cache(std::auto_ptr<Cache<int, CComPtr<IDirect3DTexture9> > >(new Cache<int, CComPtr<IDirect3DTexture9> >()))
 {
 	this->parent = parent;
 }
@@ -33,8 +32,7 @@ CComPtr<IDirect3DTexture9> InputTextureCached::get(FILTER& fp, const FILTER_PROC
 	const int numberOfFrames = fp.exfunc->get_frame_n(fpip.editp);
 
 	if (this->width != width || this->height != height || this->numberOfFrames != numberOfFrames){
-		memo.clear();
-		lru.clear();
+		cache->clear();
 		this->width = width;
 		this->height = height;
 		this->numberOfFrames = numberOfFrames;
@@ -46,25 +44,17 @@ CComPtr<IDirect3DTexture9> InputTextureCached::get(FILTER& fp, const FILTER_PROC
 
 	frameIndex = max(0, min(numberOfFrames - 1, frameIndex));
 
-	if (memo.count(frameIndex)){
-		lru.erase(find(lru.begin(), lru.end(), frameIndex));
-		lru.push_front(frameIndex);
-		return memo[frameIndex];
+	if (cache->contains(frameIndex)){
+		return cache->get(frameIndex);
 	}
 
 	CComPtr<IDirect3DTexture9> texture = parent->get(fp, fpip, frameIndex, hostSurface);
-	memo[frameIndex] = texture;
-	lru.push_front(frameIndex);
-
-	while ((int)memo.size() > maxNumberOfCache){
-		memo.erase(lru.back());
-		lru.pop_back();
-	}
+	cache->add(frameIndex, texture);
 
 	return texture;
 }
 
 void InputTextureCached::setMaxNumberOfCache(int maxNumberOfCache)
 {
-	InputTextureCached::maxNumberOfCache = maxNumberOfCache;
+	cache->setMaxCacheSize(maxNumberOfCache);
 }

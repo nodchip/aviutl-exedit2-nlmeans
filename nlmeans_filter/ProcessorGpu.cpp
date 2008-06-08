@@ -160,7 +160,7 @@ BOOL ProcessorGpu::proc(FILTER& fp, FILTER_PROC_INFO& fpip)
 	currentFp = &fp;
 	currentFpip = &fpip;
 
-	//キャッシュの設定
+	//AviUtlキャッシュの設定
 	const int width = fpip.w;
 	const int height = fpip.h;
 	const int numberOfCaches = 1;
@@ -175,6 +175,10 @@ BOOL ProcessorGpu::proc(FILTER& fp, FILTER_PROC_INFO& fpip)
 		AfxMessageBox("作業用テクスチャの作成に失敗しました");
 		return FALSE;
 	}
+
+	//テクスチャキャッシュの設定
+	const int timeSearchRadius = fp.track[1];
+	boost::dynamic_pointer_cast<InputTextureCached>(inputTextureCreator)->setMaxNumberOfCache(timeSearchRadius * 2 + 2);
 
 	const int currentFrameIndex = fp.exfunc->get_frame(fpip.editp);
 	boost::shared_ptr<vector<PIXEL_YC> > frame = getFilteredFrame(fp, fpip, currentFrameIndex);
