@@ -48,7 +48,7 @@ int		track_default[] =	{3, 0, 50, 2};	//	トラックバーの初期値
 int		track_s[] =			{1, 0, 0, 0};	//	トラックバーの下限値
 int		track_e[] =			{16, 7, 100, 2};	//	トラックバーの上限値
 #define	CHECK_N	2														//	チェックボックスの数
-TCHAR	*check_name[] = 	{"可能な場合はGPUを使用する", "可能な場合は複数GPUを使用する"};				//	チェックボックスの名前
+TCHAR	*check_name[] = 	{"可能な場合はGPUを使用する", "GPUモードで先読みを行う"};				//	チェックボックスの名前
 int		check_default[] = 	{1, 0};				//	チェックボックスの初期値 (値は0か1)
 
 FILTER_DLL filter = {

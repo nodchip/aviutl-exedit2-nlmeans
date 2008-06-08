@@ -15,7 +15,9 @@
 #include "stdafx.h"
 #include "InputTextureCached.h"
 
-InputTextureCached::InputTextureCached(boost::shared_ptr<InputTexture> parent) : width(-1), height(-1), numberOfFrames(-1), maxNumberOfCache(-1)
+int InputTextureCached::maxNumberOfCache = 0;
+
+InputTextureCached::InputTextureCached(boost::shared_ptr<InputTexture> parent) : width(-1), height(-1), numberOfFrames(-1)
 {
 	this->parent = parent;
 }
@@ -24,14 +26,11 @@ InputTextureCached::~InputTextureCached()
 {
 }
 
-CComPtr<IDirect3DTexture9> InputTextureCached::get(FILTER& fp, const FILTER_PROC_INFO& fpip, int frameIndex, const CComPtr<IDirect3DSurface9>& memorySurface, int threadId, int numberOfThreads, int spaceSearchRadius, int timeSearchRadius)
+CComPtr<IDirect3DTexture9> InputTextureCached::get(FILTER& fp, const FILTER_PROC_INFO& fpip, int frameIndex, const CComPtr<IDirect3DSurface9>& memorySurface)
 {
 	const int width = fpip.w;
 	const int height = fpip.h;
 	const int numberOfFrames = fp.exfunc->get_frame_n(fpip.editp);
-	const int numberOfCaches = numberOfThreads * 2;
-
-	setMaxNumberOfCache(timeSearchRadius * 2 + 2);
 
 	if (this->width != width || this->height != height || this->numberOfFrames != numberOfFrames){
 		memo.clear();
@@ -41,9 +40,8 @@ CComPtr<IDirect3DTexture9> InputTextureCached::get(FILTER& fp, const FILTER_PROC
 		this->numberOfFrames = numberOfFrames;
 
 		//前のキャッシュが残る不具合(?)対策
-		//複数のスレッドから呼ばれるので別スレッドにキャッシュを消されないように多めに取ってみる
 		fp.exfunc->set_ycp_filtering_cache_size(&fp, width, height, 0, NULL);
-		fp.exfunc->set_ycp_filtering_cache_size(&fp, width, height, numberOfCaches, NULL);
+		fp.exfunc->set_ycp_filtering_cache_size(&fp, width, height, 1, NULL);
 	}
 
 	frameIndex = max(0, min(numberOfFrames - 1, frameIndex));
@@ -54,11 +52,11 @@ CComPtr<IDirect3DTexture9> InputTextureCached::get(FILTER& fp, const FILTER_PROC
 		return memo[frameIndex];
 	}
 
-	CComPtr<IDirect3DTexture9> texture = parent->get(fp, fpip, frameIndex, memorySurface, threadId, numberOfThreads, spaceSearchRadius, timeSearchRadius);
+	CComPtr<IDirect3DTexture9> texture = parent->get(fp, fpip, frameIndex, memorySurface);
 	memo[frameIndex] = texture;
 	lru.push_front(frameIndex);
 
-	while (memo.size() > maxNumberOfCache){
+	while ((int)memo.size() > maxNumberOfCache){
 		memo.erase(lru.back());
 		lru.pop_back();
 	}
@@ -68,5 +66,5 @@ CComPtr<IDirect3DTexture9> InputTextureCached::get(FILTER& fp, const FILTER_PROC
 
 void InputTextureCached::setMaxNumberOfCache(int maxNumberOfCache)
 {
-	this->maxNumberOfCache = maxNumberOfCache;
+	InputTextureCached::maxNumberOfCache = maxNumberOfCache;
 }
