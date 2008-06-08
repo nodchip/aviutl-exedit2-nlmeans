@@ -14,10 +14,11 @@
 
 #include "stdafx.h"
 #include "PixelShaderCached.h"
+#include "Cache.h"
 
 using namespace std;
 
-PixelShaderCached::PixelShaderCached(const boost::shared_ptr<PixelShader>& parent)
+PixelShaderCached::PixelShaderCached(const boost::shared_ptr<PixelShader>& parent) : cache(new Cache<std::pair<int, int>, CComPtr<IDirect3DPixelShader9> >())
 {
 	this->parent = parent;
 }
@@ -29,11 +30,11 @@ PixelShaderCached::~PixelShaderCached()
 CComPtr<IDirect3DPixelShader9> PixelShaderCached::create(int spaceSearchRadius, int timeSearchRadius)
 {
 	const pair<int, int> key = make_pair(spaceSearchRadius, timeSearchRadius);
-	if (memo.count(key)){
-		return memo[key];
+	if (cache->contains(key)){
+		return cache->get(key);
 	}
 
 	const CComPtr<IDirect3DPixelShader9> pixelShader = parent->create(spaceSearchRadius, timeSearchRadius);
-	memo[key] = pixelShader;
+	cache->add(key, pixelShader);
 	return pixelShader;
 }

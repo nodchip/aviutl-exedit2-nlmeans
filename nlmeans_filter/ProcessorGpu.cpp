@@ -23,6 +23,7 @@
 #include "PixelShader.h"
 #include "InputTexture.h"
 #include "InputTextureCached.h"
+#include "Cache.h"
 
 using namespace std;
 
@@ -180,6 +181,10 @@ BOOL ProcessorGpu::proc(FILTER& fp, FILTER_PROC_INFO& fpip)
 	const int timeSearchRadius = fp.track[1];
 	boost::dynamic_pointer_cast<InputTextureCached>(inputTextureCreator)->setMaxNumberOfCache(timeSearchRadius * 2 + 2);
 
+	//ˆ—Œ‹‰ÊƒLƒƒƒbƒVƒ…‚ÌÝ’è
+	const int priorReadSize = fp.track[4];
+	cache->setMaxCacheSize(priorReadSize);
+
 	const int currentFrameIndex = fp.exfunc->get_frame(fpip.editp);
 	boost::shared_ptr<vector<PIXEL_YC> > frame = getFilteredFrame(fp, fpip, currentFrameIndex);
 
@@ -203,7 +208,7 @@ boost::shared_ptr<std::vector<PIXEL_YC> > ProcessorGpu::getFilteredFrame(FILTER&
 		}
 
 		criticalSectionCache.Lock();
-		boost::shared_ptr<FRAME_DATA> frameData = cache[frameIndex];
+		boost::shared_ptr<FRAME_DATA> frameData = cache->get(frameIndex);
 		criticalSectionCache.Unlock();
 
 		baseFrameIndex = frameIndex;
@@ -232,11 +237,11 @@ UINT ProcessorGpu::priorRead(FILTER& fp, FILTER_PROC_INFO& fpip)
 
 		criticalSectionCache.Lock();
 		const int targetFrameIndex = baseFrameIndex;
-		if (!cache.count(targetFrameIndex)){
+		if (!cache->contains(targetFrameIndex)){
 			processingFrameIndex = baseFrameIndex;
 		}
 
-		boost::shared_ptr<FRAME_DATA> frameData = cache[processingFrameIndex];
+		boost::shared_ptr<FRAME_DATA> frameData = cache->get(processingFrameIndex);
 		criticalSectionCache.Unlock();
 
 		++processingFrameIndex;

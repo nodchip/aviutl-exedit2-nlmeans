@@ -10,7 +10,7 @@ class Cache
 public:
 	Cache() : maxCacheSize(INT_MAX) {}
 	virtual ~Cache(){}
-	VALUE_TYPE& get(KEY_TYPE& key)
+	VALUE_TYPE& get(const KEY_TYPE& key)
 	{
 		if (cache.count(key)){
 			return cache[key];
@@ -27,7 +27,7 @@ public:
 		return result;
 
 	}
-	void add(KEY_TYPE& key, VALUE_TYPE& value)
+	void add(const KEY_TYPE& key, const VALUE_TYPE& value)
 	{
 		if (cache.count(key)){
 			cache[key] = value;
@@ -42,7 +42,7 @@ public:
 			order.pop_back();
 		}
 	}
-	bool contains(KEY_TYPE& key) const
+	bool contains(const KEY_TYPE& key) const
 	{
 		return cache.count(key) != 0;
 

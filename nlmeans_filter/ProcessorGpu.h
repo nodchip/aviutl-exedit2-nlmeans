@@ -23,6 +23,8 @@
 class PixelShader;
 class InputTexture;
 
+template<class KEY_TYPE, class VALUE_TYPE> class Cache;
+
 class ProcessorGpu : public Processor
 {
 public:
@@ -64,10 +66,9 @@ private:
 		boost::shared_ptr<std::vector<PIXEL_YC> > frame;
 		FRAME_DATA() : event(new CEvent(FALSE, TRUE)){}
 	};
-	std::list<int> cacheOrder;
-	std::map<int, boost::shared_ptr<FRAME_DATA> > cache;
+	std::auto_ptr<Cache<int, boost::shared_ptr<FRAME_DATA> > > cache;
 	CCriticalSection criticalSectionCache;
-	volatile int baseFrameIndex;
+	volatile int baseFrameIndex;	//現在AviUtl本体がエンコード中であろうと思われる動画のフレーム番号
 	FILTER* currentFp;
 	FILTER_PROC_INFO* currentFpip;
 	volatile bool priorReadThreadStarted;

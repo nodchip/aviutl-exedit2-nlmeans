@@ -16,7 +16,7 @@
 #include "InputTextureCached.h"
 #include "Cache.h"
 
-InputTextureCached::InputTextureCached(boost::shared_ptr<InputTexture> parent) : width(-1), height(-1), numberOfFrames(-1), cache(std::auto_ptr<Cache<int, CComPtr<IDirect3DTexture9> > >(new Cache<int, CComPtr<IDirect3DTexture9> >()))
+InputTextureCached::InputTextureCached(boost::shared_ptr<InputTexture> parent) : width(-1), height(-1), numberOfFrames(-1), cache(new Cache<int, CComPtr<IDirect3DTexture9> >())
 {
 	this->parent = parent;
 }

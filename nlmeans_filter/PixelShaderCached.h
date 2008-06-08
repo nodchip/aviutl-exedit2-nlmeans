@@ -20,6 +20,9 @@
 #include <boost/shared_ptr.hpp>
 #include "PixelShader.h"
 
+template<class KEY_TYPE, class VALUE_TYPE> class Cache;
+
+
 class PixelShaderCached : public PixelShader
 {
 public:
@@ -28,7 +31,7 @@ public:
 	CComPtr<IDirect3DPixelShader9> create(int spaceSearchRadius, int timeSearchRadius);
 private:
 	boost::shared_ptr<PixelShader> parent;
-	std::map<std::pair<int, int>, CComPtr<IDirect3DPixelShader9> > memo;
+	std::auto_ptr<Cache<std::pair<int, int>, CComPtr<IDirect3DPixelShader9> > > cache;
 };
 
 #endif
