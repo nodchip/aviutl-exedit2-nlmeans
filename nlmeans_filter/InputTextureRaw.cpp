@@ -31,7 +31,7 @@ InputTextureRaw::~InputTextureRaw()
 {
 }
 
-CComPtr<IDirect3DTexture9> InputTextureRaw::get(FILTER& fp, const FILTER_PROC_INFO& fpip, int frameIndex, const CComPtr<IDirect3DSurface9>& memorySurface)
+CComPtr<IDirect3DTexture9> InputTextureRaw::get(FILTER& fp, const FILTER_PROC_INFO& fpip, int frameIndex, const CComPtr<IDirect3DSurface9>& deviceSurface)
 {
 	const int width = fpip.w;
 	const int height = fpip.h;
@@ -40,7 +40,7 @@ CComPtr<IDirect3DTexture9> InputTextureRaw::get(FILTER& fp, const FILTER_PROC_IN
 
 	//フレームをメインメモリ上のテクスチャにコピーする
 	D3DLOCKED_RECT lockedRect = {0};
-	if (FAILED(memorySurface->LockRect(&lockedRect, NULL, D3DLOCK_DISCARD))){
+	if (FAILED(deviceSurface->LockRect(&lockedRect, NULL, D3DLOCK_DISCARD))){
 		return FALSE;
 	}
 
@@ -63,7 +63,7 @@ CComPtr<IDirect3DTexture9> InputTextureRaw::get(FILTER& fp, const FILTER_PROC_IN
 		}
 	}
 
-	if (FAILED(memorySurface->UnlockRect())){
+	if (FAILED(deviceSurface->UnlockRect())){
 		return FALSE;
 	}
 
@@ -79,7 +79,7 @@ CComPtr<IDirect3DTexture9> InputTextureRaw::get(FILTER& fp, const FILTER_PROC_IN
 	}
 
 	//メモリからGPUに転送開始
-	if (FAILED(device->UpdateSurface(memorySurface, NULL, surface, NULL))){
+	if (FAILED(device->UpdateSurface(deviceSurface, NULL, surface, NULL))){
 		return NULL;
 	}
 

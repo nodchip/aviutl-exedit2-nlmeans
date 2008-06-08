@@ -26,7 +26,7 @@ InputTextureCached::~InputTextureCached()
 {
 }
 
-CComPtr<IDirect3DTexture9> InputTextureCached::get(FILTER& fp, const FILTER_PROC_INFO& fpip, int frameIndex, const CComPtr<IDirect3DSurface9>& memorySurface)
+CComPtr<IDirect3DTexture9> InputTextureCached::get(FILTER& fp, const FILTER_PROC_INFO& fpip, int frameIndex, const CComPtr<IDirect3DSurface9>& deviceSurface)
 {
 	const int width = fpip.w;
 	const int height = fpip.h;
@@ -52,7 +52,7 @@ CComPtr<IDirect3DTexture9> InputTextureCached::get(FILTER& fp, const FILTER_PROC
 		return memo[frameIndex];
 	}
 
-	CComPtr<IDirect3DTexture9> texture = parent->get(fp, fpip, frameIndex, memorySurface);
+	CComPtr<IDirect3DTexture9> texture = parent->get(fp, fpip, frameIndex, deviceSurface);
 	memo[frameIndex] = texture;
 	lru.push_front(frameIndex);
 
