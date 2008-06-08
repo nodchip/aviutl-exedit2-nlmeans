@@ -34,8 +34,8 @@ public:
 private:
 	bool create();
 	bool release();
-	bool prepareTexture(int width, int height);
-	bool procBody(FILTER& fp, FILTER_PROC_INFO& fpip);
+	bool prepareTemporaryArea(FILTER_PROC_INFO& fpip);
+	BOOL createFilteredFrame(FILTER& fp, FILTER_PROC_INFO& fpip, int frameIndex, boost::shared_ptr<std::vector<PIXEL_YC> >& output);
 
 	volatile bool prepared;
 	static LRESULT WINAPI msgProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);

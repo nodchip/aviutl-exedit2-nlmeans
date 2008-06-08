@@ -163,50 +163,27 @@ BOOL ProcessorGpu::proc(FILTER& fp, FILTER_PROC_INFO& fpip)
 		frameCacheSize = numberOfCaches;
 	}
 
-	return procBody(fp, fpip);
+	//作業用テクスチャチェック
+	if (!prepareTemporaryArea(fpip)){
+		release();
+		AfxMessageBox("作業用テクスチャの作成に失敗しました");
+		return FALSE;
+	}
+
+	boost::shared_ptr<vector<PIXEL_YC> > output;
+	if (!createFilteredFrame(fp, fpip, fp.exfunc->get_frame(fpip.editp), output)){
+		return FALSE;
+	}
+
+	memcpy(fpip.ycp_edit, &*output->begin(), fpip.max_w * fpip.h * sizeof(PIXEL_YC));
+
+	return TRUE;
 }
 
-bool ProcessorGpu::prepareTexture(int width, int height)
-{
-	if (hostTexture != NULL && textureWidth == width && textureHeight == height){
-		return true;
-	}
-	textureWidth = width;
-	textureHeight = height;
-
-	//テクスチャ解放
-	renderToSurface = NULL;
-	hostSurface = NULL;
-	hostTexture = NULL;
-
-	//テクスチャ作成
-	if (FAILED(D3DXCreateTexture(device, width, height, 1, D3DUSAGE_DYNAMIC , D3DFMT_A16B16G16R16, D3DPOOL_SYSTEMMEM, &hostTexture))){
-		release();
-		AfxMessageBox("メインメモリ上のテクスチャの作成に失敗しました");
-		return false;
-	}
-
-	if (FAILED(hostTexture->GetSurfaceLevel(0, &hostSurface))){
-		release();
-		AfxMessageBox("メインメモリ上のてくちゃサーフェスの作成に失敗しました");
-		return false;
-	}
-
-	if (FAILED(D3DXCreateRenderToSurface(device, width, height, D3DFMT_A16B16G16R16, FALSE, D3DFMT_UNKNOWN, &renderToSurface))){
-		release();
-		AfxMessageBox("テクスチャレンダリングインタフェースの作成に失敗しました");
-		return false;
-	}
-
-	return true;
-
-}
-
-bool ProcessorGpu::procBody(FILTER& fp, FILTER_PROC_INFO& fpip)
+BOOL ProcessorGpu::createFilteredFrame(FILTER& fp, FILTER_PROC_INFO& fpip, int frameIndex, boost::shared_ptr<vector<PIXEL_YC> >& output)
 {
 	const int width = fpip.w;
 	const int height = fpip.h;
-	const int frameIndex = fp.exfunc->get_frame(fpip.editp);
 
 	const int spaceSearchRadius = fp.track[0];
 	const int timeSearchRadius = fp.track[1];
@@ -223,13 +200,6 @@ bool ProcessorGpu::procBody(FILTER& fp, FILTER_PROC_INFO& fpip)
 	if (FAILED(device->SetPixelShader(pixelShader))){
 		release();
 		AfxMessageBox("ピクセルシェーダの設定に失敗しました");
-		return FALSE;
-	}
-
-	//作業用テクスチャチェック
-	if (!prepareTexture(width, height)){
-		release();
-		AfxMessageBox("作業用テクスチャの作成に失敗しました");
 		return FALSE;
 	}
 
@@ -307,6 +277,10 @@ bool ProcessorGpu::procBody(FILTER& fp, FILTER_PROC_INFO& fpip)
 		return FALSE;
 	}
 
+	//格納先領域
+	//横=fpip.max_w 縦=fpip.h
+	output = boost::shared_ptr<vector<PIXEL_YC> >(new vector<PIXEL_YC>(fpip.max_w * fpip.h));
+
 	//画像データをVRAMから取得する
 	{
 		//メモリテクスチャからaviutlに書き戻す
@@ -319,11 +293,12 @@ bool ProcessorGpu::procBody(FILTER& fp, FILTER_PROC_INFO& fpip)
 
 		const TEXTURE_PIXEL* source = (TEXTURE_PIXEL*)lockedRect.pBits;
 		const int pitch = lockedRect.Pitch / sizeof(TEXTURE_PIXEL);
+		PIXEL_YC* dest = &*output->begin();
 #pragma omp parallel for
 		for (int y = 0; y < height; ++y){
 			for (int x = 0; x < width; ++x){
 				const TEXTURE_PIXEL& sourcePixel = source[y * pitch + x];
-				PIXEL_YC& destPixel = fpip.ycp_edit[y * fpip.max_w + x];
+				PIXEL_YC& destPixel = dest[y * fpip.max_w + x];
 				destPixel.y  = (sourcePixel.r >> 3) - 2048;
 				destPixel.cb = (sourcePixel.g >> 3) - 4096;
 				destPixel.cr = (sourcePixel.b >> 3) - 4096;
@@ -335,6 +310,44 @@ bool ProcessorGpu::procBody(FILTER& fp, FILTER_PROC_INFO& fpip)
 			AfxMessageBox("描画先テクスチャのロック解除に失敗しました");
 			return FALSE;
 		}
+	}
+
+	return true;
+}
+
+bool ProcessorGpu::prepareTemporaryArea(FILTER_PROC_INFO& fpip)
+{
+	const int width = fpip.w;
+	const int height = fpip.h;
+
+	if (hostTexture && hostSurface && textureWidth == width && textureHeight == height){
+		return true;
+	}
+	textureWidth = width;
+	textureHeight = height;
+
+	//テクスチャ解放
+	renderToSurface = NULL;
+	hostSurface = NULL;
+	hostTexture = NULL;
+
+	//テクスチャ作成
+	if (FAILED(D3DXCreateTexture(device, width, height, 1, D3DUSAGE_DYNAMIC , D3DFMT_A16B16G16R16, D3DPOOL_SYSTEMMEM, &hostTexture))){
+		release();
+		AfxMessageBox("メインメモリ上のテクスチャの作成に失敗しました");
+		return false;
+	}
+
+	if (FAILED(hostTexture->GetSurfaceLevel(0, &hostSurface))){
+		release();
+		AfxMessageBox("メインメモリ上のてくちゃサーフェスの作成に失敗しました");
+		return false;
+	}
+
+	if (FAILED(D3DXCreateRenderToSurface(device, width, height, D3DFMT_A16B16G16R16, FALSE, D3DFMT_UNKNOWN, &renderToSurface))){
+		release();
+		AfxMessageBox("テクスチャレンダリングインタフェースの作成に失敗しました");
+		return false;
 	}
 
 	return true;
