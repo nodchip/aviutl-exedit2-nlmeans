@@ -137,8 +137,8 @@ bool ProcessorGpu::release()
 	inputTextureCreator.reset();
 	pixelShaderCreator.reset();
 	renderToSurface = NULL;
-	deviceSurface = NULL;
-	deviceTexture = NULL;
+	hostSurface = NULL;
+	hostTexture = NULL;
 	device = NULL;
 	direct3D = NULL;
 
@@ -168,7 +168,7 @@ BOOL ProcessorGpu::proc(FILTER& fp, FILTER_PROC_INFO& fpip)
 
 bool ProcessorGpu::prepareTexture(int width, int height)
 {
-	if (deviceTexture != NULL && textureWidth == width && textureHeight == height){
+	if (hostTexture != NULL && textureWidth == width && textureHeight == height){
 		return true;
 	}
 	textureWidth = width;
@@ -176,17 +176,17 @@ bool ProcessorGpu::prepareTexture(int width, int height)
 
 	//テクスチャ解放
 	renderToSurface = NULL;
-	deviceSurface = NULL;
-	deviceTexture = NULL;
+	hostSurface = NULL;
+	hostTexture = NULL;
 
 	//テクスチャ作成
-	if (FAILED(D3DXCreateTexture(device, width, height, 1, D3DUSAGE_DYNAMIC , D3DFMT_A16B16G16R16, D3DPOOL_SYSTEMMEM, &deviceTexture))){
+	if (FAILED(D3DXCreateTexture(device, width, height, 1, D3DUSAGE_DYNAMIC , D3DFMT_A16B16G16R16, D3DPOOL_SYSTEMMEM, &hostTexture))){
 		release();
 		AfxMessageBox("メインメモリ上のテクスチャの作成に失敗しました");
 		return false;
 	}
 
-	if (FAILED(deviceTexture->GetSurfaceLevel(0, &deviceSurface))){
+	if (FAILED(hostTexture->GetSurfaceLevel(0, &hostSurface))){
 		release();
 		AfxMessageBox("メインメモリ上のてくちゃサーフェスの作成に失敗しました");
 		return false;
@@ -245,7 +245,7 @@ bool ProcessorGpu::procBody(FILTER& fp, FILTER_PROC_INFO& fpip)
 
 	//テクスチャをセットする
 	for (int dt = -timeSearchRadius; dt <= timeSearchRadius; ++dt){
-		const CComPtr<IDirect3DTexture9> texture = inputTextureCreator->get(fp, fpip, frameIndex + dt, deviceSurface);
+		const CComPtr<IDirect3DTexture9> texture = inputTextureCreator->get(fp, fpip, frameIndex + dt, hostSurface);
 		if (texture == NULL){
 			release();
 			AfxMessageBox("フレームテクスチャの作成に失敗しました");
@@ -274,7 +274,7 @@ bool ProcessorGpu::procBody(FILTER& fp, FILTER_PROC_INFO& fpip)
 	viewPort.MinZ = 0.0f;
 	viewPort.MaxZ = 0.0;
 
-	if (FAILED(renderToSurface->BeginScene(deviceSurface, &viewPort))){
+	if (FAILED(renderToSurface->BeginScene(hostSurface, &viewPort))){
 		release();
 		AfxMessageBox("シーンの開始に失敗しました");
 		return FALSE;
@@ -311,7 +311,7 @@ bool ProcessorGpu::procBody(FILTER& fp, FILTER_PROC_INFO& fpip)
 	{
 		//メモリテクスチャからaviutlに書き戻す
 		D3DLOCKED_RECT lockedRect;
-		if (FAILED(deviceSurface->LockRect(&lockedRect, NULL, D3DLOCK_READONLY))){
+		if (FAILED(hostSurface->LockRect(&lockedRect, NULL, D3DLOCK_READONLY))){
 			release();
 			AfxMessageBox("描画先テクスチャのロックに失敗しました");
 			return FALSE;
@@ -330,7 +330,7 @@ bool ProcessorGpu::procBody(FILTER& fp, FILTER_PROC_INFO& fpip)
 			}
 		}
 
-		if (FAILED(deviceSurface->UnlockRect())){
+		if (FAILED(hostSurface->UnlockRect())){
 			release();
 			AfxMessageBox("描画先テクスチャのロック解除に失敗しました");
 			return FALSE;
