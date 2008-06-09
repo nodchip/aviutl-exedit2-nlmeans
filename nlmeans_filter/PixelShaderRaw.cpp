@@ -14,6 +14,7 @@
 
 #include "stdafx.h"
 #include <sstream>
+#include <boost/lexical_cast.hpp>
 #include <d3dx9.h>
 #include "PixelShaderRaw.h"
 
@@ -119,16 +120,14 @@ PixelShaderRaw::~PixelShaderRaw()
 CComPtr<IDirect3DPixelShader9> PixelShaderRaw::create(int spaceSearchRadius, int timeSearchRadius)
 {
 	//シェーダプログラムの中のマクロ定義
-	char spaceSearchRadiusBuffer[16];
-	char timeSearchRadiusBuffer[16];
-	sprintf(spaceSearchRadiusBuffer, "%d", spaceSearchRadius);
-	sprintf(timeSearchRadiusBuffer, "%d", timeSearchRadius);
+	const string spaceSearchRadiusString = boost::lexical_cast<string>(spaceSearchRadius);
+	const string timeSearchRadiusString = boost::lexical_cast<string>(timeSearchRadius);
 
 	D3DXMACRO macros[3] = {0};
 	macros[0].Name = "SPACE_SEARCH_RADIUS";
-	macros[0].Definition = spaceSearchRadiusBuffer;
+	macros[0].Definition = spaceSearchRadiusString.c_str();
 	macros[1].Name = "TIME_SEARCH_RADIUS";
-	macros[1].Definition = timeSearchRadiusBuffer;
+	macros[1].Definition = timeSearchRadiusString.c_str();
 
 	//コンパイル
 	CComPtr<ID3DXBuffer> buffer;

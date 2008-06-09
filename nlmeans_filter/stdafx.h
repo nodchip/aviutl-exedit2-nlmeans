@@ -38,6 +38,7 @@
 
 #include <boost/shared_ptr.hpp>
 #include <boost/format.hpp>
+#include <boost/lexical_cast.hpp>
 
 #include <d3d9.h>
 #include <d3dx9.h>

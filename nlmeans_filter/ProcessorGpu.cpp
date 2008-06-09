@@ -60,7 +60,7 @@ LRESULT WINAPI ProcessorGpu::msgProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM 
 	return DefWindowProc( hWnd, msg, wParam, lParam );
 }
 
-ProcessorGpu::ProcessorGpu() : prepared(false), hwnd(NULL), frameCacheSize(-1), baseFrameIndex(0), priorReadThreadStarted(false), eventPriorReadStopper(FALSE, TRUE)
+ProcessorGpu::ProcessorGpu() : prepared(false), hwnd(NULL), frameCacheSize(-1), baseFrameIndex(0), priorReadThreadStarted(false), eventPriorReadStopper(FALSE, TRUE), cache(new Cache<int, boost::shared_ptr<FRAME_DATA> >())
 {
 	create();
 }
@@ -133,7 +133,12 @@ bool ProcessorGpu::create()
 
 bool ProcessorGpu::release()
 {
+	criticalSectionRelease.Lock();
 	prepared = false;
+
+	//先読みスレッドを終了させるために再開する
+	eventPriorReadStopper.SetEvent();
+	criticalSectionRelease.Unlock();
 
 	//先読みスレッドを止めるための苦肉の策
 	Sleep(100);
@@ -231,10 +236,10 @@ UINT ProcessorGpu::priorReadThreadProc(LPVOID param)
 
 UINT ProcessorGpu::priorRead(FILTER& fp, FILTER_PROC_INFO& fpip)
 {
+	eventPriorReadStopper.Lock();
+
 	int processingFrameIndex = baseFrameIndex;
 	while (prepared && priorReadThreadStarted){
-		eventPriorReadStopper.Lock();
-
 		criticalSectionCache.Lock();
 		const int targetFrameIndex = baseFrameIndex;
 		if (!cache->contains(targetFrameIndex)){
@@ -248,9 +253,19 @@ UINT ProcessorGpu::priorRead(FILTER& fp, FILTER_PROC_INFO& fpip)
 
 		//キャッシュの中に入っているフレームの数の最大値がpriorReadSize
 		const int priorReadSize = fp.track[4];
-		if (processingFrameIndex - baseFrameIndex >= priorReadSize){
+
+		//終了処理中にResetEvent()が呼び出されるとまずいのでクリティカルセクションとする
+		criticalSectionRelease.Lock();
+		if (processingFrameIndex - baseFrameIndex >= priorReadSize || processingFrameIndex >= fpip.frame_n){
+			//先読みスレッドを一時停止する
 			eventPriorReadStopper.ResetEvent();
 		}
+		if (!prepared || !priorReadThreadStarted){
+			eventPriorReadStopper.SetEvent();
+		}
+		criticalSectionRelease.Unlock();
+
+		eventPriorReadStopper.Lock();
 	}
 
 	return TRUE;

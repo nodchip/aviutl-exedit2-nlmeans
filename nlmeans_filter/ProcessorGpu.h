@@ -68,6 +68,7 @@ private:
 	};
 	std::auto_ptr<Cache<int, boost::shared_ptr<FRAME_DATA> > > cache;
 	CCriticalSection criticalSectionCache;
+	CCriticalSection criticalSectionRelease;
 	volatile int baseFrameIndex;	//現在AviUtl本体がエンコード中であろうと思われる動画のフレーム番号
 	FILTER* currentFp;
 	FILTER_PROC_INFO* currentFpip;
