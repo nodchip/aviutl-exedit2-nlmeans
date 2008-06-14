@@ -60,7 +60,7 @@ LRESULT WINAPI ProcessorGpu::msgProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM 
 	return DefWindowProc( hWnd, msg, wParam, lParam );
 }
 
-ProcessorGpu::ProcessorGpu() : prepared(false), hwnd(NULL), frameCacheSize(-1), baseFrameIndex(0), priorReadThreadStarted(false), eventPriorReadStopper(FALSE, TRUE), cache(new Cache<int, boost::shared_ptr<FRAME_DATA> >())
+ProcessorGpu::ProcessorGpu() : prepared(false), hwnd(NULL), frameCacheSize(-1)
 {
 	create();
 }
@@ -133,16 +133,6 @@ bool ProcessorGpu::create()
 
 bool ProcessorGpu::release()
 {
-	criticalSectionRelease.Lock();
-	prepared = false;
-
-	//先読みスレッドを終了させるために再開する
-	eventPriorReadStopper.SetEvent();
-	criticalSectionRelease.Unlock();
-
-	//先読みスレッドを止めるための苦肉の策
-	Sleep(100);
-
 	inputTextureCreator.reset();
 	pixelShaderCreator.reset();
 	renderToSurface = NULL;
@@ -163,12 +153,10 @@ bool ProcessorGpu::release()
 
 BOOL ProcessorGpu::proc(FILTER& fp, FILTER_PROC_INFO& fpip)
 {
-	currentFp = &fp;
-	currentFpip = &fpip;
-
 	//AviUtlキャッシュの設定
 	const int width = fpip.w;
 	const int height = fpip.h;
+	const int frameIndex = fpip.frame;
 	const int numberOfCaches = 1;
 	if (frameCacheSize != numberOfCaches){
 		fp.exfunc->set_ycp_filtering_cache_size(&fp, width, height, numberOfCaches, NULL);
@@ -184,100 +172,8 @@ BOOL ProcessorGpu::proc(FILTER& fp, FILTER_PROC_INFO& fpip)
 
 	//テクスチャキャッシュの設定
 	const int timeSearchRadius = fp.track[1];
-	boost::dynamic_pointer_cast<InputTextureCached>(inputTextureCreator)->setMaxNumberOfCache(timeSearchRadius * 2 + 2);
-
-	//処理結果キャッシュの設定
-	const int priorReadSize = fp.track[4];
-	cache->setMaxCacheSize(priorReadSize);
-
-	const int currentFrameIndex = fp.exfunc->get_frame(fpip.editp);
-	boost::shared_ptr<vector<PIXEL_YC> > frame = getFilteredFrame(fp, fpip, currentFrameIndex);
-
-	if (frame->empty()){
-		return FALSE;
-	}
-
-	memcpy(fpip.ycp_edit, &*frame->begin(), fpip.max_w * fpip.h * sizeof(PIXEL_YC));
-
-	return TRUE;
-}
-
-boost::shared_ptr<std::vector<PIXEL_YC> > ProcessorGpu::getFilteredFrame(FILTER& fp, FILTER_PROC_INFO& fpip, int frameIndex)
-{
-	const bool priorReadThread = fp.check[1] != 0;
-	if (priorReadThread){
-		if (!priorReadThreadStarted){
-			//先読みスレッド開始
-			priorReadThreadStarted = true;
-			AfxBeginThread(priorReadThreadProc, this);
-		}
-
-		criticalSectionCache.Lock();
-		boost::shared_ptr<FRAME_DATA> frameData = cache->get(frameIndex);
-		criticalSectionCache.Unlock();
-
-		baseFrameIndex = frameIndex;
-		eventPriorReadStopper.SetEvent();
-		frameData->event->Lock();
-
-		return frameData->frame;
-	} else {
-		boost::shared_ptr<vector<PIXEL_YC> > frame;
-		createFilteredFrame(fp, fpip, frameIndex, frame);
-		return frame;
-	}
-}
-
-UINT ProcessorGpu::priorReadThreadProc(LPVOID param)
-{
-	ProcessorGpu& processor = *(ProcessorGpu*)param;
-	return processor.priorRead(*processor.currentFp, *processor.currentFpip);
-}
-
-UINT ProcessorGpu::priorRead(FILTER& fp, FILTER_PROC_INFO& fpip)
-{
-	eventPriorReadStopper.Lock();
-
-	int processingFrameIndex = baseFrameIndex;
-	while (prepared && priorReadThreadStarted){
-		criticalSectionCache.Lock();
-		const int targetFrameIndex = baseFrameIndex;
-		if (!cache->contains(targetFrameIndex)){
-			processingFrameIndex = baseFrameIndex;
-		}
-
-		boost::shared_ptr<FRAME_DATA> frameData = cache->get(processingFrameIndex);
-		criticalSectionCache.Unlock();
-
-		++processingFrameIndex;
-
-		//キャッシュの中に入っているフレームの数の最大値がpriorReadSize
-		const int priorReadSize = fp.track[4];
-
-		//終了処理中にResetEvent()が呼び出されるとまずいのでクリティカルセクションとする
-		criticalSectionRelease.Lock();
-		if (processingFrameIndex - baseFrameIndex >= priorReadSize || processingFrameIndex >= fpip.frame_n){
-			//先読みスレッドを一時停止する
-			eventPriorReadStopper.ResetEvent();
-		}
-		if (!prepared || !priorReadThreadStarted){
-			eventPriorReadStopper.SetEvent();
-		}
-		criticalSectionRelease.Unlock();
-
-		eventPriorReadStopper.Lock();
-	}
-
-	return TRUE;
-}
-
-BOOL ProcessorGpu::createFilteredFrame(FILTER& fp, FILTER_PROC_INFO& fpip, int frameIndex, boost::shared_ptr<vector<PIXEL_YC> >& output)
-{
-	const int width = fpip.w;
-	const int height = fpip.h;
-
 	const int spaceSearchRadius = fp.track[0];
-	const int timeSearchRadius = fp.track[1];
+	boost::dynamic_pointer_cast<InputTextureCached>(inputTextureCreator)->setMaxNumberOfCache(timeSearchRadius * 2 + 2);
 
 	//ピクセルシェーダ作成
 	const CComPtr<IDirect3DPixelShader9> pixelShader = pixelShaderCreator->create(spaceSearchRadius, timeSearchRadius);
@@ -368,10 +264,6 @@ BOOL ProcessorGpu::createFilteredFrame(FILTER& fp, FILTER_PROC_INFO& fpip, int f
 		return FALSE;
 	}
 
-	//格納先領域
-	//横=fpip.max_w 縦=fpip.h
-	output = boost::shared_ptr<vector<PIXEL_YC> >(new vector<PIXEL_YC>(fpip.max_w * fpip.h));
-
 	//画像データをVRAMから取得する
 	{
 		//メモリテクスチャからaviutlに書き戻す
@@ -384,7 +276,7 @@ BOOL ProcessorGpu::createFilteredFrame(FILTER& fp, FILTER_PROC_INFO& fpip, int f
 
 		const TEXTURE_PIXEL* source = (TEXTURE_PIXEL*)lockedRect.pBits;
 		const int pitch = lockedRect.Pitch / sizeof(TEXTURE_PIXEL);
-		PIXEL_YC* dest = &*output->begin();
+		PIXEL_YC* dest = fpip.ycp_edit;
 #pragma omp parallel for
 		for (int y = 0; y < height; ++y){
 			for (int x = 0; x < width; ++x){
@@ -403,7 +295,7 @@ BOOL ProcessorGpu::createFilteredFrame(FILTER& fp, FILTER_PROC_INFO& fpip, int f
 		}
 	}
 
-	return true;
+	return TRUE;
 }
 
 bool ProcessorGpu::prepareTemporaryArea(FILTER_PROC_INFO& fpip)

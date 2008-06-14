@@ -37,8 +37,6 @@ private:
 	bool create();
 	bool release();
 	bool prepareTemporaryArea(FILTER_PROC_INFO& fpip);
-	BOOL createFilteredFrame(FILTER& fp, FILTER_PROC_INFO& fpip, int frameIndex, boost::shared_ptr<std::vector<PIXEL_YC> >& output);
-	boost::shared_ptr<std::vector<PIXEL_YC> > getFilteredFrame(FILTER& fp, FILTER_PROC_INFO& fpip, int frameIndex);
 
 	volatile int frameCacheSize;
 	volatile bool prepared;
@@ -58,25 +56,6 @@ private:
 	boost::shared_ptr<InputTexture> inputTextureCreator;
 	int textureWidth;
 	int textureHeight;
-
-	//先読み用
-	struct FRAME_DATA
-	{
-		boost::shared_ptr<CEvent> event;
-		boost::shared_ptr<std::vector<PIXEL_YC> > frame;
-		FRAME_DATA() : event(new CEvent(FALSE, TRUE)){}
-	};
-	std::auto_ptr<Cache<int, boost::shared_ptr<FRAME_DATA> > > cache;
-	CCriticalSection criticalSectionCache;
-	CCriticalSection criticalSectionRelease;
-	volatile int baseFrameIndex;	//現在AviUtl本体がエンコード中であろうと思われる動画のフレーム番号
-	FILTER* currentFp;
-	FILTER_PROC_INFO* currentFpip;
-	volatile bool priorReadThreadStarted;
-
-	static UINT priorReadThreadProc(LPVOID param);
-	UINT priorRead(FILTER& fp, FILTER_PROC_INFO& fpip);
-	CEvent eventPriorReadStopper;
 };
 
 #endif
