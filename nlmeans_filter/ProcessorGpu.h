@@ -51,7 +51,9 @@ private:
 	CComPtr<IDirect3DDevice9> device;
 	CComPtr<IDirect3DTexture9> hostTexture;
 	CComPtr<IDirect3DSurface9> hostSurface;
-	CComPtr<ID3DXRenderToSurface> renderToSurface;
+	CComPtr<IDirect3DTexture9> deviceTexture;
+	CComPtr<IDirect3DSurface9> deviceSurface;
+	//CComPtr<ID3DXRenderToSurface> renderToSurface;
 	boost::shared_ptr<PixelShader> pixelShaderCreator;
 	boost::shared_ptr<InputTexture> inputTextureCreator;
 	int textureWidth;

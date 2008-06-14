@@ -135,7 +135,8 @@ bool ProcessorGpu::release()
 {
 	inputTextureCreator.reset();
 	pixelShaderCreator.reset();
-	renderToSurface = NULL;
+	deviceSurface = NULL;
+	deviceTexture = NULL;
 	hostSurface = NULL;
 	hostTexture = NULL;
 	device = NULL;
@@ -216,22 +217,13 @@ BOOL ProcessorGpu::proc(FILTER& fp, FILTER_PROC_INFO& fpip)
 		}
 	}
 
-	//シーンのレンダリング開始
-	if (FAILED(device->Clear(0, NULL, D3DCLEAR_TARGET, 0, 0, 0))){
+	if (FAILED(device->SetRenderTarget(0, deviceSurface))){
 		release();
-		AfxMessageBox("フレームのクリアに失敗しました");
+		AfxMessageBox("レンダリングターゲットの設定に失敗しました");
 		return FALSE;
 	}
 
-	D3DVIEWPORT9 viewPort;
-	viewPort.X = 0;
-	viewPort.Y = 0;
-	viewPort.Width = width;
-	viewPort.Height = height;
-	viewPort.MinZ = 0.0f;
-	viewPort.MaxZ = 0.0;
-
-	if (FAILED(renderToSurface->BeginScene(hostSurface, &viewPort))){
+	if (FAILED(device->BeginScene())){
 		release();
 		AfxMessageBox("シーンの開始に失敗しました");
 		return FALSE;
@@ -258,7 +250,7 @@ BOOL ProcessorGpu::proc(FILTER& fp, FILTER_PROC_INFO& fpip)
 		return FALSE;
 	}
 
-	if (FAILED(renderToSurface->EndScene(D3DX_FILTER_NONE))){
+	if (FAILED(device->EndScene())){
 		release();
 		AfxMessageBox("描画の終了に失敗しました");
 		return FALSE;
@@ -266,6 +258,13 @@ BOOL ProcessorGpu::proc(FILTER& fp, FILTER_PROC_INFO& fpip)
 
 	//画像データをVRAMから取得する
 	{
+		//デバイスメモリからホストメモリに転送する
+		if (FAILED(device->GetRenderTargetData(deviceSurface, hostSurface))){
+			release();
+			AfxMessageBox("レンダリングターゲットからのデータの取得に失敗しました");
+			return FALSE;
+		}
+
 		//メモリテクスチャからaviutlに書き戻す
 		D3DLOCKED_RECT lockedRect;
 		if (FAILED(hostSurface->LockRect(&lockedRect, NULL, D3DLOCK_READONLY))){
@@ -310,7 +309,8 @@ bool ProcessorGpu::prepareTemporaryArea(FILTER_PROC_INFO& fpip)
 	textureHeight = height;
 
 	//テクスチャ解放
-	renderToSurface = NULL;
+	deviceSurface = NULL;
+	deviceTexture = NULL;
 	hostSurface = NULL;
 	hostTexture = NULL;
 
@@ -323,13 +323,19 @@ bool ProcessorGpu::prepareTemporaryArea(FILTER_PROC_INFO& fpip)
 
 	if (FAILED(hostTexture->GetSurfaceLevel(0, &hostSurface))){
 		release();
-		AfxMessageBox("メインメモリ上のてくちゃサーフェスの作成に失敗しました");
+		AfxMessageBox("メインメモリ上のテクスチャサーフェスの作成に失敗しました");
 		return false;
 	}
 
-	if (FAILED(D3DXCreateRenderToSurface(device, width, height, D3DFMT_A16B16G16R16, FALSE, D3DFMT_UNKNOWN, &renderToSurface))){
+	if (FAILED(D3DXCreateTexture(device, width, height, 1, D3DUSAGE_RENDERTARGET, D3DFMT_A16B16G16R16, D3DPOOL_DEFAULT, &deviceTexture))){
 		release();
-		AfxMessageBox("テクスチャレンダリングインタフェースの作成に失敗しました");
+		AfxMessageBox("メインメモリ上のテクスチャの作成に失敗しました");
+		return false;
+	}
+
+	if (FAILED(deviceTexture->GetSurfaceLevel(0, &deviceSurface))){
+		release();
+		AfxMessageBox("メインメモリ上のテクスチャサーフェスの作成に失敗しました");
 		return false;
 	}
 
