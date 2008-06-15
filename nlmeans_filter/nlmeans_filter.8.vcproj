@@ -210,7 +210,6 @@
 				StringPooling="true"
 				RuntimeLibrary="0"
 				EnableEnhancedInstructionSet="2"
-				OpenMP="true"
 				UsePrecompiledHeader="2"
 				WarningLevel="3"
 			/>
@@ -229,6 +228,7 @@
 				AdditionalDependencies="d3d9.lib d3dx9.lib"
 				OutputFile="C:\user\aviutl\$(ProjectName).auf"
 				LinkIncremental="1"
+				IgnoreDefaultLibraryNames=""
 				SubSystem="2"
 				OptimizeReferences="2"
 				EnableCOMDATFolding="2"

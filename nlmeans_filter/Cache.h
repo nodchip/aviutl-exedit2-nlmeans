@@ -27,6 +27,8 @@ public:
 	VALUE_TYPE& get(const KEY_TYPE& key)
 	{
 		if (cache.count(key)){
+			order.erase(find(order.begin(), order.end(), key));
+			order.push_front(key);
 			return cache[key];
 		}
 
