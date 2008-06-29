@@ -72,6 +72,10 @@ public:
 	{
 		this->maxCacheSize = maxCacheSize;
 	}
+	VALUE_TYPE& lastValue(const KEY_TYPE& key)
+	{
+		cache[order.back()];
+	}
 private:
 	int maxCacheSize;
 	std::map<KEY_TYPE, VALUE_TYPE> cache;
