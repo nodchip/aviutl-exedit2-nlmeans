@@ -133,6 +133,7 @@ __constant__ int constantSpaceSearchRadius;
 __constant__ int constantTimeSearchRadius;
 __constant__ int constantCurrentFrameCacheIndex;
 __constant__ float constantH2;
+texture<short, 1, cudaReadModeElementType> texRef;
 
 BOOL ProcessorCuda::proc(FILTER& fp, FILTER_PROC_INFO& fpip)
 {
@@ -206,7 +207,7 @@ BOOL ProcessorCuda::proc(FILTER& fp, FILTER_PROC_INFO& fpip)
 	//const float H = (float)pow(10, (double)(fp.track[2]-100) / 55.0);
 	//const float H2 = (float)1.0 / (H * H);
 
-	const dim3 db = make_uint3(8, 8, 1);
+	const dim3 db = make_uint3(11, 11, 1);
 	const dim3 dg = make_uint3((width - 1) / db.x + 1, (height - 1) / db.y + 1, 1);
 
 	cudaMemcpyToSymbol("constantWidth", &width, sizeof(constantWidth));
@@ -306,6 +307,12 @@ bool ProcessorCuda::prepareDeviceSource(int width, int height, int cacheSize)
 		return false;
 	}
 
+	if ((error = cudaBindTexture(0, texRef, deviceSource, mallocSize)) != cudaSuccess){
+		LOG.write("ProcessorCuda::prepareDeviceSource() - 入力用デバイスメモリのバインドに失敗しました");
+		LOG.write(cudaGetErrorString(error));
+		return false;
+	}
+
 	return true;
 }
 
@@ -362,55 +369,78 @@ __device__ short3 kernelGetPixel(int x, int y, int frameIndex, const short3* in)
 {
 	x = max(0, min(constantWidth - 1, x));
 	y = max(0, min(constantHeight - 1, y));
-	return in[x + y * constantWidth + frameIndex * constantWidth * constantHeight];
+	return in[(frameIndex * constantHeight + y) * constantWidth + x];
+	//const int offset = ((frameIndex * constantHeight + y) * constantWidth + x) * 3;
+	//const short r = tex1Dfetch(texRef, offset + 0);
+	//const short g = tex1Dfetch(texRef, offset + 1);
+	//const short b = tex1Dfetch(texRef, offset + 2);
+	//return make_short3(r, g, b);
 }
 
 __global__ void kernelProccess(short3* in, short3* out)
 {
-	const int sourceX = blockIdx.x * blockDim.x + threadIdx.x;
-	const int sourceY = blockIdx.y * blockDim.y + threadIdx.y;
-
-	if (sourceX >= constantWidth || sourceY >= constantHeight){
-		return;
-	}
+	const int spaceRadius = constantSpaceSearchRadius;
+	const int offsetX = blockIdx.x * blockDim.x;
+	const int offsetY = blockIdx.y * blockDim.y;
+	const int sourceX = offsetX + threadIdx.x;
+	const int sourceY = offsetY + threadIdx.y;
 
 	const int timeSearchDiameter = constantTimeSearchRadius * 2 + 1;
 
+	__shared__ short3 sharedPixel[32][32];
+	short3 pixel[3][3];
+	for (int x = 0; x < 3; ++x){
+		for (int y = 0; y < 3; ++y){
+			pixel[x][y] = kernelGetPixel(sourceX + x - 1, sourceY + y - 1, constantCurrentFrameCacheIndex, in);
+		}
+	}
+	
 	float3 sum = make_float3(0, 0, 0);
 	float3 value = make_float3(0, 0, 0);
 	for (int dt = 0; dt < timeSearchDiameter; ++dt){
-		for (int dx = -constantSpaceSearchRadius; dx <= constantSpaceSearchRadius; ++dx){
-			for (int dy = -constantSpaceSearchRadius; dy <= constantSpaceSearchRadius; ++dy){
-				int3 sum2 = make_int3(0, 0, 0);
-				for (int xx = -1; xx <= 1; ++xx){
-					for (int yy = -1; yy <= 1; ++yy){
-						const int x0 = max(0, min(constantWidth - 1, sourceX + xx));
-						const int y0 = max(0, min(constantHeight - 1, sourceY + yy));
-						const int x1 = max(0, min(constantWidth - 1, sourceX + dx + xx));
-						const int y1 = max(0, min(constantHeight - 1, sourceY + dy + yy));
 
-						const short3 source = kernelGetPixel(x0, y0, constantCurrentFrameCacheIndex, in);
-						const short3 dest = kernelGetPixel(x1, y1, dt, in);
-
-						const int3 diff = make_int3(source.x - dest.x, source.y - dest.y, source.z - dest.z);
-
-						sum2.x += diff.x * diff.x;
-						sum2.y += diff.y * diff.y;
-						sum2.z += diff.z * diff.z;
-					}
-				}
-
-				const float3 w = make_float3(__expf(-sum2.x * constantH2), __expf(-sum2.y * constantH2), __expf(-sum2.z * constantH2));
-				sum.x += w.x;
-				sum.y += w.y;
-				sum.z += w.z;
-
-				const short3 destPixel = kernelGetPixel(sourceX + dx, sourceY + dy, dt, in);
-				value.x += w.x * destPixel.x;
-				value.y += w.y * destPixel.y;
-				value.z += w.z * destPixel.z;
+		//フレームデータをシェアードメモリに乗せる
+		for (int sx = threadIdx.x; sx < blockDim.x + spaceRadius * 2 + 2; sx += blockDim.x){
+			for (int sy = threadIdx.y; sy < blockDim.y + spaceRadius * 2 + 2; sy += blockDim.y){
+				sharedPixel[sx][sy] = kernelGetPixel(offsetX + sx - spaceRadius - 1, offsetY + sy - spaceRadius - 1, dt, in);
 			}
 		}
+
+		__syncthreads();
+
+		if (sourceX < constantWidth || sourceY < constantHeight){
+			for (int dx = -spaceRadius; dx <= spaceRadius; ++dx){
+				for (int dy = -spaceRadius; dy <= spaceRadius; ++dy){
+					float3 sum2 = make_float3(0, 0, 0);
+					for (int xx = -1; xx <= 1; ++xx){
+						for (int yy = -1; yy <= 1; ++yy){
+							const short3 source = pixel[xx + 1][yy + 1];
+							const short3 dest = sharedPixel[dx + spaceRadius + xx + 1 + threadIdx.x][dy + spaceRadius + yy + 1 + threadIdx.y];
+
+							float3 diff = make_float3((float)source.x - dest.x, (float)source.y - dest.y, (float)source.z - dest.z);
+							diff.x *= diff.x;
+							diff.y *= diff.y;
+							diff.z *= diff.z;
+							sum2.x += diff.x;
+							sum2.y += diff.y;
+							sum2.z += diff.z;
+						}
+					}
+
+					const float3 w = make_float3(__expf(-sum2.x * constantH2), __expf(-sum2.y * constantH2), __expf(-sum2.z * constantH2));
+					sum.x += w.x;
+					sum.y += w.y;
+					sum.z += w.z;
+
+					const short3 destPixel = sharedPixel[dx + spaceRadius + threadIdx.x + 1][dy + spaceRadius + threadIdx.y + 1];
+					value.x += w.x * destPixel.x;
+					value.y += w.y * destPixel.y;
+					value.z += w.z * destPixel.z;
+				}
+			}
+		}
+
+		__syncthreads();
 	}
 
 	value.x /= sum.x;

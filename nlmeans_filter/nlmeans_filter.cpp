@@ -29,7 +29,7 @@
 #include "ProcessorGpu.h"
 #include "ProcessorSse2N099.h"
 #include "ProcessorSse2Aroo.h"
-#include "ProcessorCuda.h"
+//#include "ProcessorCuda.h"
 
 //---------------------------------------------------------------------
 //		サンプルインターレース解除プラグイン  for AviUtl ver0.98以降
@@ -44,9 +44,9 @@ using namespace std;
 //---------------------------------------------------------------------
 #define	TRACK_N	4						//	トラックバーの数
 TCHAR	*track_name[] =		{"空間範囲", "時間範囲", "分散", "計算モード"};	//	トラックバーの名前
-int		track_default[] =	{3, 0, 50, 4};	//	トラックバーの初期値
+int		track_default[] =	{3, 0, 50, 3};	//	トラックバーの初期値
 int		track_s[] =			{1, 0, 0, 0};	//	トラックバーの下限値
-int		track_e[] =			{16, 7, 100, 4};	//	トラックバーの上限値
+int		track_e[] =			{16, 7, 100, 3};	//	トラックバーの上限値
 #define	CHECK_N	0														//	チェックボックスの数
 TCHAR	*check_name[] = 	{"ダミー"};				//	チェックボックスの名前
 int		check_default[] = 	{0};				//	チェックボックスの初期値 (値は0か1)
@@ -90,8 +90,8 @@ boost::shared_ptr<ProcessorCpu> processorCpu;
 boost::shared_ptr<ProcessorGpu> processorGpu;
 boost::shared_ptr<ProcessorSse2N099> processorSse2N099;
 boost::shared_ptr<ProcessorSse2Aroo> processorSse2Aroo;
-boost::shared_ptr<ProcessorCuda> processorCuda;
-static const int NUMBER_OF_ROUTINES = 5;
+//boost::shared_ptr<ProcessorCuda> processorCuda;
+static const int NUMBER_OF_ROUTINES = 4;
 boost::shared_ptr<Processor> processors[NUMBER_OF_ROUTINES];
 boost::shared_ptr<Processor> currentProcessor;
 
@@ -113,13 +113,13 @@ static BOOL func_init(FILTER *fp)
 	processorGpu = boost::shared_ptr<ProcessorGpu>(new ProcessorGpu());
 	processorSse2N099 = boost::shared_ptr<ProcessorSse2N099>(new ProcessorSse2N099());
 	processorSse2Aroo = boost::shared_ptr<ProcessorSse2Aroo>(new ProcessorSse2Aroo());
-	processorCuda = boost::shared_ptr<ProcessorCuda>(new ProcessorCuda());
+	//processorCuda = boost::shared_ptr<ProcessorCuda>(new ProcessorCuda());
 
 	processors[0] = processorCpu;
 	processors[1] = processorSse2N099;
 	processors[2] = processorSse2Aroo;
 	processors[3] = processorGpu;
-	processors[4] = processorCuda;
+	//processors[4] = processorCuda;
 
 	return TRUE;
 }
