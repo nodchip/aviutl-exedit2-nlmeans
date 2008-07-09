@@ -329,13 +329,13 @@ bool ProcessorGpu::prepareTemporaryArea(FILTER_PROC_INFO& fpip)
 
 	if (FAILED(D3DXCreateTexture(device, width, height, 1, D3DUSAGE_RENDERTARGET, D3DFMT_A16B16G16R16, D3DPOOL_DEFAULT, &deviceTexture))){
 		release();
-		AfxMessageBox("メインメモリ上のテクスチャの作成に失敗しました");
+		AfxMessageBox("ビデオメモリ上のテクスチャの作成に失敗しました");
 		return false;
 	}
 
 	if (FAILED(deviceTexture->GetSurfaceLevel(0, &deviceSurface))){
 		release();
-		AfxMessageBox("メインメモリ上のテクスチャサーフェスの作成に失敗しました");
+		AfxMessageBox("ビデオメモリ上のテクスチャサーフェスの作成に失敗しました");
 		return false;
 	}
 
