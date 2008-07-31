@@ -17,6 +17,15 @@ sampler2D textureSampler[timeSearchDiameter];
 float2 textureSizeInverse;
 float H2;
 
+float3 rgbToXyz(float3 rgb)
+{
+	return float3(
+		0.412453 * rgb.r + 0.35758 * rgb.g + 0.180423 * rgb.b,
+		0.212671 * rgb.r + 0.71516 * rgb.g + 0.072169 * rgb.b,
+		
+	
+}
+
 float3 process(float2 pos : VPOS) : COLOR0
 {
 	//あらかじめ摂動を入れてサンプルポイントが画素の中央を指すようにする
