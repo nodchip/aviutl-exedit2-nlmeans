@@ -1,5 +1,6 @@
 // Copyright 2008 nod_chip
 // Copyright 2008 Aroo		(Vectorization with SSE2)
+// Copyright 2008 61◆s3BkVamfwY
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -325,7 +326,7 @@ BOOL ProcessorSse2Aroo::proc(FILTER& fp, FILTER_PROC_INFO& fpip)
 	const int clamp_w = searchRadius+neighborhoodRadius;
 	const int pitch = mem.pitch;
 
-	const int currentFrame = fp.exfunc->get_frame(fpip.editp);
+	const int currentFrame = fpip.frame;
 	const int numberOfFrames = fp.exfunc->get_frame_n(fpip.editp);
 
 	//キャッシュサイズを指定する
