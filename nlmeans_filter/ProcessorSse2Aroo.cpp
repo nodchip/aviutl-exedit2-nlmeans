@@ -364,9 +364,9 @@ BOOL ProcessorSse2Aroo::proc(FILTER& fp, FILTER_PROC_INFO& fpip)
 			__m128 vvalue = _mm_setzero_ps();
 			for(int dy = -searchRadius; dy <= searchRadius; ++dy) {
 				for(int dx = -searchRadius; dx <= searchRadius; ++dx) {
-					__m128i usum2 = _mm_setzero_si128();
-					__m128i vsum2 = _mm_setzero_si128();
 					for (int dt = -timeSearchRadius; dt <= timeSearchRadius; ++dt){
+						__m128i usum2 = _mm_setzero_si128();
+						__m128i vsum2 = _mm_setzero_si128();
 						const __m64 *mp = p[timeSearchRadius];
 						const __m64 *np = p[timeSearchRadius + dt];
 						for(int dy2 = -neighborhoodRadius; dy2 <= neighborhoodRadius; ++dy2) {
