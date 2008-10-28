@@ -1,5 +1,5 @@
 // Copyright 2008 N099		(下記参照)
-// Copyright 2008 nod_chip	(若干の修正のみ)
+// Copyright 2008 nodchip	(若干の修正のみ)
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@
 // limitations under the License.
 
 //------------------------------------------------------------------------
-// nod_chip氏によるNL-MeansフィルタをSSE2で実装した（つもり）のフィルタ
+// nodchip氏によるNL-MeansフィルタをSSE2で実装した（つもり）のフィルタ
 //  （オリジナルは http://kishibe.dyndns.tv/ で公開されています）
 //
 //  NL-Meansフィルタのv0.04あたりを参考に実装してあります。

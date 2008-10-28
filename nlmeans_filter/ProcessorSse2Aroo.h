@@ -1,4 +1,4 @@
-// Copyright 2008 nod_chip
+// Copyright 2008 nodchip
 // Copyright 2008 Aroo		(Vectorization with SSE2)
 //
 // Licensed under the Apache License, Version 2.0 (the "License");

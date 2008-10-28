@@ -1,4 +1,4 @@
-// Copyright 2008 nod_chip
+// Copyright 2008 nodchip
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -66,7 +66,7 @@ FILTER_DLL filter = {
 	NULL,NULL,
 	NULL,
 	NULL,
-	"NL-Meansフィルタ version 0.12 by nod_chip",
+	"NL-Meansフィルタ version 0.13 by nodchip",
 	NULL,NULL,
 	NULL,NULL,NULL,
 	NULL,

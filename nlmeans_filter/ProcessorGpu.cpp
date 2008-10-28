@@ -1,4 +1,4 @@
-// Copyright 2008 nod_chip
+// Copyright 2008 nodchip
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -340,4 +340,14 @@ bool ProcessorGpu::prepareTemporaryArea(FILTER_PROC_INFO& fpip)
 	}
 
 	return true;
+}
+
+BOOL ProcessorGpu::wndProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam, void *editp, FILTER *fp)
+{
+	if (message == WM_FILTER_UPDATE){
+		//NL-Meansフィルタより前に設定されているプラグインの出力をフラッシュする
+		inputTextureCreator = InputTexture::createInstance(device);
+	}
+
+	return FALSE;
 }

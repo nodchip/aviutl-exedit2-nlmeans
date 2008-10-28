@@ -1,4 +1,4 @@
-// Copyright 2008 nod_chip
+// Copyright 2008 nodchip
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -32,7 +32,7 @@ public:
 	virtual ~ProcessorGpu();
 	BOOL proc(FILTER& fp, FILTER_PROC_INFO& fpip);
 	bool isPrepared() const{return prepared;}
-	BOOL wndProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam, void *editp, FILTER *fp){return FALSE;}
+	BOOL wndProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam, void *editp, FILTER *fp);
 private:
 	bool create();
 	bool release();
