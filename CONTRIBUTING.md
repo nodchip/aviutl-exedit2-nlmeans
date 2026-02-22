@@ -39,12 +39,18 @@ cmd.exe /c $cmd
 - `GpuAdapterSelectionTests.cpp`
 - `ExecutionPolicyTests.cpp`
 - `GpuFallbackPolicyTests.cpp`
+- `ModeIdsGoogleTest.cpp`（GoogleTest 導入サンプル）
 
 ## コーディング規約
 
 - 文字コードは UTF-8（BOM なし）を使用します。
 - コメントは日本語で記述します。
 - コミットメッセージは日本語で記述します。
+
+## テストフレームワーク
+
+- GoogleTest を `third_party/googletest` に同梱しています。
+- GoogleTest テストは `gtest-all.cc` と `gtest_main.cc` を同時にコンパイルして実行してください。
 
 ## Pull Request
 

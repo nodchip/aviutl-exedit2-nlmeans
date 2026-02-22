@@ -116,3 +116,17 @@ jobs:
         run: >
           cl /nologo /utf-8 /EHsc /I nlmeans_filter nlmeans_filter\tests\GpuRunnerDispatchTests.cpp /Fe:GpuRunnerDispatchTests.exe
           && GpuRunnerDispatchTests.exe
+
+      - name: Run GoogleTest Mode IDs Test
+        shell: cmd
+        run: >
+          cl /nologo /utf-8 /EHsc
+          /std:c++17
+          /I third_party\googletest\googletest\include
+          /I third_party\googletest\googletest
+          /I nlmeans_filter
+          third_party\googletest\googletest\src\gtest-all.cc
+          third_party\googletest\googletest\src\gtest_main.cc
+          nlmeans_filter\tests\ModeIdsGoogleTest.cpp
+          /Fe:ModeIdsGoogleTest.exe
+          && ModeIdsGoogleTest.exe
