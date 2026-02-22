@@ -56,3 +56,9 @@ jobs:
         run: >
           cl /nologo /utf-8 /EHsc /I nlmeans_filter nlmeans_filter\tests\BackendSelectionTests.cpp /Fe:BackendSelectionTests.exe
           && BackendSelectionTests.exe
+
+      - name: Run GPU Adapter Selection Test
+        shell: cmd
+        run: >
+          cl /nologo /utf-8 /EHsc /I nlmeans_filter nlmeans_filter\tests\GpuAdapterSelectionTests.cpp /Fe:GpuAdapterSelectionTests.exe
+          && GpuAdapterSelectionTests.exe

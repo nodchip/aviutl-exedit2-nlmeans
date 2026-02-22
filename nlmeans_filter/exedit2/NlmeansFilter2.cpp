@@ -38,6 +38,7 @@
 #if __has_include("../aviutl2_sdk/filter2.h")
 #include "Exedit2GpuRunner.h"
 #include "BackendSelection.h"
+#include "GpuAdapterSelection.h"
 #include "../DxgiAdapterUtil.h"
 
 namespace {
@@ -83,38 +84,22 @@ bool is_avx2_available()
 // 少なくとも 1 つのハードウェア GPU が列挙できるかを返す。
 bool has_hardware_gpu_adapter()
 {
-	// 先頭は Auto、末尾は終端nullのため 3 要素以上で実アダプタあり。
-	return g_gpu_adapter_items.size() >= 3;
+	const size_t hardware_count = g_gpu_adapter_names.size() > 0 ? (g_gpu_adapter_names.size() - 1) : 0;
+	return hardware_count > 0;
 }
 
 // UI の選択値を実アダプタ番号へ変換する。Auto は -1 を返す。
 int get_selected_gpu_adapter_ordinal()
 {
-	const int selected = item_gpu_adapter.value;
-	if (selected <= 0) {
-		return -1;
-	}
-
 	const size_t hardware_count = g_gpu_adapter_names.size() > 0 ? (g_gpu_adapter_names.size() - 1) : 0;
-	const int ordinal = selected - 1;
-	if (ordinal < 0 || static_cast<size_t>(ordinal) >= hardware_count) {
-		return -1;
-	}
-	return ordinal;
+	return resolve_gpu_adapter_ordinal(item_gpu_adapter.value, hardware_count);
 }
 
 // 選択値が現在の列挙結果で有効かを返す。
 bool is_selected_gpu_adapter_available()
 {
-	if (!has_hardware_gpu_adapter()) {
-		return false;
-	}
-	const int selected = item_gpu_adapter.value;
-	if (selected <= 0) {
-		return true;
-	}
 	const size_t hardware_count = g_gpu_adapter_names.size() > 0 ? (g_gpu_adapter_names.size() - 1) : 0;
-	return static_cast<size_t>(selected - 1) < hardware_count;
+	return is_gpu_adapter_selection_available(item_gpu_adapter.value, hardware_count);
 }
 
 // ExEdit2 の画像バッファへ CPU Naive な NLM を適用する。
