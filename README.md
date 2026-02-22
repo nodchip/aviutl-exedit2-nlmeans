@@ -3,25 +3,30 @@
 - Original site: http://kishibe.dyndns.tv/
 - License: Apache License 2.0
 
-## はじめに
+## プロジェクト状況（2026-02-22）
 
-知人から2000年代初頭に新しく考案されたノイズ除去フィルタの話を聞き、AviUtl フィルタプラグインとして実装したものです。
-GPU 並列処理と OpenMP を使ったマルチコア CPU 並列処理も実装されています。
+このリポジトリは `AviUtl NL-Means filter by nodchip` の ExEdit2 向けリメイク作業中の状態です。
+現時点では以下を実施済みです。
 
-## 動作環境（旧実装）
+- Visual Studio 2022 向けプロジェクトへ移行
+- 旧 SDK (`aviutl_plugin_sdk`) の削除
+- 旧 SSE2/CUDA 実装の削除
+- DirectX 11 Compute Shader バックエンドの導入
+- GPU の空間 + 時間方向 NL-Means（暫定実装）
 
-- CPU のみ: AviUtl の動作環境に準拠
-- GPU 使用時:
-  - DirectX 9 ランタイム
-  - NVIDIA GeForce 6 ファミリ以降、または ATI RADEON X1000 ファミリ以降
+## ビルド環境
 
-## インストール（旧実装）
+- Windows
+- Visual Studio 2022 Community
+- MSBuild 17.x
+- DirectX 11 対応 GPU / ドライバ
 
-`nlmeans_filter.auf` と `vcomp90.dll` を AviUtl と同じフォルダに配置します。
+PowerShell からのビルド例:
 
-## 使用法
-
-プラグインを有効にすると動作します。
+```powershell
+$cmd='"C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat" && "C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\MSBuild.exe" C:\home\nodchip\nlmeans\nlmeans_filter.sln /p:Configuration=Release /p:Platform=Win32'
+cmd.exe /c $cmd
+```
 
 ## オプション解説
 
@@ -37,22 +42,23 @@ GPU 並列処理と OpenMP を使ったマルチコア CPU 並列処理も実装
 
 右に行くほど平均化（ぼかし）が強くなります。45〜55程度が目安です。
 
-### 計算モード（旧実装）
+### 計算モード（現行）
 
-- `0`: nodchip リファレンス実装（低速・高精度）
-- `1`: N099 氏 SSE2 実装（高速・時間方向未対応）
-- `2`: Aroo 氏 SSE2 実装（さらに高速・時間方向対応）
-- `3`: nodchip GPU 実装（高速・Shader Model 3.0 以降が必要）
+- `0`: CPU (Naive)
+- `1`: CPU (AVX2 枠。現状は CPU Naive フォールバック)
+- `2`: GPU (DirectX 11 Compute Shader)
 
 ## 注意
 
-- CPU と GPU は分散パラメータのスケーリングが異なります。
+- 現在の GPU 実装は最適化途上です。
 - 指定モードが実行環境に合わない場合は CPU 処理へ自動フォールバックします。
-- GPU 利用時は発熱に注意してください。
+- `aviutl2_sdk` はローカル配置前提で `.gitignore` されています。
 
 ## 既知の不具合
 
-- 処理時間が遅いのは仕様です。
+- AVX2 は専用最適化が未実装です（現状フォールバック）。
+- ExEdit2 SDK への完全移植は未完了です。
+- GPU 実装の品質/速度チューニングは継続中です。
 
 ## NL-Means アルゴリズム概要
 
