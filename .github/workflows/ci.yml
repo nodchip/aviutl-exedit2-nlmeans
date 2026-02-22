@@ -27,12 +27,6 @@ jobs:
           /p:Platform=Win32
           /m:1
 
-      - name: Run NLM Frame Reference Test
-        shell: cmd
-        run: >
-          cl /nologo /utf-8 /EHsc /I nlmeans_filter nlmeans_filter\tests\NlmFrameReferenceTests.cpp /Fe:NlmFrameReferenceTests.exe
-          && NlmFrameReferenceTests.exe
-
       - name: Run NLM Frame Output Test
         shell: cmd
         run: >
@@ -62,6 +56,7 @@ jobs:
           nlmeans_filter\tests\GpuFallbackPolicyTests.cpp
           nlmeans_filter\tests\GpuRunnerDispatchTests.cpp
           nlmeans_filter\tests\ModeIdsGoogleTest.cpp
+          nlmeans_filter\tests\NlmFrameReferenceTests.cpp
           nlmeans_filter\tests\NlmKernelTests.cpp
           nlmeans_filter\tests\ProcessingRoutePolicyTests.cpp
           nlmeans_filter\tests\UiSelectionRouteTests.cpp

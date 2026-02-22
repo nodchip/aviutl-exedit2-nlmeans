@@ -1,8 +1,9 @@
-// フレーム単位の NLM 基礎演算で Naive と AVX2 の一致を確認する。
+// フレーム単位の NLM 基礎演算で Naive と AVX2 の一致を GoogleTest で確認する。
+#include <gtest/gtest.h>
 #include <vector>
 #include "NlmFrameKernel.h"
 
-int main()
+TEST(NlmFrameReferenceTests, Avx2MatchesNaiveWhenAvailable)
 {
 	const int width = 8;
 	const int height = 8;
@@ -34,23 +35,21 @@ int main()
 		timeRadius,
 		h2);
 
-	if (is_avx2_supported_runtime()) {
-		const int avx2 = nlm_filter_pixel_channel_avx2(
-			input.data(),
-			width,
-			height,
-			frames,
-			x,
-			y,
-			channel,
-			currentFrame,
-			searchRadius,
-			timeRadius,
-			h2);
-		if (naive != avx2) {
-			return 1;
-		}
+	if (!is_avx2_supported_runtime()) {
+		GTEST_SKIP() << "AVX2 not available on this environment.";
 	}
 
-	return 0;
+	const int avx2 = nlm_filter_pixel_channel_avx2(
+		input.data(),
+		width,
+		height,
+		frames,
+		x,
+		y,
+		channel,
+		currentFrame,
+		searchRadius,
+		timeRadius,
+		h2);
+	EXPECT_EQ(naive, avx2);
 }
