@@ -51,12 +51,6 @@ jobs:
           cl /nologo /utf-8 /EHsc /I nlmeans_filter nlmeans_filter\tests\NlmFrameOutputMultiCaseTests.cpp /Fe:NlmFrameOutputMultiCaseTests.exe
           && NlmFrameOutputMultiCaseTests.exe
 
-      - name: Run Backend Selection Test
-        shell: cmd
-        run: >
-          cl /nologo /utf-8 /EHsc /I nlmeans_filter nlmeans_filter\tests\BackendSelectionTests.cpp /Fe:BackendSelectionTests.exe
-          && BackendSelectionTests.exe
-
       - name: Run GPU Fallback Policy Test
         shell: cmd
         run: >
@@ -115,6 +109,7 @@ jobs:
           /I nlmeans_filter
           third_party\googletest\googletest\src\gtest-all.cc
           third_party\googletest\googletest\src\gtest_main.cc
+          nlmeans_filter\tests\BackendSelectionTests.cpp
           nlmeans_filter\tests\ExecutionPolicyTests.cpp
           nlmeans_filter\tests\GpuAdapterSelectionTests.cpp
           nlmeans_filter\tests\ModeIdsGoogleTest.cpp
