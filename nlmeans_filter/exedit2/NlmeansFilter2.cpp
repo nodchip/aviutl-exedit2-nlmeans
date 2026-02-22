@@ -20,10 +20,12 @@
 #endif
 #include <windows.h>
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstdint>
 #include <string>
 #include <vector>
+#include <immintrin.h>
 #include <intrin.h>
 #include <dxgi1_6.h>
 
@@ -127,6 +129,51 @@ ExecutionMode resolve_execution_mode(int requested_mode)
 }
 
 // ExEdit2 の画像バッファへ CPU Naive な NLM を適用する。
+PIXEL_RGBA process_pixel_scalar(
+	const std::vector<PIXEL_RGBA>& input,
+	int width,
+	int height,
+	int x,
+	int y,
+	int search_radius,
+	double sigma2)
+{
+	const int center_index = y * width + x;
+	const PIXEL_RGBA& center = input[static_cast<size_t>(center_index)];
+
+	double sum_r = 0.0;
+	double sum_g = 0.0;
+	double sum_b = 0.0;
+	double sum_w = 0.0;
+
+	for (int dy = -search_radius; dy <= search_radius; ++dy) {
+		const int sy = std::clamp(y + dy, 0, height - 1);
+		for (int dx = -search_radius; dx <= search_radius; ++dx) {
+			const int sx = std::clamp(x + dx, 0, width - 1);
+			const PIXEL_RGBA& sample = input[static_cast<size_t>(sy * width + sx)];
+
+			const double dr = static_cast<double>(sample.r) - static_cast<double>(center.r);
+			const double dg = static_cast<double>(sample.g) - static_cast<double>(center.g);
+			const double db = static_cast<double>(sample.b) - static_cast<double>(center.b);
+			const double dist2 = dr * dr + dg * dg + db * db;
+			const double w = std::exp(-dist2 / sigma2);
+
+			sum_r += w * static_cast<double>(sample.r);
+			sum_g += w * static_cast<double>(sample.g);
+			sum_b += w * static_cast<double>(sample.b);
+			sum_w += w;
+		}
+	}
+
+	PIXEL_RGBA out = center;
+	if (sum_w > 0.0) {
+		out.r = static_cast<unsigned char>(std::clamp(sum_r / sum_w, 0.0, 255.0));
+		out.g = static_cast<unsigned char>(std::clamp(sum_g / sum_w, 0.0, 255.0));
+		out.b = static_cast<unsigned char>(std::clamp(sum_b / sum_w, 0.0, 255.0));
+	}
+	return out;
+}
+
 bool apply_nlm_cpu_naive(FILTER_PROC_VIDEO* video)
 {
 	if (video == nullptr || video->scene == nullptr || video->get_image_data == nullptr || video->set_image_data == nullptr) {
@@ -151,40 +198,8 @@ bool apply_nlm_cpu_naive(FILTER_PROC_VIDEO* video)
 
 	for (int y = 0; y < height; ++y) {
 		for (int x = 0; x < width; ++x) {
-			const int center_index = y * width + x;
-			const PIXEL_RGBA& center = g_input_pixels[static_cast<size_t>(center_index)];
-
-			double sum_r = 0.0;
-			double sum_g = 0.0;
-			double sum_b = 0.0;
-			double sum_w = 0.0;
-
-			for (int dy = -search_radius; dy <= search_radius; ++dy) {
-				const int sy = std::clamp(y + dy, 0, height - 1);
-				for (int dx = -search_radius; dx <= search_radius; ++dx) {
-					const int sx = std::clamp(x + dx, 0, width - 1);
-					const PIXEL_RGBA& sample = g_input_pixels[static_cast<size_t>(sy * width + sx)];
-
-					const double dr = static_cast<double>(sample.r) - static_cast<double>(center.r);
-					const double dg = static_cast<double>(sample.g) - static_cast<double>(center.g);
-					const double db = static_cast<double>(sample.b) - static_cast<double>(center.b);
-					const double dist2 = dr * dr + dg * dg + db * db;
-					const double w = std::exp(-dist2 / sigma2);
-
-					sum_r += w * static_cast<double>(sample.r);
-					sum_g += w * static_cast<double>(sample.g);
-					sum_b += w * static_cast<double>(sample.b);
-					sum_w += w;
-				}
-			}
-
-			PIXEL_RGBA out = center;
-			if (sum_w > 0.0) {
-				out.r = static_cast<unsigned char>(std::clamp(sum_r / sum_w, 0.0, 255.0));
-				out.g = static_cast<unsigned char>(std::clamp(sum_g / sum_w, 0.0, 255.0));
-				out.b = static_cast<unsigned char>(std::clamp(sum_b / sum_w, 0.0, 255.0));
-			}
-			g_output_pixels[static_cast<size_t>(center_index)] = out;
+			g_output_pixels[static_cast<size_t>(y * width + x)] =
+				process_pixel_scalar(g_input_pixels, width, height, x, y, search_radius, sigma2);
 		}
 	}
 
@@ -192,7 +207,133 @@ bool apply_nlm_cpu_naive(FILTER_PROC_VIDEO* video)
 	return true;
 }
 
-// TODO: ExEdit2 向けに AVX2/GPU 実処理を接続する。
+// ExEdit2 の画像バッファへ CPU AVX2 な NLM を適用する。
+bool apply_nlm_cpu_avx2(FILTER_PROC_VIDEO* video)
+{
+	if (video == nullptr || video->scene == nullptr || video->get_image_data == nullptr || video->set_image_data == nullptr) {
+		return false;
+	}
+
+	const int width = video->scene->width;
+	const int height = video->scene->height;
+	if (width <= 0 || height <= 0) {
+		return false;
+	}
+
+	const int search_radius = std::max(1, static_cast<int>(item_search_radius.value));
+	const float sigma = std::max(0.001f, static_cast<float>(item_sigma.value));
+	const float sigma2 = sigma * sigma;
+	const int pixel_count = width * height;
+
+	g_input_pixels.resize(static_cast<size_t>(pixel_count));
+	g_output_pixels.resize(static_cast<size_t>(pixel_count));
+	video->get_image_data(g_input_pixels.data());
+
+	std::vector<float> r(static_cast<size_t>(pixel_count));
+	std::vector<float> g(static_cast<size_t>(pixel_count));
+	std::vector<float> b(static_cast<size_t>(pixel_count));
+	for (int i = 0; i < pixel_count; ++i) {
+		const PIXEL_RGBA& p = g_input_pixels[static_cast<size_t>(i)];
+		r[static_cast<size_t>(i)] = static_cast<float>(p.r);
+		g[static_cast<size_t>(i)] = static_cast<float>(p.g);
+		b[static_cast<size_t>(i)] = static_cast<float>(p.b);
+	}
+
+	const int x_begin = search_radius;
+	const int x_end_avx = width - search_radius - 8;
+	const int y_begin = search_radius;
+	const int y_end = height - search_radius;
+
+	const __m256 zero = _mm256_set1_ps(0.0f);
+	const __m256 max255 = _mm256_set1_ps(255.0f);
+	const __m256 inv_sigma2 = _mm256_set1_ps(-1.0f / sigma2);
+
+	// 端は境界クランプが必要なためスカラーで処理する。
+	for (int y = 0; y < height; ++y) {
+		for (int x = 0; x < width; ++x) {
+			if (y >= y_begin && y < y_end && x >= x_begin && x <= x_end_avx) {
+				x = x_end_avx;
+				continue;
+			}
+			g_output_pixels[static_cast<size_t>(y * width + x)] =
+				process_pixel_scalar(g_input_pixels, width, height, x, y, search_radius, sigma2);
+		}
+	}
+
+	// 内部領域は 8 ピクセルずつ AVX2 で処理する。
+	for (int y = y_begin; y < y_end; ++y) {
+		for (int x = x_begin; x <= x_end_avx; x += 8) {
+			const int center_base = y * width + x;
+			const __m256 center_r = _mm256_loadu_ps(&r[static_cast<size_t>(center_base)]);
+			const __m256 center_g = _mm256_loadu_ps(&g[static_cast<size_t>(center_base)]);
+			const __m256 center_b = _mm256_loadu_ps(&b[static_cast<size_t>(center_base)]);
+
+			__m256 sum_r = _mm256_setzero_ps();
+			__m256 sum_g = _mm256_setzero_ps();
+			__m256 sum_b = _mm256_setzero_ps();
+			__m256 sum_w = _mm256_setzero_ps();
+
+			for (int dy = -search_radius; dy <= search_radius; ++dy) {
+				const int sy = y + dy;
+				for (int dx = -search_radius; dx <= search_radius; ++dx) {
+					const int sample_base = sy * width + (x + dx);
+					const __m256 sample_r = _mm256_loadu_ps(&r[static_cast<size_t>(sample_base)]);
+					const __m256 sample_g = _mm256_loadu_ps(&g[static_cast<size_t>(sample_base)]);
+					const __m256 sample_b = _mm256_loadu_ps(&b[static_cast<size_t>(sample_base)]);
+
+					const __m256 dr = _mm256_sub_ps(sample_r, center_r);
+					const __m256 dg = _mm256_sub_ps(sample_g, center_g);
+					const __m256 db = _mm256_sub_ps(sample_b, center_b);
+					__m256 dist2 = _mm256_mul_ps(dr, dr);
+					dist2 = _mm256_add_ps(dist2, _mm256_mul_ps(dg, dg));
+					dist2 = _mm256_add_ps(dist2, _mm256_mul_ps(db, db));
+
+					const __m256 exponent = _mm256_mul_ps(dist2, inv_sigma2);
+					alignas(32) std::array<float, 8> exponent_scalar;
+					alignas(32) std::array<float, 8> weight_scalar;
+					_mm256_store_ps(exponent_scalar.data(), exponent);
+					for (int lane = 0; lane < 8; ++lane) {
+						weight_scalar[static_cast<size_t>(lane)] = std::exp(exponent_scalar[static_cast<size_t>(lane)]);
+					}
+					const __m256 weight = _mm256_load_ps(weight_scalar.data());
+
+					sum_r = _mm256_add_ps(sum_r, _mm256_mul_ps(weight, sample_r));
+					sum_g = _mm256_add_ps(sum_g, _mm256_mul_ps(weight, sample_g));
+					sum_b = _mm256_add_ps(sum_b, _mm256_mul_ps(weight, sample_b));
+					sum_w = _mm256_add_ps(sum_w, weight);
+				}
+			}
+
+			__m256 out_r = _mm256_div_ps(sum_r, sum_w);
+			__m256 out_g = _mm256_div_ps(sum_g, sum_w);
+			__m256 out_b = _mm256_div_ps(sum_b, sum_w);
+			out_r = _mm256_min_ps(max255, _mm256_max_ps(zero, out_r));
+			out_g = _mm256_min_ps(max255, _mm256_max_ps(zero, out_g));
+			out_b = _mm256_min_ps(max255, _mm256_max_ps(zero, out_b));
+
+			alignas(32) std::array<float, 8> out_r_scalar;
+			alignas(32) std::array<float, 8> out_g_scalar;
+			alignas(32) std::array<float, 8> out_b_scalar;
+			_mm256_store_ps(out_r_scalar.data(), out_r);
+			_mm256_store_ps(out_g_scalar.data(), out_g);
+			_mm256_store_ps(out_b_scalar.data(), out_b);
+
+			for (int lane = 0; lane < 8; ++lane) {
+				const int idx = center_base + lane;
+				PIXEL_RGBA p = g_input_pixels[static_cast<size_t>(idx)];
+				p.r = static_cast<unsigned char>(out_r_scalar[static_cast<size_t>(lane)]);
+				p.g = static_cast<unsigned char>(out_g_scalar[static_cast<size_t>(lane)]);
+				p.b = static_cast<unsigned char>(out_b_scalar[static_cast<size_t>(lane)]);
+				g_output_pixels[static_cast<size_t>(idx)] = p;
+			}
+		}
+	}
+
+	video->set_image_data(g_output_pixels.data(), width, height);
+	return true;
+}
+
+// TODO: ExEdit2 向けに GPU 実処理を接続する。
 bool func_proc_video(FILTER_PROC_VIDEO* video)
 {
 	const ExecutionMode mode = resolve_execution_mode(item_mode.value);
@@ -201,8 +342,7 @@ bool func_proc_video(FILTER_PROC_VIDEO* video)
 	case ExecutionMode::CpuNaive:
 		return apply_nlm_cpu_naive(video);
 	case ExecutionMode::CpuAvx2:
-		// 現時点では AVX2 未接続のため Naive 実装へフォールバックする。
-		return apply_nlm_cpu_naive(video);
+		return apply_nlm_cpu_avx2(video);
 	case ExecutionMode::GpuDx11:
 		// 現時点では GPU 未接続のため Naive 実装へフォールバックする。
 		return apply_nlm_cpu_naive(video);
