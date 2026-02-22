@@ -27,6 +27,7 @@ if exist nlmeans_filter\aviutl2_sdk\filter2.h (
     nlmeans_filter\tests\ProcessingRoutePolicyTests.cpp ^
     nlmeans_filter\tests\UiSelectionRouteTests.cpp ^
     nlmeans_filter\tests\UiToDispatcherIntegrationTests.cpp ^
+    nlmeans_filter\tests\TemporalNlmTests.cpp ^
     nlmeans_filter\tests\VideoProcessingDispatcherTests.cpp ^
     nlmeans_filter\exedit2\Exedit2GpuRunner.cpp ^
     /Fe:GoogleTests.exe ^
@@ -57,6 +58,7 @@ if exist nlmeans_filter\aviutl2_sdk\filter2.h (
     nlmeans_filter\tests\ProcessingRoutePolicyTests.cpp ^
     nlmeans_filter\tests\UiSelectionRouteTests.cpp ^
     nlmeans_filter\tests\UiToDispatcherIntegrationTests.cpp ^
+    nlmeans_filter\tests\TemporalNlmTests.cpp ^
     nlmeans_filter\tests\VideoProcessingDispatcherTests.cpp ^
     /Fe:GoogleTests.exe
 )
