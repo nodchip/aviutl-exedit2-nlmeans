@@ -42,7 +42,9 @@ public:
 		int imageHeight,
 		int searchRadius,
 		int timeRadius,
-		double sigmaValue);
+		double sigmaValue,
+		int spatialStep = 1,
+		double temporalDecay = 0.0);
 
 private:
 	struct ShaderConstants
@@ -52,9 +54,13 @@ private:
 		UINT searchRadius;
 		UINT frameCount;
 		UINT currentFrameIndex;
-		float reserved0;
+		UINT spatialStep;
 		float invSigma2;
+		float temporalDecay;
+		float reserved0;
 		float reserved1;
+		float reserved2;
+		float reserved3;
 	};
 
 	bool ensurePipeline();

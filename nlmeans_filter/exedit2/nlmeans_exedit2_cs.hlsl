@@ -5,9 +5,13 @@ cbuffer Constants : register(b0)
     uint SearchRadius;
     uint FrameCount;
     uint CurrentFrameIndex;
-    float Reserved0;
+    uint SpatialStep;
     float InvSigma2;
+    float TemporalDecay;
+    float Reserved0;
     float Reserved1;
+    float Reserved2;
+    float Reserved3;
 };
 
 StructuredBuffer<uint> InputPixels : register(t0);
@@ -64,10 +68,12 @@ void main(uint3 tid : SV_DispatchThreadID)
 
     for (uint t = 0; t < FrameCount; ++t)
     {
-        for (int dy = -((int)SearchRadius); dy <= (int)SearchRadius; ++dy)
+        const int dt = abs((int)t - (int)CurrentFrameIndex);
+        const float temporalWeight = exp(-TemporalDecay * (float)dt);
+        for (int dy = -((int)SearchRadius); dy <= (int)SearchRadius; dy += (int)SpatialStep)
         {
             const int sy = clampi(y + dy, 0, (int)Height - 1);
-            for (int dx = -((int)SearchRadius); dx <= (int)SearchRadius; ++dx)
+            for (int dx = -((int)SearchRadius); dx <= (int)SearchRadius; dx += (int)SpatialStep)
             {
                 const int sx = clampi(x + dx, 0, (int)Width - 1);
                 const float3 sample = unpack_rgb(InputPixels[frameIndex(t, (uint)sx, (uint)sy)]);
@@ -75,7 +81,7 @@ void main(uint3 tid : SV_DispatchThreadID)
                 const float dg = sample.g - center.g;
                 const float db = sample.b - center.b;
                 const float dist2 = dr * dr + dg * dg + db * db;
-                const float w = exp(-dist2 * InvSigma2);
+                const float w = exp(-dist2 * InvSigma2) * temporalWeight;
                 sumW += w;
                 sumR += w * sample.r;
                 sumG += w * sample.g;

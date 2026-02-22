@@ -24,6 +24,8 @@ struct QualityCase
 	int searchRadius;
 	int timeRadius;
 	double sigma;
+	int spatialStep;
+	double temporalDecay;
 	int seed0;
 	int seed1;
 	int maxAbsTolerance;
@@ -57,11 +59,15 @@ std::vector<PIXEL_RGBA> build_cpu_reference(
 	int width,
 	int height,
 	int search_radius,
-	double sigma)
+	double sigma,
+	int spatial_step,
+	double temporal_decay)
 {
 	const int frame_count = static_cast<int>(history_frames.size());
 	const int current_frame_index = frame_count - 1;
 	const float inv_sigma2 = static_cast<float>(1.0 / (sigma * sigma));
+	const int step = std::max(1, spatial_step);
+	const float temporal_decay_value = static_cast<float>(std::max(0.0, temporal_decay));
 	const size_t pixel_count = static_cast<size_t>(width) * static_cast<size_t>(height);
 	std::vector<PIXEL_RGBA> out(pixel_count);
 
@@ -74,16 +80,18 @@ std::vector<PIXEL_RGBA> build_cpu_reference(
 			float sum_b = 0.0f;
 
 			for (int t = 0; t < frame_count; ++t) {
-				for (int dy = -search_radius; dy <= search_radius; ++dy) {
+				const int dt = std::abs(t - current_frame_index);
+				const float temporal_weight = std::exp(-temporal_decay_value * static_cast<float>(dt));
+				for (int dy = -search_radius; dy <= search_radius; dy += step) {
 					const int sy = clampi(y + dy, 0, height - 1);
-					for (int dx = -search_radius; dx <= search_radius; ++dx) {
+					for (int dx = -search_radius; dx <= search_radius; dx += step) {
 						const int sx = clampi(x + dx, 0, width - 1);
 						const PIXEL_RGBA& sample = history_frames[static_cast<size_t>(t)][static_cast<size_t>(sy * width + sx)];
 						const float dr = static_cast<float>(sample.r) - static_cast<float>(center.r);
 						const float dg = static_cast<float>(sample.g) - static_cast<float>(center.g);
 						const float db = static_cast<float>(sample.b) - static_cast<float>(center.b);
 						const float dist2 = dr * dr + dg * dg + db * db;
-						const float w = std::exp(-dist2 * inv_sigma2);
+						const float w = std::exp(-dist2 * inv_sigma2) * temporal_weight;
 						sum_w += w;
 						sum_r += w * static_cast<float>(sample.r);
 						sum_g += w * static_cast<float>(sample.g);
@@ -140,7 +148,9 @@ void run_quality_case(const QualityCase& test_case)
 		test_case.height,
 		test_case.searchRadius,
 		test_case.timeRadius,
-		test_case.sigma));
+		test_case.sigma,
+		test_case.spatialStep,
+		test_case.temporalDecay));
 
 	if (test_case.timeRadius <= 0) {
 		const std::vector<std::vector<PIXEL_RGBA>> history = { frame0 };
@@ -149,7 +159,9 @@ void run_quality_case(const QualityCase& test_case)
 			test_case.width,
 			test_case.height,
 			test_case.searchRadius,
-			test_case.sigma);
+			test_case.sigma,
+			test_case.spatialStep,
+			test_case.temporalDecay);
 		const QualityStats stats = evaluate_quality(gpu_out0, cpu_ref);
 		EXPECT_LE(stats.maxAbsDiff, test_case.maxAbsTolerance);
 		EXPECT_LE(stats.meanAbsDiff, test_case.meanAbsTolerance);
@@ -165,7 +177,9 @@ void run_quality_case(const QualityCase& test_case)
 		test_case.height,
 		test_case.searchRadius,
 		test_case.timeRadius,
-		test_case.sigma));
+		test_case.sigma,
+		test_case.spatialStep,
+		test_case.temporalDecay));
 
 	const std::vector<std::vector<PIXEL_RGBA>> history = { frame0, frame1 };
 	const std::vector<PIXEL_RGBA> cpu_ref = build_cpu_reference(
@@ -173,7 +187,9 @@ void run_quality_case(const QualityCase& test_case)
 		test_case.width,
 		test_case.height,
 		test_case.searchRadius,
-		test_case.sigma);
+		test_case.sigma,
+		test_case.spatialStep,
+		test_case.temporalDecay);
 	const QualityStats stats = evaluate_quality(gpu_out1, cpu_ref);
 	EXPECT_LE(stats.maxAbsDiff, test_case.maxAbsTolerance);
 	EXPECT_LE(stats.meanAbsDiff, test_case.meanAbsTolerance);
@@ -185,11 +201,13 @@ TEST(GpuQualityComparisonTests, MatchesCpuReferenceAcrossQualityMatrix)
 {
 	const std::vector<QualityCase> cases = {
 		// Single-frame spatial quality.
-		{ 32, 24, 1, 0, 40.0, 1, 2, 1, 0.30 },
-		{ 48, 36, 2, 0, 55.0, 3, 4, 1, 0.35 },
+		{ 32, 24, 1, 0, 40.0, 1, 0.0, 1, 2, 1, 0.30 },
+		{ 48, 36, 2, 0, 55.0, 1, 0.0, 3, 4, 1, 0.35 },
+		{ 48, 36, 2, 0, 55.0, 2, 0.0, 5, 6, 1, 0.45 },
 		// Temporal quality (2-frame history).
-		{ 32, 24, 1, 1, 45.0, 10, 20, 1, 0.30 },
-		{ 48, 36, 2, 1, 60.0, 30, 40, 1, 0.40 }
+		{ 32, 24, 1, 1, 45.0, 1, 0.0, 10, 20, 1, 0.30 },
+		{ 48, 36, 2, 1, 60.0, 1, 1.0, 30, 40, 1, 0.40 },
+		{ 48, 36, 2, 1, 60.0, 2, 1.0, 50, 60, 1, 0.55 }
 	};
 
 	for (const auto& test_case : cases) {

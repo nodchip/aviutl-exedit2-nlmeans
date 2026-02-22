@@ -62,7 +62,9 @@ bool Exedit2GpuRunner::process(
 	int imageHeight,
 	int searchRadius,
 	int timeRadius,
-	double sigmaValue)
+	double sigmaValue,
+	int spatialStep,
+	double temporalDecay)
 {
 	if (device == nullptr || context == nullptr || inputPixels == nullptr || outputPixels == nullptr) {
 		return false;
@@ -118,8 +120,15 @@ bool Exedit2GpuRunner::process(
 	constants.currentFrameIndex = static_cast<UINT>(frameCount - 1);
 	constants.reserved0 = 0.0f;
 	const double sigma = std::max(0.001, sigmaValue);
+	const int clampedSpatialStep = std::max(1, spatialStep);
+	const float clampedTemporalDecay = static_cast<float>(std::max(0.0, temporalDecay));
 	constants.invSigma2 = static_cast<float>(1.0 / (sigma * sigma));
+	constants.temporalDecay = clampedTemporalDecay;
+	constants.spatialStep = static_cast<UINT>(clampedSpatialStep);
+	constants.reserved0 = 0.0f;
 	constants.reserved1 = 0.0f;
+	constants.reserved2 = 0.0f;
+	constants.reserved3 = 0.0f;
 	if (FAILED(map_write_discard_buffer(context, constantBuffer, &constants, sizeof(constants)))) {
 		return false;
 	}
@@ -154,9 +163,13 @@ bool Exedit2GpuRunner::ensurePipeline()
 		"	uint SearchRadius;\n"
 		"	uint FrameCount;\n"
 		"	uint CurrentFrameIndex;\n"
-		"	float Reserved0;\n"
+		"	uint SpatialStep;\n"
 		"	float InvSigma2;\n"
+		"	float TemporalDecay;\n"
+		"	float Reserved0;\n"
 		"	float Reserved1;\n"
+		"	float Reserved2;\n"
+		"	float Reserved3;\n"
 		"};\n"
 		"StructuredBuffer<uint> InputPixels : register(t0);\n"
 		"RWStructuredBuffer<uint> OutputPixels : register(u0);\n"
@@ -187,16 +200,18 @@ bool Exedit2GpuRunner::ensurePipeline()
 		"	float sumG = 0.0f;\n"
 		"	float sumB = 0.0f;\n"
 		"	for (uint t = 0; t < FrameCount; ++t){\n"
-		"		for (int dy = -((int)SearchRadius); dy <= (int)SearchRadius; ++dy){\n"
+		"		const int dt = abs((int)t - (int)CurrentFrameIndex);\n"
+		"		const float temporalWeight = exp(-TemporalDecay * (float)dt);\n"
+		"		for (int dy = -((int)SearchRadius); dy <= (int)SearchRadius; dy += (int)SpatialStep){\n"
 		"			const int sy = clampi(y + dy, 0, (int)Height - 1);\n"
-		"			for (int dx = -((int)SearchRadius); dx <= (int)SearchRadius; ++dx){\n"
+		"			for (int dx = -((int)SearchRadius); dx <= (int)SearchRadius; dx += (int)SpatialStep){\n"
 		"				const int sx = clampi(x + dx, 0, (int)Width - 1);\n"
 		"				const float3 sample = unpack_rgb(InputPixels[frameIndex(t, (uint)sx, (uint)sy)]);\n"
 		"				const float dr = sample.r - center.r;\n"
 		"				const float dg = sample.g - center.g;\n"
 		"				const float db = sample.b - center.b;\n"
 		"				const float dist2 = dr * dr + dg * dg + db * db;\n"
-		"				const float w = exp(-dist2 * InvSigma2);\n"
+		"				const float w = exp(-dist2 * InvSigma2) * temporalWeight;\n"
 		"				sumW += w;\n"
 		"				sumR += w * sample.r;\n"
 		"				sumG += w * sample.g;\n"

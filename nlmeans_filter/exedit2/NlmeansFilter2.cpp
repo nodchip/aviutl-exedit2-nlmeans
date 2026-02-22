@@ -56,6 +56,8 @@ extern FILTER_ITEM_TRACK item_time_radius;
 extern FILTER_ITEM_TRACK item_sigma;
 extern FILTER_ITEM_TRACK item_fast_spatial_step;
 extern FILTER_ITEM_TRACK item_temporal_decay;
+extern FILTER_ITEM_TRACK item_gpu_spatial_step;
+extern FILTER_ITEM_TRACK item_gpu_temporal_decay;
 extern FILTER_ITEM_SELECT item_mode;
 extern FILTER_ITEM_SELECT item_gpu_adapter;
 
@@ -518,6 +520,8 @@ bool apply_nlm_gpu_dx11(FILTER_PROC_VIDEO* video, int adapterOrdinal, ExecutionM
 			const int search_radius = std::max(1, static_cast<int>(item_search_radius.value));
 			const int time_radius = std::max(0, static_cast<int>(item_time_radius.value));
 			const double sigma = std::max(0.001, static_cast<double>(item_sigma.value));
+			const int gpu_spatial_step = std::max(1, static_cast<int>(item_gpu_spatial_step.value));
+			const double gpu_temporal_decay = std::max(0.0, static_cast<double>(item_gpu_temporal_decay.value));
 			if (gpuRunner == nullptr || !gpuRunner->process(
 				g_input_pixels.data(),
 				g_output_pixels.data(),
@@ -525,7 +529,9 @@ bool apply_nlm_gpu_dx11(FILTER_PROC_VIDEO* video, int adapterOrdinal, ExecutionM
 				height,
 				search_radius,
 				time_radius,
-				sigma)) {
+				sigma,
+				gpu_spatial_step,
+				gpu_temporal_decay)) {
 				return false;
 			}
 			video->set_image_data(g_output_pixels.data(), width, height);
@@ -589,6 +595,8 @@ FILTER_ITEM_TRACK item_time_radius = FILTER_ITEM_TRACK(L"時間範囲", 0.0, 0.0
 FILTER_ITEM_TRACK item_sigma = FILTER_ITEM_TRACK(L"分散", 50.0, 0.0, 100.0, 1.0);
 FILTER_ITEM_TRACK item_fast_spatial_step = FILTER_ITEM_TRACK(L"Fast間引き", 2.0, 1.0, 4.0, 1.0);
 FILTER_ITEM_TRACK item_temporal_decay = FILTER_ITEM_TRACK(L"Temporal減衰", 1.0, 0.0, 4.0, 0.1);
+FILTER_ITEM_TRACK item_gpu_spatial_step = FILTER_ITEM_TRACK(L"GPU間引き", 1.0, 1.0, 4.0, 1.0);
+FILTER_ITEM_TRACK item_gpu_temporal_decay = FILTER_ITEM_TRACK(L"GPU時間減衰", 0.0, 0.0, 4.0, 0.1);
 FILTER_ITEM_SELECT::ITEM item_mode_list[] = {
 	{ L"CPU (Naive)", kModeCpuNaive },
 	{ L"CPU (AVX2)", kModeCpuAvx2 },
@@ -609,6 +617,8 @@ void* items[] = {
 	&item_sigma,
 	&item_fast_spatial_step,
 	&item_temporal_decay,
+	&item_gpu_spatial_step,
+	&item_gpu_temporal_decay,
 	&item_mode,
 	&item_gpu_adapter,
 	nullptr
