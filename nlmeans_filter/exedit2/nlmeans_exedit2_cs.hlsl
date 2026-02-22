@@ -3,11 +3,11 @@ cbuffer Constants : register(b0)
     uint Width;
     uint Height;
     uint SearchRadius;
-    uint Reserved0;
+    uint FrameCount;
+    uint CurrentFrameIndex;
+    float Reserved0;
     float InvSigma2;
     float Reserved1;
-    float Reserved2;
-    float Reserved3;
 };
 
 struct PixelData
@@ -26,6 +26,11 @@ int clampi(int v, int low, int high)
     return min(high, max(low, v));
 }
 
+uint frameIndex(uint t, uint x, uint y)
+{
+    return (t * Height + y) * Width + x;
+}
+
 [numthreads(16,16,1)]
 void main(uint3 tid : SV_DispatchThreadID)
 {
@@ -34,7 +39,7 @@ void main(uint3 tid : SV_DispatchThreadID)
 
     const int x = (int)tid.x;
     const int y = (int)tid.y;
-    const uint centerIndex = tid.y * Width + tid.x;
+    const uint centerIndex = frameIndex(CurrentFrameIndex, tid.x, tid.y);
     const PixelData center = InputPixels[centerIndex];
 
     float sumW = 0.0f;
@@ -42,22 +47,25 @@ void main(uint3 tid : SV_DispatchThreadID)
     float sumG = 0.0f;
     float sumB = 0.0f;
 
-    for (int dy = -((int)SearchRadius); dy <= (int)SearchRadius; ++dy)
+    for (uint t = 0; t < FrameCount; ++t)
     {
-        const int sy = clampi(y + dy, 0, (int)Height - 1);
-        for (int dx = -((int)SearchRadius); dx <= (int)SearchRadius; ++dx)
+        for (int dy = -((int)SearchRadius); dy <= (int)SearchRadius; ++dy)
         {
-            const int sx = clampi(x + dx, 0, (int)Width - 1);
-            const PixelData sample = InputPixels[(uint)(sy * (int)Width + sx)];
-            const float dr = (float)sample.r - (float)center.r;
-            const float dg = (float)sample.g - (float)center.g;
-            const float db = (float)sample.b - (float)center.b;
-            const float dist2 = dr * dr + dg * dg + db * db;
-            const float w = exp(-dist2 * InvSigma2);
-            sumW += w;
-            sumR += w * (float)sample.r;
-            sumG += w * (float)sample.g;
-            sumB += w * (float)sample.b;
+            const int sy = clampi(y + dy, 0, (int)Height - 1);
+            for (int dx = -((int)SearchRadius); dx <= (int)SearchRadius; ++dx)
+            {
+                const int sx = clampi(x + dx, 0, (int)Width - 1);
+                const PixelData sample = InputPixels[frameIndex(t, (uint)sx, (uint)sy)];
+                const float dr = (float)sample.r - (float)center.r;
+                const float dg = (float)sample.g - (float)center.g;
+                const float db = (float)sample.b - (float)center.b;
+                const float dist2 = dr * dr + dg * dg + db * db;
+                const float w = exp(-dist2 * InvSigma2);
+                sumW += w;
+                sumR += w * (float)sample.r;
+                sumG += w * (float)sample.g;
+                sumB += w * (float)sample.b;
+            }
         }
     }
 
@@ -68,5 +76,5 @@ void main(uint3 tid : SV_DispatchThreadID)
         outPixel.g = (uint)clamp(sumG / sumW, 0.0f, 255.0f);
         outPixel.b = (uint)clamp(sumB / sumW, 0.0f, 255.0f);
     }
-    OutputPixels[centerIndex] = outPixel;
+    OutputPixels[tid.y * Width + tid.x] = outPixel;
 }

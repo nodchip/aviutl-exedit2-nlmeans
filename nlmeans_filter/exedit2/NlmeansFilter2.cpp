@@ -25,6 +25,7 @@
 #include <cstdint>
 #include <cstring>
 #include <cwchar>
+#include <deque>
 #include <memory>
 #include <string>
 #include <vector>
@@ -52,6 +53,7 @@ std::vector<PIXEL_RGBA> g_input_pixels;
 std::vector<PIXEL_RGBA> g_output_pixels;
 int g_runtime_gpu_adapter_ordinal = -1;
 extern FILTER_ITEM_TRACK item_search_radius;
+extern FILTER_ITEM_TRACK item_time_radius;
 extern FILTER_ITEM_TRACK item_sigma;
 extern FILTER_ITEM_SELECT item_mode;
 extern FILTER_ITEM_SELECT item_gpu_adapter;
@@ -68,7 +70,7 @@ class Exedit2GpuRunner
 {
 public:
 	Exedit2GpuRunner()
-		: activeAdapterOrdinal(-2), width(0), height(0)
+		: activeAdapterOrdinal(-2), width(0), height(0), bufferedFrameCount(0)
 	{
 	}
 
@@ -145,13 +147,14 @@ public:
 		return true;
 	}
 
-	// 単一フレーム RGBA に空間 NLM を適用する。
+	// RGBA フレーム列に空間/時間 NLM を適用する。
 	bool process(
 		const PIXEL_RGBA* inputPixels,
 		PIXEL_RGBA* outputPixels,
 		int imageWidth,
 		int imageHeight,
 		int searchRadius,
+		int timeRadius,
 		double sigmaValue)
 	{
 		if (device == nullptr || context == nullptr || inputPixels == nullptr || outputPixels == nullptr) {
@@ -160,16 +163,43 @@ public:
 		if (imageWidth <= 0 || imageHeight <= 0) {
 			return false;
 		}
-		if (!ensureBuffers(imageWidth, imageHeight)) {
+		const int clampedTimeRadius = std::max(0, timeRadius);
+		const int requiredHistory = clampedTimeRadius + 1;
+
+		const size_t pixelCount = static_cast<size_t>(imageWidth) * static_cast<size_t>(imageHeight);
+		if (width != imageWidth || height != imageHeight) {
+			historyFrames.clear();
+		}
+
+		std::vector<PIXEL_RGBA> currentFrame(pixelCount);
+		std::memcpy(currentFrame.data(), inputPixels, pixelCount * sizeof(PIXEL_RGBA));
+		historyFrames.push_back(std::move(currentFrame));
+		while (historyFrames.size() > static_cast<size_t>(requiredHistory)) {
+			historyFrames.pop_front();
+		}
+
+		const int frameCount = static_cast<int>(historyFrames.size());
+		if (frameCount <= 0) {
 			return false;
 		}
 
-		const int pixelCount = imageWidth * imageHeight;
+		if (!ensureBuffers(imageWidth, imageHeight, frameCount)) {
+			return false;
+		}
+
+		uploadFrames.resize(pixelCount * static_cast<size_t>(frameCount));
+		for (int t = 0; t < frameCount; ++t) {
+			std::memcpy(
+				uploadFrames.data() + static_cast<size_t>(t) * pixelCount,
+				historyFrames[static_cast<size_t>(t)].data(),
+				pixelCount * sizeof(PIXEL_RGBA));
+		}
+
 		D3D11_MAPPED_SUBRESOURCE mappedInput = {};
 		if (FAILED(context->Map(inputBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedInput))) {
 			return false;
 		}
-		std::memcpy(mappedInput.pData, inputPixels, static_cast<size_t>(pixelCount) * sizeof(PIXEL_RGBA));
+		std::memcpy(mappedInput.pData, uploadFrames.data(), uploadFrames.size() * sizeof(PIXEL_RGBA));
 		context->Unmap(inputBuffer, 0);
 
 		D3D11_MAPPED_SUBRESOURCE mappedConstants = {};
@@ -180,12 +210,12 @@ public:
 		constants->width = static_cast<UINT>(imageWidth);
 		constants->height = static_cast<UINT>(imageHeight);
 		constants->searchRadius = static_cast<UINT>(std::max(1, searchRadius));
-		constants->reserved0 = 0;
+		constants->frameCount = static_cast<UINT>(frameCount);
+		constants->currentFrameIndex = static_cast<UINT>(frameCount - 1);
+		constants->reserved0 = 0.0f;
 		const double sigma = std::max(0.001, sigmaValue);
 		constants->invSigma2 = static_cast<float>(1.0 / (sigma * sigma));
 		constants->reserved1 = 0.0f;
-		constants->reserved2 = 0.0f;
-		constants->reserved3 = 0.0f;
 		context->Unmap(constantBuffer, 0);
 
 		ID3D11ShaderResourceView* srvs[1] = { inputSrv };
@@ -212,7 +242,7 @@ public:
 		if (FAILED(context->Map(readbackBuffer, 0, D3D11_MAP_READ, 0, &mappedOutput))) {
 			return false;
 		}
-		std::memcpy(outputPixels, mappedOutput.pData, static_cast<size_t>(pixelCount) * sizeof(PIXEL_RGBA));
+		std::memcpy(outputPixels, mappedOutput.pData, pixelCount * sizeof(PIXEL_RGBA));
 		context->Unmap(readbackBuffer, 0);
 		return true;
 	}
@@ -223,11 +253,11 @@ private:
 		UINT width;
 		UINT height;
 		UINT searchRadius;
-		UINT reserved0;
+		UINT frameCount;
+		UINT currentFrameIndex;
+		float reserved0;
 		float invSigma2;
 		float reserved1;
-		float reserved2;
-		float reserved3;
 	};
 
 	bool ensurePipeline()
@@ -243,42 +273,45 @@ private:
 			"	uint Width;\n"
 			"	uint Height;\n"
 			"	uint SearchRadius;\n"
-			"	uint Reserved0;\n"
+			"	uint FrameCount;\n"
+			"	uint CurrentFrameIndex;\n"
+			"	float Reserved0;\n"
 			"	float InvSigma2;\n"
 			"	float Reserved1;\n"
-			"	float Reserved2;\n"
-			"	float Reserved3;\n"
 			"};\n"
 			"struct PixelData { uint r; uint g; uint b; uint a; };\n"
 			"StructuredBuffer<PixelData> InputPixels : register(t0);\n"
 			"RWStructuredBuffer<PixelData> OutputPixels : register(u0);\n"
 			"int clampi(int v, int low, int high) { return min(high, max(low, v)); }\n"
+			"uint frameIndex(uint t, uint x, uint y) { return (t * Height + y) * Width + x; }\n"
 			"[numthreads(16,16,1)]\n"
 			"void main(uint3 tid : SV_DispatchThreadID)\n"
 			"{\n"
 			"	if (tid.x >= Width || tid.y >= Height) return;\n"
 			"	const int x = (int)tid.x;\n"
 			"	const int y = (int)tid.y;\n"
-			"	const uint centerIndex = tid.y * Width + tid.x;\n"
+			"	const uint centerIndex = frameIndex(CurrentFrameIndex, tid.x, tid.y);\n"
 			"	const PixelData center = InputPixels[centerIndex];\n"
 			"	float sumW = 0.0f;\n"
 			"	float sumR = 0.0f;\n"
 			"	float sumG = 0.0f;\n"
 			"	float sumB = 0.0f;\n"
-			"	for (int dy = -((int)SearchRadius); dy <= (int)SearchRadius; ++dy){\n"
-			"		const int sy = clampi(y + dy, 0, (int)Height - 1);\n"
-			"		for (int dx = -((int)SearchRadius); dx <= (int)SearchRadius; ++dx){\n"
-			"			const int sx = clampi(x + dx, 0, (int)Width - 1);\n"
-			"			const PixelData sample = InputPixels[(uint)(sy * (int)Width + sx)];\n"
-			"			const float dr = (float)sample.r - (float)center.r;\n"
-			"			const float dg = (float)sample.g - (float)center.g;\n"
-			"			const float db = (float)sample.b - (float)center.b;\n"
-			"			const float dist2 = dr * dr + dg * dg + db * db;\n"
-			"			const float w = exp(-dist2 * InvSigma2);\n"
-			"			sumW += w;\n"
-			"			sumR += w * (float)sample.r;\n"
-			"			sumG += w * (float)sample.g;\n"
-			"			sumB += w * (float)sample.b;\n"
+			"	for (uint t = 0; t < FrameCount; ++t){\n"
+			"		for (int dy = -((int)SearchRadius); dy <= (int)SearchRadius; ++dy){\n"
+			"			const int sy = clampi(y + dy, 0, (int)Height - 1);\n"
+			"			for (int dx = -((int)SearchRadius); dx <= (int)SearchRadius; ++dx){\n"
+			"				const int sx = clampi(x + dx, 0, (int)Width - 1);\n"
+			"				const PixelData sample = InputPixels[frameIndex(t, (uint)sx, (uint)sy)];\n"
+			"				const float dr = (float)sample.r - (float)center.r;\n"
+			"				const float dg = (float)sample.g - (float)center.g;\n"
+			"				const float db = (float)sample.b - (float)center.b;\n"
+			"				const float dist2 = dr * dr + dg * dg + db * db;\n"
+			"				const float w = exp(-dist2 * InvSigma2);\n"
+			"				sumW += w;\n"
+			"				sumR += w * (float)sample.r;\n"
+			"				sumG += w * (float)sample.g;\n"
+			"				sumB += w * (float)sample.b;\n"
+			"			}\n"
 			"		}\n"
 			"	}\n"
 			"	PixelData outPixel = center;\n"
@@ -287,7 +320,7 @@ private:
 			"		outPixel.g = (uint)clamp(sumG / sumW, 0.0f, 255.0f);\n"
 			"		outPixel.b = (uint)clamp(sumB / sumW, 0.0f, 255.0f);\n"
 			"	}\n"
-			"	OutputPixels[centerIndex] = outPixel;\n"
+			"	OutputPixels[tid.y * Width + tid.x] = outPixel;\n"
 			"}\n";
 
 		CComPtr<ID3DBlob> shaderBlob;
@@ -348,10 +381,10 @@ private:
 		return true;
 	}
 
-	bool ensureBuffers(int imageWidth, int imageHeight)
+	bool ensureBuffers(int imageWidth, int imageHeight, int frameCount)
 	{
 		if (inputBuffer != nullptr && outputBuffer != nullptr && readbackBuffer != nullptr &&
-			imageWidth == width && imageHeight == height) {
+			imageWidth == width && imageHeight == height && frameCount == bufferedFrameCount) {
 			return true;
 		}
 
@@ -362,12 +395,14 @@ private:
 		readbackBuffer = nullptr;
 		width = imageWidth;
 		height = imageHeight;
+		bufferedFrameCount = frameCount;
 
 		const UINT pixelCount = static_cast<UINT>(imageWidth * imageHeight);
-		const UINT byteSize = pixelCount * sizeof(PIXEL_RGBA);
+		const UINT outputByteSize = pixelCount * sizeof(PIXEL_RGBA);
+		const UINT inputByteSize = pixelCount * static_cast<UINT>(frameCount) * sizeof(PIXEL_RGBA);
 
 		D3D11_BUFFER_DESC inputDesc = {};
-		inputDesc.ByteWidth = byteSize;
+		inputDesc.ByteWidth = inputByteSize;
 		inputDesc.Usage = D3D11_USAGE_DYNAMIC;
 		inputDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
 		inputDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
@@ -381,13 +416,13 @@ private:
 		srvDesc.Format = DXGI_FORMAT_UNKNOWN;
 		srvDesc.ViewDimension = D3D11_SRV_DIMENSION_BUFFER;
 		srvDesc.Buffer.FirstElement = 0;
-		srvDesc.Buffer.NumElements = pixelCount;
+		srvDesc.Buffer.NumElements = pixelCount * static_cast<UINT>(frameCount);
 		if (FAILED(device->CreateShaderResourceView(inputBuffer, &srvDesc, &inputSrv))) {
 			return false;
 		}
 
 		D3D11_BUFFER_DESC outputDesc = {};
-		outputDesc.ByteWidth = byteSize;
+		outputDesc.ByteWidth = outputByteSize;
 		outputDesc.Usage = D3D11_USAGE_DEFAULT;
 		outputDesc.BindFlags = D3D11_BIND_UNORDERED_ACCESS;
 		outputDesc.CPUAccessFlags = 0;
@@ -407,7 +442,7 @@ private:
 		}
 
 		D3D11_BUFFER_DESC readbackDesc = {};
-		readbackDesc.ByteWidth = byteSize;
+		readbackDesc.ByteWidth = outputByteSize;
 		readbackDesc.Usage = D3D11_USAGE_STAGING;
 		readbackDesc.BindFlags = 0;
 		readbackDesc.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
@@ -433,11 +468,17 @@ private:
 		readbackBuffer = nullptr;
 		width = 0;
 		height = 0;
+		bufferedFrameCount = 0;
+		historyFrames.clear();
+		uploadFrames.clear();
 	}
 
 	int activeAdapterOrdinal;
 	int width;
 	int height;
+	int bufferedFrameCount;
+	std::deque<std::vector<PIXEL_RGBA>> historyFrames;
+	std::vector<PIXEL_RGBA> uploadFrames;
 	CComPtr<ID3D11Device> device;
 	CComPtr<ID3D11DeviceContext> context;
 	CComPtr<ID3D11ComputeShader> computeShader;
@@ -759,6 +800,7 @@ bool apply_nlm_gpu_dx11(FILTER_PROC_VIDEO* video, int adapterOrdinal)
 	video->get_image_data(g_input_pixels.data());
 
 	const int search_radius = std::max(1, static_cast<int>(item_search_radius.value));
+	const int time_radius = std::max(0, static_cast<int>(item_time_radius.value));
 	const double sigma = std::max(0.001, static_cast<double>(item_sigma.value));
 	if (!g_gpu_runner->process(
 		g_input_pixels.data(),
@@ -766,6 +808,7 @@ bool apply_nlm_gpu_dx11(FILTER_PROC_VIDEO* video, int adapterOrdinal)
 		width,
 		height,
 		search_radius,
+		time_radius,
 		sigma)) {
 		if (is_avx2_available()) {
 			return apply_nlm_cpu_avx2(video);
