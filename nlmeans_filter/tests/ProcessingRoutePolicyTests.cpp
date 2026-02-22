@@ -3,17 +3,17 @@
 
 int main()
 {
-	ProcessingRoute route = resolve_processing_route(2, 0, 2, true);
+	ProcessingRoute route = resolve_processing_route(kModeGpuDx11, 0, 2, true);
 	if (route.mode != ExecutionMode::GpuDx11 || route.gpuAdapterOrdinal != -1 || route.gpuFallbackMode != ExecutionMode::CpuAvx2) {
 		return 1;
 	}
 
-	route = resolve_processing_route(2, 3, 2, true);
+	route = resolve_processing_route(kModeGpuDx11, 3, 2, true);
 	if (route.mode != ExecutionMode::CpuAvx2 || route.gpuAdapterOrdinal != -1 || route.gpuFallbackMode != ExecutionMode::CpuAvx2) {
 		return 2;
 	}
 
-	route = resolve_processing_route(1, 0, 0, false);
+	route = resolve_processing_route(kModeCpuAvx2, 0, 0, false);
 	if (route.mode != ExecutionMode::CpuNaive || route.gpuAdapterOrdinal != -1 || route.gpuFallbackMode != ExecutionMode::CpuNaive) {
 		return 3;
 	}

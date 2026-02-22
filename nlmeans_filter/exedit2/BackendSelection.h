@@ -2,11 +2,13 @@
 #ifndef EXEDIT2_BACKEND_SELECTION_H
 #define EXEDIT2_BACKEND_SELECTION_H
 
+#include "ModeIds.h"
+
 // 実行バックエンドの選択状態を表す。
 enum class ExecutionMode : int {
-	CpuNaive = 0,
-	CpuAvx2 = 1,
-	GpuDx11 = 2
+	CpuNaive = kModeCpuNaive,
+	CpuAvx2 = kModeCpuAvx2,
+	GpuDx11 = kModeGpuDx11
 };
 
 // 要求モードと環境能力から、実際に実行するモードを決定する。

@@ -359,12 +359,12 @@ FILTER_ITEM_TRACK item_search_radius = FILTER_ITEM_TRACK(L"空間範囲", 3.0, 1
 FILTER_ITEM_TRACK item_time_radius = FILTER_ITEM_TRACK(L"時間範囲", 0.0, 0.0, 7.0, 1.0);
 FILTER_ITEM_TRACK item_sigma = FILTER_ITEM_TRACK(L"分散", 50.0, 0.0, 100.0, 1.0);
 FILTER_ITEM_SELECT::ITEM item_mode_list[] = {
-	{ L"CPU (Naive)", 0 },
-	{ L"CPU (AVX2)", 1 },
-	{ L"GPU (DirectX 11)", 2 },
+	{ L"CPU (Naive)", kModeCpuNaive },
+	{ L"CPU (AVX2)", kModeCpuAvx2 },
+	{ L"GPU (DirectX 11)", kModeGpuDx11 },
 	{ nullptr }
 };
-FILTER_ITEM_SELECT item_mode = FILTER_ITEM_SELECT(L"計算モード", 2, item_mode_list);
+FILTER_ITEM_SELECT item_mode = FILTER_ITEM_SELECT(L"計算モード", kModeGpuDx11, item_mode_list);
 FILTER_ITEM_SELECT::ITEM item_gpu_adapter_list[] = {
 	{ L"Auto", 0 },
 	{ nullptr }

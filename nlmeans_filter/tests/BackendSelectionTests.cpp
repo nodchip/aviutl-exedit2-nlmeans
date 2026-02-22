@@ -3,19 +3,19 @@
 
 int main()
 {
-	if (resolve_execution_mode_for_test(2, true, true, true) != 2) {
+	if (resolve_execution_mode_for_test(kModeGpuDx11, true, true, true) != kModeGpuDx11) {
 		return 1;
 	}
-	if (resolve_execution_mode_for_test(2, false, true, true) != 1) {
+	if (resolve_execution_mode_for_test(kModeGpuDx11, false, true, true) != kModeCpuAvx2) {
 		return 2;
 	}
-	if (resolve_execution_mode_for_test(2, false, false, true) != 1) {
+	if (resolve_execution_mode_for_test(kModeGpuDx11, false, false, true) != kModeCpuAvx2) {
 		return 3;
 	}
-	if (resolve_execution_mode_for_test(1, false, true, false) != 0) {
+	if (resolve_execution_mode_for_test(kModeCpuAvx2, false, true, false) != kModeCpuNaive) {
 		return 4;
 	}
-	if (resolve_execution_mode_for_test(1, false, false, false) != 0) {
+	if (resolve_execution_mode_for_test(kModeCpuAvx2, false, false, false) != kModeCpuNaive) {
 		return 5;
 	}
 	return 0;
