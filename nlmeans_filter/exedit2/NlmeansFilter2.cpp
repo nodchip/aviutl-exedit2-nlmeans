@@ -39,6 +39,7 @@
 #include "Exedit2GpuRunner.h"
 #include "BackendSelection.h"
 #include "ExecutionPolicy.h"
+#include "GpuFallbackPolicy.h"
 #include "../DxgiAdapterUtil.h"
 
 namespace {
@@ -296,7 +297,7 @@ bool apply_nlm_gpu_dx11(FILTER_PROC_VIDEO* video, int adapterOrdinal)
 		g_gpu_runner = std::unique_ptr<Exedit2GpuRunner>(new Exedit2GpuRunner());
 	}
 	if (!g_gpu_runner->initialize(adapterOrdinal)) {
-		if (is_avx2_available()) {
+		if (resolve_gpu_failure_fallback_mode(is_avx2_available()) == ExecutionMode::CpuAvx2) {
 			return apply_nlm_cpu_avx2(video);
 		}
 		return apply_nlm_cpu_naive(video);
@@ -323,7 +324,7 @@ bool apply_nlm_gpu_dx11(FILTER_PROC_VIDEO* video, int adapterOrdinal)
 		search_radius,
 		time_radius,
 		sigma)) {
-		if (is_avx2_available()) {
+		if (resolve_gpu_failure_fallback_mode(is_avx2_available()) == ExecutionMode::CpuAvx2) {
 			return apply_nlm_cpu_avx2(video);
 		}
 		return apply_nlm_cpu_naive(video);
