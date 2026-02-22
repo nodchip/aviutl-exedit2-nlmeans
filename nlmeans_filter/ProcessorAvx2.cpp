@@ -18,6 +18,7 @@
 #include <immintrin.h>
 #include <intrin.h>
 #include "ProcessorAvx2.h"
+#include "CacheSizing.h"
 
 using namespace std;
 
@@ -47,7 +48,15 @@ BOOL ProcessorAvx2::proc(FILTER& fp, FILTER_PROC_INFO& fpip)
 
 	const int currentFrame = fp.exfunc->get_frame(fpip.editp);
 	const int totalFrames = fp.exfunc->get_frame_n(fpip.editp);
-	if (this->width != width || this->height != height || this->numberOfFrames != totalFrames || currentYcpFilteringCacheSize != timeSearchDiameter){
+	if (needs_cache_reset(
+		this->width,
+		this->height,
+		this->numberOfFrames,
+		this->currentYcpFilteringCacheSize,
+		width,
+		height,
+		totalFrames,
+		timeSearchDiameter)) {
 		this->width = width;
 		this->height = height;
 		this->numberOfFrames = totalFrames;

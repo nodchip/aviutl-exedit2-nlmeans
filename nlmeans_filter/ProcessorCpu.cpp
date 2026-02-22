@@ -17,6 +17,7 @@
 #include <algorithm>
 #include <atlbase.h>
 #include "ProcessorCpu.h"
+#include "CacheSizing.h"
 
 using namespace std;
 
@@ -54,12 +55,21 @@ BOOL ProcessorCpu::proc(FILTER& fp, FILTER_PROC_INFO& fpip)
 
 	const int timeSearchRadius = fp.track[1];
 	const int timeSearchDiameter = timeSearchRadius * 2 + 1;
+	const int totalFrames = fp.exfunc->get_frame_n(fpip.editp);
 	PIXEL_YC* frames[16];
 
-	if (this->width != width || this->height != height || this->numberOfFrames != numberOfFrames || currentYcpFilteringCacheSize != timeSearchDiameter){
+	if (needs_cache_reset(
+		this->width,
+		this->height,
+		this->numberOfFrames,
+		this->currentYcpFilteringCacheSize,
+		width,
+		height,
+		totalFrames,
+		timeSearchDiameter)) {
 		this->width = width;
 		this->height = height;
-		this->numberOfFrames = numberOfFrames;
+		this->numberOfFrames = totalFrames;
 		this->currentYcpFilteringCacheSize = timeSearchDiameter;
 
 		//前のキャッシュが残る不具合(?)対策
@@ -69,9 +79,8 @@ BOOL ProcessorCpu::proc(FILTER& fp, FILTER_PROC_INFO& fpip)
 
 	//フレームを読み込む
 	const int currentFrame = fp.exfunc->get_frame(fpip.editp);
-	const int numberOfFrames = fp.exfunc->get_frame_n(fpip.editp);
 	for (int dt = -timeSearchRadius; dt <= timeSearchRadius; ++dt){
-		const int targetFrame = max(0, min(numberOfFrames - 1, currentFrame + dt));
+		const int targetFrame = max(0, min(totalFrames - 1, currentFrame + dt));
 		frames[timeSearchRadius + dt] = fp.exfunc->get_ycp_filtering_cache_ex(&fp, fpip.editp, targetFrame, NULL, NULL);
 	}
 
