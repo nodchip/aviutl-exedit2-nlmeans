@@ -44,6 +44,7 @@ cmd.exe /c $cmd
 - `GpuFallbackExecutionTests.cpp`（GoogleTest）
 - `GpuRunnerDispatchTests.cpp`（GoogleTest）
 - `UiSelectionRouteTests.cpp`（GoogleTest）
+- `UiToDispatcherIntegrationTests.cpp`（GoogleTest）
 
 ## コーディング規約
 

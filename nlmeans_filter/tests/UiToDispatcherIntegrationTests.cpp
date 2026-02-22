@@ -1,4 +1,5 @@
-// UI 選択値からディスパッチまでの統合を検証する。
+// UI 選択値からディスパッチまでの統合を GoogleTest で検証する。
+#include <gtest/gtest.h>
 #include "../exedit2/UiToDispatcherIntegration.h"
 
 namespace {
@@ -34,46 +35,49 @@ void reset_state()
 	g_last_fallback = ExecutionMode::CpuNaive;
 }
 
-}
-
-int main()
+VideoProcessingHandlers make_handlers()
 {
 	VideoProcessingHandlers handlers{};
 	handlers.context = nullptr;
 	handlers.cpuNaive = cpu_naive_stub;
 	handlers.cpuAvx2 = cpu_avx2_stub;
 	handlers.gpuDx11 = gpu_stub;
+	return handlers;
+}
 
+}
+
+TEST(UiToDispatcherIntegrationTests, ValidGpuSelectionDispatchesGpu)
+{
 	UiSelectionSnapshot ui{};
 	ui.modeValue = kModeGpuDx11;
 	ui.gpuAdapterValue = 1;
-	reset_state();
-	if (!dispatch_from_ui_selection(ui, 2, true, handlers)) {
-		return 1;
-	}
-	if (g_last_call != 3 || g_last_adapter != 0 || g_last_fallback != ExecutionMode::CpuAvx2) {
-		return 2;
-	}
 
+	reset_state();
+	EXPECT_TRUE(dispatch_from_ui_selection(ui, 2, true, make_handlers()));
+	EXPECT_EQ(g_last_call, 3);
+	EXPECT_EQ(g_last_adapter, 0);
+	EXPECT_EQ(g_last_fallback, ExecutionMode::CpuAvx2);
+}
+
+TEST(UiToDispatcherIntegrationTests, InvalidGpuSelectionFallsBackToCpuAvx2)
+{
+	UiSelectionSnapshot ui{};
 	ui.modeValue = kModeGpuDx11;
 	ui.gpuAdapterValue = 9;
-	reset_state();
-	if (!dispatch_from_ui_selection(ui, 2, true, handlers)) {
-		return 3;
-	}
-	if (g_last_call != 2) {
-		return 4;
-	}
 
+	reset_state();
+	EXPECT_TRUE(dispatch_from_ui_selection(ui, 2, true, make_handlers()));
+	EXPECT_EQ(g_last_call, 2);
+}
+
+TEST(UiToDispatcherIntegrationTests, CpuAvx2WithoutSupportFallsBackToCpuNaive)
+{
+	UiSelectionSnapshot ui{};
 	ui.modeValue = kModeCpuAvx2;
 	ui.gpuAdapterValue = 0;
-	reset_state();
-	if (!dispatch_from_ui_selection(ui, 0, false, handlers)) {
-		return 5;
-	}
-	if (g_last_call != 1) {
-		return 6;
-	}
 
-	return 0;
+	reset_state();
+	EXPECT_TRUE(dispatch_from_ui_selection(ui, 0, false, make_handlers()));
+	EXPECT_EQ(g_last_call, 1);
 }
