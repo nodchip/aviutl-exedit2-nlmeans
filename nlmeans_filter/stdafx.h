@@ -16,11 +16,14 @@
 #define STDAFX_H
 
 #ifndef WINVER
-#define WINVER 0x0500
+#define WINVER 0x0600
 #endif
 
-#include <afxwin.h>
-#include <afxmt.h>
+#ifndef _WIN32_WINNT
+#define _WIN32_WINNT 0x0600
+#endif
+
+#include <windows.h>
 #include <atlutil.h>
 
 #include <cmath>
@@ -35,13 +38,9 @@
 #include <sstream>
 #include <fstream>
 #include <list>
-
-#include <boost/shared_ptr.hpp>
-#include <boost/format.hpp>
-#include <boost/lexical_cast.hpp>
+#include <memory>
 
 #include <d3d9.h>
-#include <d3dx9.h>
 #include <d3d9types.h>
 
 #include "filter.hpp"

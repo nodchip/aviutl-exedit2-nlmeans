@@ -17,7 +17,7 @@
 
 #include <map>
 #include <list>
-#include <boost/shared_ptr.hpp>
+#include <memory>
 #include "InputTexture.h"
 
 template<class KEY_TYPE, class VALUE_TYPE> class Cache;
@@ -25,14 +25,14 @@ template<class KEY_TYPE, class VALUE_TYPE> class Cache;
 class InputTextureCached : public InputTexture
 {
 public:
-	InputTextureCached(boost::shared_ptr<InputTexture> parent);
+	InputTextureCached(std::shared_ptr<InputTexture> parent);
 	virtual ~InputTextureCached();
 	CComPtr<IDirect3DTexture9> get(FILTER& fp, const FILTER_PROC_INFO& fpip, int frameIndex, const CComPtr<IDirect3DSurface9>& hostSurface);
 	void setMaxNumberOfCache(int maxNumberOfCache);
 private:
 
-	boost::shared_ptr<InputTexture> parent;
-	std::auto_ptr<Cache<int, CComPtr<IDirect3DTexture9> > > cache;
+	std::shared_ptr<InputTexture> parent;
+	std::unique_ptr<Cache<int, CComPtr<IDirect3DTexture9> > > cache;
 	int width;
 	int height;
 	int numberOfFrames;

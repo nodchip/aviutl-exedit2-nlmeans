@@ -18,7 +18,7 @@
 
 using namespace std;
 
-PixelShaderCached::PixelShaderCached(const boost::shared_ptr<PixelShader>& parent) : cache(new Cache<std::pair<int, int>, CComPtr<IDirect3DPixelShader9> >())
+PixelShaderCached::PixelShaderCached(const std::shared_ptr<PixelShader>& parent) : cache(new Cache<std::pair<int, int>, CComPtr<IDirect3DPixelShader9> >())
 {
 	this->parent = parent;
 }

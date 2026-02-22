@@ -16,6 +16,7 @@
 #define INPUT_TEXTURE_H
 
 #include <atlbase.h>
+#include <memory>
 
 class InputTexture
 {
@@ -23,7 +24,7 @@ public:
 	InputTexture(){}
 	virtual ~InputTexture(){}
 	virtual CComPtr<IDirect3DTexture9> get(FILTER& fp, const FILTER_PROC_INFO& fpip, int frameIndex, const CComPtr<IDirect3DSurface9>& hostSurface) = 0;
-	static boost::shared_ptr<InputTexture> createInstance(const CComPtr<IDirect3DDevice9>& device);
+	static std::shared_ptr<InputTexture> createInstance(const CComPtr<IDirect3DDevice9>& device);
 };
 
 #endif

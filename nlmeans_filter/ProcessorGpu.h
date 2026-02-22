@@ -15,15 +15,7 @@
 #ifndef PROCESSOR_GPU_H
 #define PROCESSOR_GPU_H
 
-#include <vector>
-#include <atlutil.h>
-#include <boost/shared_ptr.hpp>
 #include "Processor.h"
-
-class PixelShader;
-class InputTexture;
-
-template<class KEY_TYPE, class VALUE_TYPE> class Cache;
 
 class ProcessorGpu : public Processor
 {
@@ -34,30 +26,7 @@ public:
 	bool isPrepared() const{return prepared;}
 	BOOL wndProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam, void *editp, FILTER *fp);
 private:
-	bool create();
-	bool release();
-	bool prepareTemporaryArea(FILTER_PROC_INFO& fpip);
-
-	volatile int frameCacheSize;
-	volatile bool prepared;
-	static LRESULT WINAPI msgProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
-	static const char* softwareName;
-	static const WNDCLASSEX windowClass;
-	static const D3DVERTEXELEMENT9 VERTEX_ELEMENTS[];
-
-	HWND hwnd;
-	CComPtr<IDirect3D9> direct3D;
-
-	CComPtr<IDirect3DDevice9> device;
-	CComPtr<IDirect3DTexture9> hostTexture;
-	CComPtr<IDirect3DSurface9> hostSurface;
-	CComPtr<IDirect3DTexture9> deviceTexture;
-	CComPtr<IDirect3DSurface9> deviceSurface;
-	//CComPtr<ID3DXRenderToSurface> renderToSurface;
-	boost::shared_ptr<PixelShader> pixelShaderCreator;
-	boost::shared_ptr<InputTexture> inputTextureCreator;
-	int textureWidth;
-	int textureHeight;
+	bool prepared;
 };
 
 #endif

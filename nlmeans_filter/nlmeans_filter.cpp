@@ -20,10 +20,9 @@
 #include <string>
 #include <sstream>
 #include <fstream>
-#include <boost/shared_ptr.hpp>
+#include <memory>
 #include <atlbase.h>
 #include <d3d9.h>
-#include <d3dx9.h>
 #include <d3d9types.h>
 #include "ProcessorCpu.h"
 #include "ProcessorAvx2.h"
@@ -41,18 +40,23 @@ using namespace std;
 //		フィルタ構造体定義
 //---------------------------------------------------------------------
 #define	TRACK_N	4						//	トラックバーの数
-TCHAR	*track_name[] =		{"空間範囲", "時間範囲", "分散", "計算モード"};	//	トラックバーの名前
+TCHAR	*track_name[] =		{
+	const_cast<TCHAR*>("空間範囲"),
+	const_cast<TCHAR*>("時間範囲"),
+	const_cast<TCHAR*>("分散"),
+	const_cast<TCHAR*>("計算モード")
+};	//	トラックバーの名前
 int		track_default[] =	{3, 0, 50, 2};	//	トラックバーの初期値
 int		track_s[] =			{1, 0, 0, 0};	//	トラックバーの下限値
 int		track_e[] =			{16, 7, 100, 2};	//	トラックバーの上限値
 #define	CHECK_N	0														//	チェックボックスの数
-TCHAR	*check_name[] = 	{"ダミー"};				//	チェックボックスの名前
+TCHAR	*check_name[] = 	{const_cast<TCHAR*>("ダミー")};				//	チェックボックスの名前
 int		check_default[] = 	{0};				//	チェックボックスの初期値 (値は0か1)
 
 FILTER_DLL filter = {
 	FILTER_FLAG_EX_INFORMATION,
 	0,0,
-	"NL-Meansフィルタ",
+	const_cast<TCHAR*>("NL-Meansフィルタ"),
 	TRACK_N,track_name,track_default,
 	track_s,track_e,
 	CHECK_N,check_name,check_default,
@@ -64,7 +68,7 @@ FILTER_DLL filter = {
 	NULL,NULL,
 	NULL,
 	NULL,
-	"NL-Meansフィルタ version 0.14 by nodchip",
+	const_cast<TCHAR*>("NL-Meansフィルタ version 0.14 by nodchip"),
 	NULL,NULL,
 	NULL,NULL,NULL,
 	NULL,
@@ -84,12 +88,12 @@ EXTERN_C FILTER_DLL __declspec(dllexport) * __stdcall GetFilterTable( void )
 //---------------------------------------------------------------------
 //		フィルタ処理関数
 //---------------------------------------------------------------------
-boost::shared_ptr<ProcessorCpu> processorCpu;
-boost::shared_ptr<ProcessorAvx2> processorAvx2;
-boost::shared_ptr<ProcessorGpu> processorGpu;
+std::shared_ptr<ProcessorCpu> processorCpu;
+std::shared_ptr<ProcessorAvx2> processorAvx2;
+std::shared_ptr<ProcessorGpu> processorGpu;
 static const int NUMBER_OF_ROUTINES = 3;
-boost::shared_ptr<Processor> processors[NUMBER_OF_ROUTINES];
-boost::shared_ptr<Processor> currentProcessor;
+std::shared_ptr<Processor> processors[NUMBER_OF_ROUTINES];
+std::shared_ptr<Processor> currentProcessor;
 
 static BOOL func_proc( FILTER *fp,FILTER_PROC_INFO *fpip )
 {
@@ -105,9 +109,9 @@ static BOOL func_proc( FILTER *fp,FILTER_PROC_INFO *fpip )
 
 static BOOL func_init(FILTER *fp)
 {
-	processorCpu = boost::shared_ptr<ProcessorCpu>(new ProcessorCpu());
-	processorAvx2 = boost::shared_ptr<ProcessorAvx2>(new ProcessorAvx2());
-	processorGpu = boost::shared_ptr<ProcessorGpu>(new ProcessorGpu());
+	processorCpu = std::shared_ptr<ProcessorCpu>(new ProcessorCpu());
+	processorAvx2 = std::shared_ptr<ProcessorAvx2>(new ProcessorAvx2());
+	processorGpu = std::shared_ptr<ProcessorGpu>(new ProcessorGpu());
 
 	processors[0] = processorCpu;
 	processors[1] = processorAvx2;

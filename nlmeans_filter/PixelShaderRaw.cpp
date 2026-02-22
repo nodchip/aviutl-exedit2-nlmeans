@@ -14,7 +14,6 @@
 
 #include "stdafx.h"
 #include <sstream>
-#include <boost/lexical_cast.hpp>
 #include <d3dx9.h>
 #include "PixelShaderRaw.h"
 
@@ -120,8 +119,8 @@ PixelShaderRaw::~PixelShaderRaw()
 CComPtr<IDirect3DPixelShader9> PixelShaderRaw::create(int spaceSearchRadius, int timeSearchRadius)
 {
 	//シェーダプログラムの中のマクロ定義
-	const string spaceSearchRadiusString = boost::lexical_cast<string>(spaceSearchRadius);
-	const string timeSearchRadiusString = boost::lexical_cast<string>(timeSearchRadius);
+	const string spaceSearchRadiusString = std::to_string(spaceSearchRadius);
+	const string timeSearchRadiusString = std::to_string(timeSearchRadius);
 
 	D3DXMACRO macros[3] = {0};
 	macros[0].Name = "SPACE_SEARCH_RADIUS";
@@ -137,14 +136,14 @@ CComPtr<IDirect3DPixelShader9> PixelShaderRaw::create(int spaceSearchRadius, int
 		ostringstream oss;
 		oss << "ピクセルシェーダのコンパイルに失敗しました" << endl;
 		oss << (char*)errorMessage->GetBufferPointer();
-		AfxMessageBox(oss.str().c_str());
+		::MessageBoxA(NULL, oss.str().c_str(), "NL-Meansフィルタ", MB_OK | MB_ICONERROR);
 		return FALSE;
 	}
 
 	//ピクセルシェーダの作成
 	CComPtr<IDirect3DPixelShader9> pixelShader;
 	if (FAILED(device->CreatePixelShader((DWORD*)buffer->GetBufferPointer(), &pixelShader))){
-		AfxMessageBox("ピクセルシェーダの作成に失敗しました");
+		::MessageBoxA(NULL, "ピクセルシェーダの作成に失敗しました", "NL-Meansフィルタ", MB_OK | MB_ICONERROR);
 		return FALSE;
 	}
 

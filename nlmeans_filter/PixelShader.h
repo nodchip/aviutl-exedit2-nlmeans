@@ -17,6 +17,7 @@
 
 #include <atlbase.h>
 #include <d3d9.h>
+#include <memory>
 
 class PixelShader
 {
@@ -25,7 +26,7 @@ protected:
 public:
 	virtual ~PixelShader(){}
 	virtual CComPtr<IDirect3DPixelShader9> create(int spaceSearchRadius, int timeSearchRadius) = 0;
-	static boost::shared_ptr<PixelShader> createInstance(const CComPtr<IDirect3DDevice9>& device);
+	static std::shared_ptr<PixelShader> createInstance(const CComPtr<IDirect3DDevice9>& device);
 };
 
 #endif

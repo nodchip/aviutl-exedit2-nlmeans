@@ -17,7 +17,7 @@
 #include "InputTextureCached.h"
 #include "InputTextureRaw.h"
 
-boost::shared_ptr<InputTexture> InputTexture::createInstance(const CComPtr<IDirect3DDevice9>& device)
+std::shared_ptr<InputTexture> InputTexture::createInstance(const CComPtr<IDirect3DDevice9>& device)
 {
-	return boost::shared_ptr<InputTexture>(new InputTextureCached(boost::shared_ptr<InputTextureRaw>(new InputTextureRaw(device))));
+	return std::shared_ptr<InputTexture>(new InputTextureCached(std::shared_ptr<InputTextureRaw>(new InputTextureRaw(device))));
 }
