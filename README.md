@@ -12,6 +12,7 @@
 - 旧 SDK (`aviutl_plugin_sdk`) の削除
 - DirectX 11 Compute Shader バックエンドの導入
 - GPU の空間 + 時間方向 NL-Means（暫定実装）
+- 複数 GPU 協調に向けた行タイル分割ロジックを追加
 
 ## ビルド環境
 
