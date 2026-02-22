@@ -4,6 +4,7 @@ setlocal
 if exist nlmeans_filter\aviutl2_sdk\filter2.h (
   cl /nologo /utf-8 /EHsc ^
     /std:c++17 ^
+    /wd4828 ^
     /I third_party\googletest\googletest\include ^
     /I third_party\googletest\googletest ^
     /I nlmeans_filter ^
@@ -31,6 +32,7 @@ if exist nlmeans_filter\aviutl2_sdk\filter2.h (
 ) else (
   cl /nologo /utf-8 /EHsc ^
     /std:c++17 ^
+    /wd4828 ^
     /I third_party\googletest\googletest\include ^
     /I third_party\googletest\googletest ^
     /I nlmeans_filter ^
