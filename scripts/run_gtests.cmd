@@ -21,6 +21,7 @@ if exist nlmeans_filter\aviutl2_sdk\filter2.h (
     nlmeans_filter\tests\GpuQualityComparisonTests.cpp ^
     nlmeans_filter\tests\GpuRunnerDispatchTests.cpp ^
     nlmeans_filter\tests\ModeIdsGoogleTest.cpp ^
+    nlmeans_filter\tests\MultiGpuComposeTests.cpp ^
     nlmeans_filter\tests\MultiGpuTilingTests.cpp ^
     nlmeans_filter\tests\NlmFrameOutputMultiCaseTests.cpp ^
     nlmeans_filter\tests\NlmFrameOutputTests.cpp ^
@@ -54,6 +55,7 @@ if exist nlmeans_filter\aviutl2_sdk\filter2.h (
     nlmeans_filter\tests\GpuQualityComparisonTests.cpp ^
     nlmeans_filter\tests\GpuRunnerDispatchTests.cpp ^
     nlmeans_filter\tests\ModeIdsGoogleTest.cpp ^
+    nlmeans_filter\tests\MultiGpuComposeTests.cpp ^
     nlmeans_filter\tests\MultiGpuTilingTests.cpp ^
     nlmeans_filter\tests\NlmFrameOutputMultiCaseTests.cpp ^
     nlmeans_filter\tests\NlmFrameOutputTests.cpp ^

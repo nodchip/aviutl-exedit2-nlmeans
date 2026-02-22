@@ -41,6 +41,7 @@
 #include "FastModeConfig.h"
 #include "GpuCoopPolicy.h"
 #include "GpuRunnerDispatch.h"
+#include "MultiGpuCompose.h"
 #include "MultiGpuTiling.h"
 #include "UiToDispatcherIntegration.h"
 #include "../DxgiAdapterUtil.h"
@@ -583,14 +584,14 @@ bool apply_nlm_gpu_dx11(FILTER_PROC_VIDEO* video, int adapterOrdinal, ExecutionM
 					gpu_temporal_decay)) {
 					return false;
 				}
-				for (int y = tile.yBegin; y < tile.yEnd; ++y) {
-					const size_t row_begin = static_cast<size_t>(y * width);
-					const size_t row_count = static_cast<size_t>(width);
-					std::memcpy(
-						g_output_pixels.data() + row_begin,
-						temp_outputs[tile.adapterIndex].data() + row_begin,
-						row_count * sizeof(PIXEL_RGBA));
-				}
+			}
+			if (!compose_row_tiled_output(
+				width,
+				height,
+				tiles,
+				temp_outputs,
+				&g_output_pixels)) {
+				return false;
 			}
 
 			video->set_image_data(g_output_pixels.data(), width, height);
