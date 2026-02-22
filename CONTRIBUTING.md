@@ -35,12 +35,12 @@ cmd.exe /c $cmd
 - `NlmFrameReferenceTests.cpp`
 - `NlmFrameOutputTests.cpp`
 - `NlmFrameOutputMultiCaseTests.cpp`
-- `GpuFallbackPolicyTests.cpp`
 - `ModeIdsGoogleTest.cpp`（GoogleTest）
 - `ExecutionPolicyTests.cpp`（GoogleTest）
 - `GpuAdapterSelectionTests.cpp`（GoogleTest）
 - `BackendSelectionTests.cpp`（GoogleTest）
 - `ProcessingRoutePolicyTests.cpp`（GoogleTest）
+- `GpuFallbackPolicyTests.cpp`（GoogleTest）
 
 ## コーディング規約
 

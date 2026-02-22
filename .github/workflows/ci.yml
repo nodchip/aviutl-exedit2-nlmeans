@@ -51,12 +51,6 @@ jobs:
           cl /nologo /utf-8 /EHsc /I nlmeans_filter nlmeans_filter\tests\NlmFrameOutputMultiCaseTests.cpp /Fe:NlmFrameOutputMultiCaseTests.exe
           && NlmFrameOutputMultiCaseTests.exe
 
-      - name: Run GPU Fallback Policy Test
-        shell: cmd
-        run: >
-          cl /nologo /utf-8 /EHsc /I nlmeans_filter nlmeans_filter\tests\GpuFallbackPolicyTests.cpp /Fe:GpuFallbackPolicyTests.exe
-          && GpuFallbackPolicyTests.exe
-
       - name: Run Mode IDs Test
         shell: cmd
         run: >
@@ -106,6 +100,7 @@ jobs:
           nlmeans_filter\tests\BackendSelectionTests.cpp
           nlmeans_filter\tests\ExecutionPolicyTests.cpp
           nlmeans_filter\tests\GpuAdapterSelectionTests.cpp
+          nlmeans_filter\tests\GpuFallbackPolicyTests.cpp
           nlmeans_filter\tests\ModeIdsGoogleTest.cpp
           nlmeans_filter\tests\ProcessingRoutePolicyTests.cpp
           /Fe:GoogleTests.exe

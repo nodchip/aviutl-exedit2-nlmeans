@@ -1,13 +1,13 @@
-// GPU 失敗時の CPU フォールバック判定を検証する。
+// GPU 失敗時の CPU フォールバック判定を GoogleTest で検証する。
+#include <gtest/gtest.h>
 #include "../exedit2/GpuFallbackPolicy.h"
 
-int main()
+TEST(GpuFallbackPolicyTests, NoAvx2FallsBackToCpuNaive)
 {
-	if (resolve_gpu_failure_fallback_mode(false) != ExecutionMode::CpuNaive) {
-		return 1;
-	}
-	if (resolve_gpu_failure_fallback_mode(true) != ExecutionMode::CpuAvx2) {
-		return 2;
-	}
-	return 0;
+	EXPECT_EQ(resolve_gpu_failure_fallback_mode(false), ExecutionMode::CpuNaive);
+}
+
+TEST(GpuFallbackPolicyTests, Avx2AvailableFallsBackToCpuAvx2)
+{
+	EXPECT_EQ(resolve_gpu_failure_fallback_mode(true), ExecutionMode::CpuAvx2);
 }
