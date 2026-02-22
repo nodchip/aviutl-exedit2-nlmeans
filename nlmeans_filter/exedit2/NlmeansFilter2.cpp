@@ -15,7 +15,12 @@
 // ExEdit2 向けフィルタプラグインの入口。
 // 現時点では SDK 統合の下地のみ実装し、実処理は今後移植する。
 
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
 #include <windows.h>
+#include <algorithm>
+#include <cmath>
 #include <cstdint>
 #include <string>
 #include <vector>
@@ -31,6 +36,10 @@ namespace {
 
 std::vector<std::wstring> g_gpu_adapter_names;
 std::vector<FILTER_ITEM_SELECT::ITEM> g_gpu_adapter_items;
+std::vector<PIXEL_RGBA> g_input_pixels;
+std::vector<PIXEL_RGBA> g_output_pixels;
+extern FILTER_ITEM_TRACK item_search_radius;
+extern FILTER_ITEM_TRACK item_sigma;
 extern FILTER_ITEM_SELECT item_mode;
 
 // 実行バックエンドの選択状態を表す。
@@ -84,13 +93,88 @@ ExecutionMode resolve_execution_mode(int requested_mode)
 	return ExecutionMode::CpuNaive;
 }
 
-// TODO: 既存の ProcessorCpu / ProcessorAvx2 / GpuBackendDx11 を
-// ExEdit2 の FILTER_PROC_VIDEO へ接続する。
+// ExEdit2 の画像バッファへ CPU Naive な NLM を適用する。
+bool apply_nlm_cpu_naive(FILTER_PROC_VIDEO* video)
+{
+	if (video == nullptr || video->scene == nullptr || video->get_image_data == nullptr || video->set_image_data == nullptr) {
+		return false;
+	}
+
+	const int width = video->scene->width;
+	const int height = video->scene->height;
+	if (width <= 0 || height <= 0) {
+		return false;
+	}
+
+	const int pixel_count = width * height;
+	g_input_pixels.resize(static_cast<size_t>(pixel_count));
+	g_output_pixels.resize(static_cast<size_t>(pixel_count));
+
+	video->get_image_data(g_input_pixels.data());
+
+	const int search_radius = std::max(1, static_cast<int>(item_search_radius.value));
+	const double sigma = std::max(0.001, static_cast<double>(item_sigma.value));
+	const double sigma2 = sigma * sigma;
+
+	for (int y = 0; y < height; ++y) {
+		for (int x = 0; x < width; ++x) {
+			const int center_index = y * width + x;
+			const PIXEL_RGBA& center = g_input_pixels[static_cast<size_t>(center_index)];
+
+			double sum_r = 0.0;
+			double sum_g = 0.0;
+			double sum_b = 0.0;
+			double sum_w = 0.0;
+
+			for (int dy = -search_radius; dy <= search_radius; ++dy) {
+				const int sy = std::clamp(y + dy, 0, height - 1);
+				for (int dx = -search_radius; dx <= search_radius; ++dx) {
+					const int sx = std::clamp(x + dx, 0, width - 1);
+					const PIXEL_RGBA& sample = g_input_pixels[static_cast<size_t>(sy * width + sx)];
+
+					const double dr = static_cast<double>(sample.r) - static_cast<double>(center.r);
+					const double dg = static_cast<double>(sample.g) - static_cast<double>(center.g);
+					const double db = static_cast<double>(sample.b) - static_cast<double>(center.b);
+					const double dist2 = dr * dr + dg * dg + db * db;
+					const double w = std::exp(-dist2 / sigma2);
+
+					sum_r += w * static_cast<double>(sample.r);
+					sum_g += w * static_cast<double>(sample.g);
+					sum_b += w * static_cast<double>(sample.b);
+					sum_w += w;
+				}
+			}
+
+			PIXEL_RGBA out = center;
+			if (sum_w > 0.0) {
+				out.r = static_cast<unsigned char>(std::clamp(sum_r / sum_w, 0.0, 255.0));
+				out.g = static_cast<unsigned char>(std::clamp(sum_g / sum_w, 0.0, 255.0));
+				out.b = static_cast<unsigned char>(std::clamp(sum_b / sum_w, 0.0, 255.0));
+			}
+			g_output_pixels[static_cast<size_t>(center_index)] = out;
+		}
+	}
+
+	video->set_image_data(g_output_pixels.data(), width, height);
+	return true;
+}
+
+// TODO: ExEdit2 向けに AVX2/GPU 実処理を接続する。
 bool func_proc_video(FILTER_PROC_VIDEO* video)
 {
-	(void)resolve_execution_mode(item_mode.value);
-	(void)video;
-	return true;
+	const ExecutionMode mode = resolve_execution_mode(item_mode.value);
+	switch (mode) {
+	case ExecutionMode::CpuNaive:
+		return apply_nlm_cpu_naive(video);
+	case ExecutionMode::CpuAvx2:
+		// 現時点では AVX2 未接続のため Naive 実装へフォールバックする。
+		return apply_nlm_cpu_naive(video);
+	case ExecutionMode::GpuDx11:
+		// 現時点では GPU 未接続のため Naive 実装へフォールバックする。
+		return apply_nlm_cpu_naive(video);
+	default:
+		return apply_nlm_cpu_naive(video);
+	}
 }
 
 FILTER_ITEM_TRACK item_search_radius = FILTER_ITEM_TRACK(L"空間範囲", 3.0, 1.0, 16.0, 1.0);
