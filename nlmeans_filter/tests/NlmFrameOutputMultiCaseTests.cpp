@@ -1,8 +1,9 @@
-// 複数条件でフレーム全体の Naive / AVX2 一致を確認する。
+// 複数条件でフレーム全体の Naive / AVX2 一致を GoogleTest で確認する。
+#include <gtest/gtest.h>
 #include <vector>
 #include "NlmFrameKernel.h"
 
-static bool run_case(int width, int height, int frames, int searchRadius, int timeRadius, int seed)
+static void run_case(int width, int height, int frames, int searchRadius, int timeRadius, int seed)
 {
 	const int currentFrame = frames / 2;
 	const double h2 = 1.0 / (30.0 * 30.0);
@@ -38,27 +39,17 @@ static bool run_case(int width, int height, int frames, int searchRadius, int ti
 		avx2.data());
 
 	for (size_t i = 0; i < naive.size(); ++i) {
-		if (naive[i] != avx2[i]) {
-			return false;
-		}
+		EXPECT_EQ(naive[i], avx2[i]) << "index=" << i;
 	}
-	return true;
 }
 
-int main()
+TEST(NlmFrameOutputMultiCaseTests, MultipleCasesMatchBetweenNaiveAndAvx2)
 {
 	if (!is_avx2_supported_runtime()) {
-		return 0;
+		GTEST_SKIP() << "AVX2 not available on this environment.";
 	}
 
-	if (!run_case(8, 8, 3, 1, 1, 1)) {
-		return 1;
-	}
-	if (!run_case(12, 10, 3, 1, 1, 2)) {
-		return 2;
-	}
-	if (!run_case(16, 12, 5, 2, 2, 3)) {
-		return 3;
-	}
-	return 0;
+	run_case(8, 8, 3, 1, 1, 1);
+	run_case(12, 10, 3, 1, 1, 2);
+	run_case(16, 12, 5, 2, 2, 3);
 }

@@ -34,7 +34,7 @@ cmd.exe /c $cmd
 - `NlmKernelTests.cpp`（GoogleTest）
 - `NlmFrameReferenceTests.cpp`（GoogleTest）
 - `NlmFrameOutputTests.cpp`（GoogleTest）
-- `NlmFrameOutputMultiCaseTests.cpp`
+- `NlmFrameOutputMultiCaseTests.cpp`（GoogleTest）
 - `ModeIdsGoogleTest.cpp`（GoogleTest）
 - `ExecutionPolicyTests.cpp`（GoogleTest）
 - `GpuAdapterSelectionTests.cpp`（GoogleTest）
