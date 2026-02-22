@@ -157,4 +157,72 @@ inline int nlm_filter_pixel_channel_avx2(
 	return static_cast<int>(value / sum);
 }
 
+// Naive 実装で 1 フレーム(3チャンネル)を計算する。
+inline void nlm_filter_frame_naive(
+	const short* input,
+	int width,
+	int height,
+	int frameCount,
+	int currentFrame,
+	int searchRadius,
+	int timeRadius,
+	double h2,
+	short* output)
+{
+	for (int y = 0; y < height; ++y) {
+		for (int x = 0; x < width; ++x) {
+			for (int channel = 0; channel < 3; ++channel) {
+				const int value = nlm_filter_pixel_channel_naive(
+					input,
+					width,
+					height,
+					frameCount,
+					x,
+					y,
+					channel,
+					currentFrame,
+					searchRadius,
+					timeRadius,
+					h2);
+				const size_t outIndex = static_cast<size_t>((y * width + x) * 3 + channel);
+				output[outIndex] = static_cast<short>(value);
+			}
+		}
+	}
+}
+
+// AVX2 実装で 1 フレーム(3チャンネル)を計算する。
+inline void nlm_filter_frame_avx2(
+	const short* input,
+	int width,
+	int height,
+	int frameCount,
+	int currentFrame,
+	int searchRadius,
+	int timeRadius,
+	double h2,
+	short* output)
+{
+	for (int y = 0; y < height; ++y) {
+		for (int x = 0; x < width; ++x) {
+			for (int channel = 0; channel < 3; ++channel) {
+				const int value = nlm_filter_pixel_channel_avx2(
+					input,
+					width,
+					height,
+					frameCount,
+					x,
+					y,
+					channel,
+					currentFrame,
+					searchRadius,
+					timeRadius,
+					h2);
+				const size_t outIndex = static_cast<size_t>((y * width + x) * 3 + channel);
+				output[outIndex] = static_cast<short>(value);
+			}
+		}
+	}
+}
+
 #endif
