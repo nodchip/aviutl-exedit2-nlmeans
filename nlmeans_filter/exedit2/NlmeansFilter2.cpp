@@ -37,7 +37,7 @@
 
 #if __has_include("../aviutl2_sdk/filter2.h")
 #include "Exedit2GpuRunner.h"
-#include "ProcessingRoutePolicy.h"
+#include "UiSelectionRoute.h"
 #include "VideoProcessingDispatcher.h"
 #include "../DxgiAdapterUtil.h"
 
@@ -353,11 +353,11 @@ bool dispatch_gpu_dx11(void* context, int adapterOrdinal, ExecutionMode fallback
 bool func_proc_video(FILTER_PROC_VIDEO* video)
 {
 	const size_t hardware_count = g_gpu_adapter_names.size() > 0 ? (g_gpu_adapter_names.size() - 1) : 0;
-	const ProcessingRoute route = resolve_processing_route(
+	const UiSelectionSnapshot ui = {
 		item_mode.value,
-		item_gpu_adapter.value,
-		hardware_count,
-		is_avx2_available());
+		item_gpu_adapter.value
+	};
+	const ProcessingRoute route = resolve_route_from_ui_selection(ui, hardware_count, is_avx2_available());
 	g_runtime_gpu_adapter_ordinal = route.gpuAdapterOrdinal;
 	const VideoProcessingHandlers handlers = {
 		video,
