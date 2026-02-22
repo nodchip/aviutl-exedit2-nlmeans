@@ -17,6 +17,7 @@
 
 #include <vector>
 #include <string>
+#include <cstdint>
 #include <d3d11_1.h>
 #include <dxgi1_2.h>
 #include <atlbase.h>
@@ -42,11 +43,31 @@ public:
 	const std::vector<std::string>& getAdapterNames() const;
 
 private:
+	struct alignas(16) GpuPixel
+	{
+		int32_t y;
+		int32_t cb;
+		int32_t cr;
+		int32_t reserved;
+	};
+
+	bool ensurePipeline();
+	bool ensureBuffers(int width, int height);
+
 	bool available;
 	std::vector<std::string> adapterNames;
 	CComPtr<IDXGIFactory1> dxgiFactory;
 	CComPtr<ID3D11Device> device;
 	CComPtr<ID3D11DeviceContext> context;
+	CComPtr<ID3D11ComputeShader> passThroughShader;
+	CComPtr<ID3D11Buffer> constantBuffer;
+	CComPtr<ID3D11Buffer> inputBuffer;
+	CComPtr<ID3D11ShaderResourceView> inputSrv;
+	CComPtr<ID3D11Buffer> outputBuffer;
+	CComPtr<ID3D11UnorderedAccessView> outputUav;
+	CComPtr<ID3D11Buffer> readbackBuffer;
+	int bufferWidth;
+	int bufferHeight;
 };
 
 #endif
