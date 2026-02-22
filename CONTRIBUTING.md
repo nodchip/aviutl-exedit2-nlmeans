@@ -40,6 +40,7 @@ cmd.exe /c $cmd
 - `ExecutionPolicyTests.cpp`（GoogleTest）
 - `GpuAdapterSelectionTests.cpp`（GoogleTest）
 - `BackendSelectionTests.cpp`（GoogleTest）
+- `ProcessingRoutePolicyTests.cpp`（GoogleTest）
 
 ## コーディング規約
 
