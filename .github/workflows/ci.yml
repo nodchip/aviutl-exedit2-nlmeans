@@ -50,3 +50,9 @@ jobs:
         run: >
           cl /nologo /utf-8 /EHsc /I nlmeans_filter nlmeans_filter\tests\NlmFrameOutputTests.cpp /Fe:NlmFrameOutputTests.exe
           && NlmFrameOutputTests.exe
+
+      - name: Run NLM Frame Output Multi-Case Test
+        shell: cmd
+        run: >
+          cl /nologo /utf-8 /EHsc /I nlmeans_filter nlmeans_filter\tests\NlmFrameOutputMultiCaseTests.cpp /Fe:NlmFrameOutputMultiCaseTests.exe
+          && NlmFrameOutputMultiCaseTests.exe
