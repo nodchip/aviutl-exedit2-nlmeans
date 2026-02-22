@@ -17,12 +17,24 @@ inline bool dispatch_video_processing(const ProcessingRoute& route, const VideoP
 {
 	switch (route.mode) {
 	case ExecutionMode::CpuNaive:
+		if (handlers.cpuNaive == nullptr) {
+			return false;
+		}
 		return handlers.cpuNaive(handlers.context);
 	case ExecutionMode::CpuAvx2:
+		if (handlers.cpuAvx2 == nullptr) {
+			return false;
+		}
 		return handlers.cpuAvx2(handlers.context);
 	case ExecutionMode::GpuDx11:
+		if (handlers.gpuDx11 == nullptr) {
+			return false;
+		}
 		return handlers.gpuDx11(handlers.context, route.gpuAdapterOrdinal, route.gpuFallbackMode);
 	default:
+		if (handlers.cpuNaive == nullptr) {
+			return false;
+		}
 		return handlers.cpuNaive(handlers.context);
 	}
 }

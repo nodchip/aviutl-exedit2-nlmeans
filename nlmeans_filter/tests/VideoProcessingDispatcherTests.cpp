@@ -82,5 +82,18 @@ int main()
 		return 5;
 	}
 
+	handlers.cpuNaive = nullptr;
+	route.mode = ExecutionMode::CpuNaive;
+	if (dispatch_video_processing(route, handlers)) {
+		return 6;
+	}
+
+	handlers.cpuNaive = cpu_naive_stub;
+	handlers.gpuDx11 = nullptr;
+	route.mode = ExecutionMode::GpuDx11;
+	if (dispatch_video_processing(route, handlers)) {
+		return 7;
+	}
+
 	return 0;
 }
