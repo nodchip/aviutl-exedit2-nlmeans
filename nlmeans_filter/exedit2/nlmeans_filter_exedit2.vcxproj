@@ -88,6 +88,11 @@
   <ItemGroup>
     <ClCompile Include="NlmeansFilter2.cpp" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="nlmeans_exedit2_cs.hlsl">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets" />
 </Project>

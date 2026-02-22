@@ -24,6 +24,7 @@
 #include <cmath>
 #include <cstdint>
 #include <cstring>
+#include <cwchar>
 #include <memory>
 #include <string>
 #include <vector>
@@ -42,6 +43,8 @@
 #include "../aviutl2_sdk/filter2.h"
 
 namespace {
+
+extern "C" IMAGE_DOS_HEADER __ImageBase;
 
 std::vector<std::wstring> g_gpu_adapter_names;
 std::vector<FILTER_ITEM_SELECT::ITEM> g_gpu_adapter_items;
@@ -233,6 +236,7 @@ private:
 			return true;
 		}
 
+		const wchar_t* shaderFileName = L"nlmeans_exedit2_cs.hlsl";
 		static const char* shaderSource =
 			"cbuffer Constants : register(b0)\n"
 			"{\n"
@@ -288,19 +292,45 @@ private:
 
 		CComPtr<ID3DBlob> shaderBlob;
 		CComPtr<ID3DBlob> errorBlob;
-		if (FAILED(D3DCompile(
-			shaderSource,
-			strlen(shaderSource),
-			"Exedit2Nlm.hlsl",
-			nullptr,
-			nullptr,
-			"main",
-			"cs_5_0",
-			0,
-			0,
-			&shaderBlob,
-			&errorBlob))) {
-			return false;
+		bool compiled = false;
+		wchar_t modulePath[MAX_PATH] = {};
+		if (GetModuleFileNameW(reinterpret_cast<HMODULE>(&__ImageBase), modulePath, MAX_PATH) > 0) {
+			wchar_t shaderPath[MAX_PATH] = {};
+			std::wcsncpy(shaderPath, modulePath, MAX_PATH - 1);
+			wchar_t* filePart = wcsrchr(shaderPath, L'\\');
+			if (filePart != nullptr) {
+				*(filePart + 1) = L'\0';
+				std::wcsncat(shaderPath, shaderFileName, MAX_PATH - std::wcslen(shaderPath) - 1);
+				if (SUCCEEDED(D3DCompileFromFile(
+					shaderPath,
+					nullptr,
+					D3D_COMPILE_STANDARD_FILE_INCLUDE,
+					"main",
+					"cs_5_0",
+					0,
+					0,
+					&shaderBlob,
+					&errorBlob))) {
+					compiled = true;
+				}
+			}
+		}
+
+		if (!compiled) {
+			if (FAILED(D3DCompile(
+				shaderSource,
+				strlen(shaderSource),
+				"Exedit2NlmEmbedded.hlsl",
+				nullptr,
+				nullptr,
+				"main",
+				"cs_5_0",
+				0,
+				0,
+				&shaderBlob,
+				&errorBlob))) {
+				return false;
+			}
 		}
 
 		if (FAILED(device->CreateComputeShader(shaderBlob->GetBufferPointer(), shaderBlob->GetBufferSize(), nullptr, &computeShader))) {
@@ -858,5 +888,10 @@ EXTERN_C __declspec(dllexport) bool InitializePlugin(DWORD version)
 	g_gpu_runner = std::unique_ptr<Exedit2GpuRunner>(new Exedit2GpuRunner());
 	rebuild_gpu_adapter_list();
 	return true;
+}
+
+EXTERN_C __declspec(dllexport) void UninitializePlugin()
+{
+	g_gpu_runner.reset();
 }
 #endif
