@@ -31,7 +31,7 @@ cmd.exe /c $cmd
 
 主要テスト:
 
-- `NlmKernelTests.cpp`
+- `NlmKernelTests.cpp`（GoogleTest）
 - `NlmFrameReferenceTests.cpp`
 - `NlmFrameOutputTests.cpp`
 - `NlmFrameOutputMultiCaseTests.cpp`
