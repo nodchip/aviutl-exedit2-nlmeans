@@ -37,6 +37,7 @@
 
 #if __has_include("../aviutl2_sdk/filter2.h")
 #include "Exedit2GpuRunner.h"
+#include "BackendSelection.h"
 #include "../DxgiAdapterUtil.h"
 
 namespace {
@@ -51,13 +52,6 @@ extern FILTER_ITEM_TRACK item_time_radius;
 extern FILTER_ITEM_TRACK item_sigma;
 extern FILTER_ITEM_SELECT item_mode;
 extern FILTER_ITEM_SELECT item_gpu_adapter;
-
-// 実行バックエンドの選択状態を表す。
-enum class ExecutionMode : int {
-	CpuNaive = 0,
-	CpuAvx2 = 1,
-	GpuDx11 = 2
-};
 
 std::unique_ptr<Exedit2GpuRunner> g_gpu_runner;
 
@@ -121,20 +115,6 @@ bool is_selected_gpu_adapter_available()
 	}
 	const size_t hardware_count = g_gpu_adapter_names.size() > 0 ? (g_gpu_adapter_names.size() - 1) : 0;
 	return static_cast<size_t>(selected - 1) < hardware_count;
-}
-
-// 要求モードと環境能力から、実際に実行するモードを決定する。
-ExecutionMode resolve_execution_mode(int requested_mode)
-{
-	if (requested_mode >= static_cast<int>(ExecutionMode::GpuDx11) &&
-		has_hardware_gpu_adapter() &&
-		is_selected_gpu_adapter_available()) {
-		return ExecutionMode::GpuDx11;
-	}
-	if (requested_mode >= static_cast<int>(ExecutionMode::CpuAvx2) && is_avx2_available()) {
-		return ExecutionMode::CpuAvx2;
-	}
-	return ExecutionMode::CpuNaive;
 }
 
 // ExEdit2 の画像バッファへ CPU Naive な NLM を適用する。
@@ -390,7 +370,11 @@ bool apply_nlm_gpu_dx11(FILTER_PROC_VIDEO* video, int adapterOrdinal)
 
 bool func_proc_video(FILTER_PROC_VIDEO* video)
 {
-	const ExecutionMode mode = resolve_execution_mode(item_mode.value);
+	const ExecutionMode mode = resolve_execution_mode(
+		item_mode.value,
+		has_hardware_gpu_adapter(),
+		is_selected_gpu_adapter_available(),
+		is_avx2_available());
 	g_runtime_gpu_adapter_ordinal = get_selected_gpu_adapter_ordinal();
 	switch (mode) {
 	case ExecutionMode::CpuNaive:
