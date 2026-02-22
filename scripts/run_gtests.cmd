@@ -18,6 +18,7 @@ if exist nlmeans_filter\aviutl2_sdk\filter2.h (
     nlmeans_filter\tests\GpuFallbackExecutionTests.cpp ^
     nlmeans_filter\tests\GpuFallbackPolicyTests.cpp ^
     nlmeans_filter\tests\GpuCoopPolicyTests.cpp ^
+    nlmeans_filter\tests\GpuCoopQualityTests.cpp ^
     nlmeans_filter\tests\GpuQualityComparisonTests.cpp ^
     nlmeans_filter\tests\GpuRunnerDispatchTests.cpp ^
     nlmeans_filter\tests\ModeIdsGoogleTest.cpp ^
@@ -52,6 +53,7 @@ if exist nlmeans_filter\aviutl2_sdk\filter2.h (
     nlmeans_filter\tests\GpuFallbackExecutionTests.cpp ^
     nlmeans_filter\tests\GpuFallbackPolicyTests.cpp ^
     nlmeans_filter\tests\GpuCoopPolicyTests.cpp ^
+    nlmeans_filter\tests\GpuCoopQualityTests.cpp ^
     nlmeans_filter\tests\GpuQualityComparisonTests.cpp ^
     nlmeans_filter\tests\GpuRunnerDispatchTests.cpp ^
     nlmeans_filter\tests\ModeIdsGoogleTest.cpp ^
