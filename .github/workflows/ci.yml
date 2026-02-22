@@ -56,3 +56,13 @@ jobs:
         run: >
           cl /nologo /utf-8 /EHsc /I nlmeans_filter nlmeans_filter\tests\NlmFrameOutputMultiCaseTests.cpp /Fe:NlmFrameOutputMultiCaseTests.exe
           && NlmFrameOutputMultiCaseTests.exe
+
+      - name: Run Processor CPU/AVX2 Parity Test
+        shell: cmd
+        run: >
+          cl /nologo /utf-8 /EHsc /I nlmeans_filter
+          nlmeans_filter\tests\ProcessorParityTests.cpp
+          nlmeans_filter\ProcessorCpu.cpp
+          nlmeans_filter\ProcessorAvx2.cpp
+          /Fe:ProcessorParityTests.exe
+          && ProcessorParityTests.exe
