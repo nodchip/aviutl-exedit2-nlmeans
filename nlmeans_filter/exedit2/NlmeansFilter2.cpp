@@ -37,8 +37,7 @@
 
 #if __has_include("../aviutl2_sdk/filter2.h")
 #include "Exedit2GpuRunner.h"
-#include "UiSelectionRoute.h"
-#include "VideoProcessingDispatcher.h"
+#include "UiToDispatcherIntegration.h"
 #include "../DxgiAdapterUtil.h"
 
 namespace {
@@ -357,15 +356,16 @@ bool func_proc_video(FILTER_PROC_VIDEO* video)
 		item_mode.value,
 		item_gpu_adapter.value
 	};
-	const ProcessingRoute route = resolve_route_from_ui_selection(ui, hardware_count, is_avx2_available());
-	g_runtime_gpu_adapter_ordinal = route.gpuAdapterOrdinal;
 	const VideoProcessingHandlers handlers = {
 		video,
 		dispatch_cpu_naive,
 		dispatch_cpu_avx2,
 		dispatch_gpu_dx11
 	};
-	return dispatch_video_processing(route, handlers);
+	ProcessingRoute route{};
+	const bool result = dispatch_from_ui_selection(ui, hardware_count, is_avx2_available(), handlers, &route);
+	g_runtime_gpu_adapter_ordinal = route.gpuAdapterOrdinal;
+	return result;
 }
 
 FILTER_ITEM_TRACK item_search_radius = FILTER_ITEM_TRACK(L"空間範囲", 3.0, 1.0, 16.0, 1.0);

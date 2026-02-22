@@ -98,3 +98,9 @@ jobs:
         run: >
           cl /nologo /utf-8 /EHsc /I nlmeans_filter nlmeans_filter\tests\UiSelectionRouteTests.cpp /Fe:UiSelectionRouteTests.exe
           && UiSelectionRouteTests.exe
+
+      - name: Run UI To Dispatcher Integration Test
+        shell: cmd
+        run: >
+          cl /nologo /utf-8 /EHsc /I nlmeans_filter nlmeans_filter\tests\UiToDispatcherIntegrationTests.cpp /Fe:UiToDispatcherIntegrationTests.exe
+          && UiToDispatcherIntegrationTests.exe
