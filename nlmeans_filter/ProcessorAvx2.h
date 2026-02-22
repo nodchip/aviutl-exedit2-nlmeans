@@ -17,8 +17,6 @@
 
 #include "Processor.h"
 
-class ProcessorCpu;
-
 // AVX2 が利用可能な場合に CPU 処理を担当するクラス。
 class ProcessorAvx2 : public Processor
 {
@@ -32,7 +30,13 @@ public:
 
 private:
 	static bool detectAvx2();
-	ProcessorCpu* fallbackProcessor;
+	int getPixelValue(FILTER_PROC_INFO& fpip, PIXEL_YC* frames[], int x, int y, int channel, int t) const;
+	void setPixelValue(FILTER_PROC_INFO& fpip, int x, int y, int channel, int value) const;
+	long long calcPatchDiffAvx2(FILTER_PROC_INFO& fpip, PIXEL_YC* frames[], int x, int y, int dx, int dy, int dt, int channel, int timeSearchRadius) const;
+	int currentYcpFilteringCacheSize;
+	int width;
+	int height;
+	int numberOfFrames;
 	bool prepared;
 };
 
