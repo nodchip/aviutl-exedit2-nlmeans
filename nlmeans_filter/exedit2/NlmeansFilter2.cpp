@@ -43,6 +43,7 @@
 #if __has_include("../aviutl2_sdk/filter2.h")
 #include "../aviutl2_sdk/filter2.h"
 #include "../D3d11BufferUtil.h"
+#include "../D3d11ComputeUtil.h"
 #include "../DxgiAdapterUtil.h"
 #include "../ShaderCompileUtil.h"
 
@@ -176,55 +177,41 @@ public:
 				pixelCount * sizeof(PIXEL_RGBA));
 		}
 
-		D3D11_MAPPED_SUBRESOURCE mappedInput = {};
-		if (FAILED(context->Map(inputBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedInput))) {
+		if (FAILED(map_write_discard_buffer(
+			context,
+			inputBuffer,
+			uploadFrames.data(),
+			uploadFrames.size() * sizeof(PIXEL_RGBA)))) {
 			return false;
 		}
-		std::memcpy(mappedInput.pData, uploadFrames.data(), uploadFrames.size() * sizeof(PIXEL_RGBA));
-		context->Unmap(inputBuffer, 0);
 
-		D3D11_MAPPED_SUBRESOURCE mappedConstants = {};
-		if (FAILED(context->Map(constantBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedConstants))) {
-			return false;
-		}
-		ShaderConstants* constants = reinterpret_cast<ShaderConstants*>(mappedConstants.pData);
-		constants->width = static_cast<UINT>(imageWidth);
-		constants->height = static_cast<UINT>(imageHeight);
-		constants->searchRadius = static_cast<UINT>(std::max(1, searchRadius));
-		constants->frameCount = static_cast<UINT>(frameCount);
-		constants->currentFrameIndex = static_cast<UINT>(frameCount - 1);
-		constants->reserved0 = 0.0f;
+		ShaderConstants constants = {};
+		constants.width = static_cast<UINT>(imageWidth);
+		constants.height = static_cast<UINT>(imageHeight);
+		constants.searchRadius = static_cast<UINT>(std::max(1, searchRadius));
+		constants.frameCount = static_cast<UINT>(frameCount);
+		constants.currentFrameIndex = static_cast<UINT>(frameCount - 1);
+		constants.reserved0 = 0.0f;
 		const double sigma = std::max(0.001, sigmaValue);
-		constants->invSigma2 = static_cast<float>(1.0 / (sigma * sigma));
-		constants->reserved1 = 0.0f;
-		context->Unmap(constantBuffer, 0);
+		constants.invSigma2 = static_cast<float>(1.0 / (sigma * sigma));
+		constants.reserved1 = 0.0f;
+		if (FAILED(map_write_discard_buffer(context, constantBuffer, &constants, sizeof(constants)))) {
+			return false;
+		}
 
-		ID3D11ShaderResourceView* srvs[1] = { inputSrv };
-		ID3D11UnorderedAccessView* uavs[1] = { outputUav };
-		ID3D11Buffer* cbs[1] = { constantBuffer };
-		context->CSSetShader(computeShader, nullptr, 0);
-		context->CSSetShaderResources(0, 1, srvs);
-		context->CSSetUnorderedAccessViews(0, 1, uavs, nullptr);
-		context->CSSetConstantBuffers(0, 1, cbs);
-
-		const UINT groupsX = static_cast<UINT>((imageWidth + 15) / 16);
-		const UINT groupsY = static_cast<UINT>((imageHeight + 15) / 16);
-		context->Dispatch(groupsX, groupsY, 1);
-
-		ID3D11ShaderResourceView* nullSrv[1] = { nullptr };
-		ID3D11UnorderedAccessView* nullUav[1] = { nullptr };
-		context->CSSetShaderResources(0, 1, nullSrv);
-		context->CSSetUnorderedAccessViews(0, 1, nullUav, nullptr);
-		context->CSSetShader(nullptr, nullptr, 0);
+		dispatch_compute_pass(
+			context,
+			computeShader,
+			inputSrv,
+			outputUav,
+			constantBuffer,
+			static_cast<UINT>(imageWidth),
+			static_cast<UINT>(imageHeight));
 
 		context->CopyResource(readbackBuffer, outputBuffer);
-
-		D3D11_MAPPED_SUBRESOURCE mappedOutput = {};
-		if (FAILED(context->Map(readbackBuffer, 0, D3D11_MAP_READ, 0, &mappedOutput))) {
+		if (FAILED(map_read_buffer(context, readbackBuffer, outputPixels, pixelCount * sizeof(PIXEL_RGBA)))) {
 			return false;
 		}
-		std::memcpy(outputPixels, mappedOutput.pData, pixelCount * sizeof(PIXEL_RGBA));
-		context->Unmap(readbackBuffer, 0);
 		return true;
 	}
 
