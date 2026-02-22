@@ -40,6 +40,7 @@
 #include "Exedit2GpuRunner.h"
 #include "FastModeConfig.h"
 #include "GpuCoopPolicy.h"
+#include "GpuCoopRecoveryPolicy.h"
 #include "GpuRunnerDispatch.h"
 #include "MultiGpuCompose.h"
 #include "MultiGpuTiling.h"
@@ -571,18 +572,19 @@ bool apply_nlm_gpu_dx11(FILTER_PROC_VIDEO* video, int adapterOrdinal, ExecutionM
 				temp_outputs[i].resize(static_cast<size_t>(pixel_count));
 			}
 
-			bool coop_failed = false;
+			int failed_tile_count = 0;
+			std::vector<bool> tile_success(tiles.size(), false);
 			for (const auto& tile : tiles) {
 				Exedit2GpuRunner* runner = g_gpu_coop_runners[tile.adapterIndex].get();
 				if (runner == nullptr) {
-					coop_failed = true;
-					break;
+					++failed_tile_count;
+					continue;
 				}
 				if (!runner->initialize(static_cast<int>(tile.adapterIndex))) {
-					coop_failed = true;
-					break;
+					++failed_tile_count;
+					continue;
 				}
-				if (!runner->process(
+				const bool ok = runner->process(
 					g_input_pixels.data(),
 					temp_outputs[tile.adapterIndex].data(),
 					width,
@@ -593,11 +595,40 @@ bool apply_nlm_gpu_dx11(FILTER_PROC_VIDEO* video, int adapterOrdinal, ExecutionM
 					gpu_spatial_step,
 					gpu_temporal_decay,
 					tile.yBegin,
-					tile.yEnd)) {
-					coop_failed = true;
-					break;
+					tile.yEnd);
+				if (!ok) {
+					++failed_tile_count;
+				}
+				tile_success[tile.adapterIndex] = ok;
+			}
+
+			if (should_retry_failed_tile_on_single_gpu(enable_multi_gpu, failed_tile_count > 0, failed_tile_count, 2)) {
+				for (const auto& tile : tiles) {
+					if (tile_success[tile.adapterIndex]) {
+						continue;
+					}
+					const bool retried = run_single_gpu();
+					if (!retried) {
+						break;
+					}
+					for (int y = tile.yBegin; y < tile.yEnd; ++y) {
+						const size_t rowBegin = static_cast<size_t>(y * width);
+						std::memcpy(
+							temp_outputs[tile.adapterIndex].data() + rowBegin,
+							g_output_pixels.data() + rowBegin,
+							static_cast<size_t>(width) * sizeof(PIXEL_RGBA));
+					}
+					tile_success[tile.adapterIndex] = true;
+				}
+				failed_tile_count = 0;
+				for (size_t i = 0; i < tile_success.size(); ++i) {
+					if (!tile_success[i]) {
+						++failed_tile_count;
+					}
 				}
 			}
+
+			bool coop_failed = failed_tile_count > 0;
 			if (!coop_failed && !compose_row_tiled_output(
 				width,
 				height,
