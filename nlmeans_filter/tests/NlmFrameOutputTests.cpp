@@ -1,8 +1,9 @@
-// フレーム全体出力で Naive と AVX2 の一致を確認する。
+// フレーム全体出力で Naive と AVX2 の一致を GoogleTest で確認する。
+#include <gtest/gtest.h>
 #include <vector>
 #include "NlmFrameKernel.h"
 
-int main()
+TEST(NlmFrameOutputTests, Avx2FrameOutputMatchesNaiveWhenAvailable)
 {
 	const int width = 16;
 	const int height = 12;
@@ -32,7 +33,7 @@ int main()
 		naive.data());
 
 	if (!is_avx2_supported_runtime()) {
-		return 0;
+		GTEST_SKIP() << "AVX2 not available on this environment.";
 	}
 
 	nlm_filter_frame_avx2(
@@ -47,10 +48,6 @@ int main()
 		avx2.data());
 
 	for (size_t i = 0; i < naive.size(); ++i) {
-		if (naive[i] != avx2[i]) {
-			return 1;
-		}
+		EXPECT_EQ(naive[i], avx2[i]) << "index=" << i;
 	}
-
-	return 0;
 }

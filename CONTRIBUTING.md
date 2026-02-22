@@ -33,7 +33,7 @@ cmd.exe /c $cmd
 
 - `NlmKernelTests.cpp`（GoogleTest）
 - `NlmFrameReferenceTests.cpp`（GoogleTest）
-- `NlmFrameOutputTests.cpp`
+- `NlmFrameOutputTests.cpp`（GoogleTest）
 - `NlmFrameOutputMultiCaseTests.cpp`
 - `ModeIdsGoogleTest.cpp`（GoogleTest）
 - `ExecutionPolicyTests.cpp`（GoogleTest）
