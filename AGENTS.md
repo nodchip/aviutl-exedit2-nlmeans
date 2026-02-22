@@ -8,6 +8,8 @@
 ### Visual Studio / MSBuild
 - ビルド実行前に `MSBuild.exe` の所在を `vswhere` で特定し、`Test-Path` で存在確認する。
 - `msbuild` コマンドを直接呼ばず、検出した `MSBuild.exe` の絶対パスで実行する。
+- Visual Studio 2022 のビルド前に `C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat` を実行し、コンパイラ関連の環境変数を初期化する。
+- PowerShell からは `cmd /c "\"<vcvars64.batのパス>\" && msbuild ..."` 形式で同一プロセス内に環境を引き継いで実行する。
 - 完了報告で build 成功を主張する場合は、実行コマンドと終了コードを記録する。
 
 ### PowerShell でのプロジェクトファイル生成
