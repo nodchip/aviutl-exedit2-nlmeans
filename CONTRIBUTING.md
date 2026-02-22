@@ -45,6 +45,7 @@ cmd.exe /c $cmd
 - `GpuRunnerDispatchTests.cpp`（GoogleTest）
 - `UiSelectionRouteTests.cpp`（GoogleTest）
 - `UiToDispatcherIntegrationTests.cpp`（GoogleTest）
+- `VideoProcessingDispatcherTests.cpp`（GoogleTest）
 
 ## コーディング規約
 
