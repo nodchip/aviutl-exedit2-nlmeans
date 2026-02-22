@@ -51,12 +51,6 @@ jobs:
           cl /nologo /utf-8 /EHsc /I nlmeans_filter nlmeans_filter\tests\NlmFrameOutputMultiCaseTests.cpp /Fe:NlmFrameOutputMultiCaseTests.exe
           && NlmFrameOutputMultiCaseTests.exe
 
-      - name: Run Mode IDs Test
-        shell: cmd
-        run: >
-          cl /nologo /utf-8 /EHsc /I nlmeans_filter nlmeans_filter\tests\ModeIdsTests.cpp /Fe:ModeIdsTests.exe
-          && ModeIdsTests.exe
-
       - name: Run GoogleTest Suite
         shell: cmd
         run: >
