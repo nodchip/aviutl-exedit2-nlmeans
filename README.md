@@ -48,6 +48,16 @@ cmd.exe /c $cmd
 - `1`: CPU (AVX2 枠。現状は CPU Naive フォールバック)
 - `2`: GPU (DirectX 11 Compute Shader)
 
+## シェーダー配布方式（確定）
+
+- 方式: `外部 HLSL 同梱 + 実行時コンパイル`
+- フォールバック: 外部 HLSL 読み込み失敗時は埋め込みシェーダーを実行時コンパイル
+- 対象ファイル:
+  - `nlmeans_filter/gpu_nlm_cs.hlsl`
+  - `nlmeans_filter/exedit2/nlmeans_exedit2_cs.hlsl`
+
+この方式により、配布後のシェーダー調整（差し替え）と、単体配布時の自己完結性を両立します。
+
 ## 注意
 
 - 現在の GPU 実装は最適化途上です。

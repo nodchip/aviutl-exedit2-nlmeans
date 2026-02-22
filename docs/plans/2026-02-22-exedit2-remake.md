@@ -118,7 +118,7 @@ Run: `git add -A && git commit -m "CPUバックエンドをNaive/AVX2へ再編"`
 
 **Step 1: シェーダー配布方式決定**
 Run: 方式比較（埋め込みHLSL/外部HLSL/プリコンパイルCSO）
-Expected: `プリコンパイルCSO + デバッグ時のみ実行時コンパイル` を採択
+Expected: `外部HLSL同梱 + 実行時コンパイル（外部失敗時は埋め込みフォールバック）` を採択
 
 **Step 2: デバイス列挙と選択 API 実装**
 Run: DXGI アダプタ列挙
