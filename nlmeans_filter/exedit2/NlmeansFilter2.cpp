@@ -37,9 +37,7 @@
 
 #if __has_include("../aviutl2_sdk/filter2.h")
 #include "Exedit2GpuRunner.h"
-#include "BackendSelection.h"
-#include "ExecutionPolicy.h"
-#include "GpuFallbackPolicy.h"
+#include "ProcessingRoutePolicy.h"
 #include "../DxgiAdapterUtil.h"
 
 namespace {
@@ -287,8 +285,17 @@ bool apply_nlm_cpu_avx2(FILTER_PROC_VIDEO* video)
 	return true;
 }
 
+// CPU モードを切り替えて NLM を適用する。
+bool apply_nlm_cpu_by_mode(FILTER_PROC_VIDEO* video, ExecutionMode mode)
+{
+	if (mode == ExecutionMode::CpuAvx2) {
+		return apply_nlm_cpu_avx2(video);
+	}
+	return apply_nlm_cpu_naive(video);
+}
+
 // TODO: ExEdit2 向けに GPU 実処理を接続する。
-bool apply_nlm_gpu_dx11(FILTER_PROC_VIDEO* video, int adapterOrdinal)
+bool apply_nlm_gpu_dx11(FILTER_PROC_VIDEO* video, int adapterOrdinal, ExecutionMode fallbackMode)
 {
 	if (video == nullptr || video->scene == nullptr || video->get_image_data == nullptr || video->set_image_data == nullptr) {
 		return false;
@@ -297,10 +304,7 @@ bool apply_nlm_gpu_dx11(FILTER_PROC_VIDEO* video, int adapterOrdinal)
 		g_gpu_runner = std::unique_ptr<Exedit2GpuRunner>(new Exedit2GpuRunner());
 	}
 	if (!g_gpu_runner->initialize(adapterOrdinal)) {
-		if (resolve_gpu_failure_fallback_mode(is_avx2_available()) == ExecutionMode::CpuAvx2) {
-			return apply_nlm_cpu_avx2(video);
-		}
-		return apply_nlm_cpu_naive(video);
+		return apply_nlm_cpu_by_mode(video, fallbackMode);
 	}
 
 	const int width = video->scene->width;
@@ -324,10 +328,7 @@ bool apply_nlm_gpu_dx11(FILTER_PROC_VIDEO* video, int adapterOrdinal)
 		search_radius,
 		time_radius,
 		sigma)) {
-		if (resolve_gpu_failure_fallback_mode(is_avx2_available()) == ExecutionMode::CpuAvx2) {
-			return apply_nlm_cpu_avx2(video);
-		}
-		return apply_nlm_cpu_naive(video);
+		return apply_nlm_cpu_by_mode(video, fallbackMode);
 	}
 	video->set_image_data(g_output_pixels.data(), width, height);
 	return true;
@@ -336,19 +337,19 @@ bool apply_nlm_gpu_dx11(FILTER_PROC_VIDEO* video, int adapterOrdinal)
 bool func_proc_video(FILTER_PROC_VIDEO* video)
 {
 	const size_t hardware_count = g_gpu_adapter_names.size() > 0 ? (g_gpu_adapter_names.size() - 1) : 0;
-	const ExecutionPolicy policy = resolve_execution_policy(
+	const ProcessingRoute route = resolve_processing_route(
 		item_mode.value,
 		item_gpu_adapter.value,
 		hardware_count,
 		is_avx2_available());
-	g_runtime_gpu_adapter_ordinal = policy.gpuAdapterOrdinal;
-	switch (policy.mode) {
+	g_runtime_gpu_adapter_ordinal = route.gpuAdapterOrdinal;
+	switch (route.mode) {
 	case ExecutionMode::CpuNaive:
 		return apply_nlm_cpu_naive(video);
 	case ExecutionMode::CpuAvx2:
 		return apply_nlm_cpu_avx2(video);
 	case ExecutionMode::GpuDx11:
-		return apply_nlm_gpu_dx11(video, g_runtime_gpu_adapter_ordinal);
+		return apply_nlm_gpu_dx11(video, g_runtime_gpu_adapter_ordinal, route.gpuFallbackMode);
 	default:
 		return apply_nlm_cpu_naive(video);
 	}

@@ -74,3 +74,9 @@ jobs:
         run: >
           cl /nologo /utf-8 /EHsc /I nlmeans_filter nlmeans_filter\tests\GpuFallbackPolicyTests.cpp /Fe:GpuFallbackPolicyTests.exe
           && GpuFallbackPolicyTests.exe
+
+      - name: Run Processing Route Policy Test
+        shell: cmd
+        run: >
+          cl /nologo /utf-8 /EHsc /I nlmeans_filter nlmeans_filter\tests\ProcessingRoutePolicyTests.cpp /Fe:ProcessingRoutePolicyTests.exe
+          && ProcessingRoutePolicyTests.exe
