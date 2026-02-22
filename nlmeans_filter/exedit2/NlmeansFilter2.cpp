@@ -42,6 +42,7 @@
 
 #if __has_include("../aviutl2_sdk/filter2.h")
 #include "../aviutl2_sdk/filter2.h"
+#include "../DxgiAdapterUtil.h"
 #include "../ShaderCompileUtil.h"
 
 namespace {
@@ -90,33 +91,11 @@ public:
 		}
 
 		std::vector<CComPtr<IDXGIAdapter1>> hardwareAdapters;
-		for (UINT index = 0;; ++index) {
-			CComPtr<IDXGIAdapter1> adapter;
-			if (factory->EnumAdapters1(index, &adapter) == DXGI_ERROR_NOT_FOUND) {
-				break;
-			}
-			DXGI_ADAPTER_DESC1 desc = {};
-			if (FAILED(adapter->GetDesc1(&desc))) {
-				continue;
-			}
-			if (desc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE) {
-				continue;
-			}
-			hardwareAdapters.push_back(adapter);
-		}
-
-		CComPtr<IDXGIAdapter1> selectedAdapter;
-		if (!hardwareAdapters.empty()) {
-			if (adapterOrdinal >= 0 && adapterOrdinal < static_cast<int>(hardwareAdapters.size())) {
-				selectedAdapter = hardwareAdapters[static_cast<size_t>(adapterOrdinal)];
-				activeAdapterOrdinal = adapterOrdinal;
-			} else {
-				selectedAdapter = hardwareAdapters[0];
-				activeAdapterOrdinal = -1;
-			}
-		} else {
-			activeAdapterOrdinal = -1;
-		}
+		enumerate_hardware_adapters(factory, hardwareAdapters, nullptr);
+		CComPtr<IDXGIAdapter1> selectedAdapter = select_hardware_adapter(
+			hardwareAdapters,
+			adapterOrdinal,
+			&activeAdapterOrdinal);
 
 		static const D3D_FEATURE_LEVEL levels[] = {
 			D3D_FEATURE_LEVEL_11_1,
@@ -847,7 +826,7 @@ void rebuild_gpu_adapter_list()
 	g_gpu_adapter_names.emplace_back(L"Auto");
 	g_gpu_adapter_items.push_back({ g_gpu_adapter_names.back().c_str(), 0 });
 
-	IDXGIFactory1* factory = nullptr;
+	CComPtr<IDXGIFactory1> factory;
 	if (FAILED(CreateDXGIFactory1(__uuidof(IDXGIFactory1), reinterpret_cast<void**>(&factory)))) {
 		g_gpu_adapter_items.push_back({ nullptr, 0 });
 		item_gpu_adapter.list = g_gpu_adapter_items.data();
@@ -855,31 +834,16 @@ void rebuild_gpu_adapter_list()
 		return;
 	}
 
-	for (UINT index = 0;; ++index) {
-		IDXGIAdapter1* adapter = nullptr;
-		if (factory->EnumAdapters1(index, &adapter) == DXGI_ERROR_NOT_FOUND) {
-			break;
-		}
-		if (adapter == nullptr) {
-			continue;
-		}
-
-		DXGI_ADAPTER_DESC1 desc = {};
-		if (SUCCEEDED(adapter->GetDesc1(&desc))) {
-			// ソフトウェアアダプタ以外のみ候補として表示する。
-			if ((desc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE) == 0) {
-				g_gpu_adapter_names.emplace_back(desc.Description);
-				g_gpu_adapter_items.push_back({
-					g_gpu_adapter_names.back().c_str(),
-					static_cast<int>(g_gpu_adapter_items.size())
-				});
-			}
-		}
-
-		adapter->Release();
+	std::vector<CComPtr<IDXGIAdapter1>> hardwareAdapters;
+	std::vector<DXGI_ADAPTER_DESC1> hardwareAdapterDescs;
+	enumerate_hardware_adapters(factory, hardwareAdapters, &hardwareAdapterDescs);
+	for (size_t i = 0; i < hardwareAdapterDescs.size(); ++i) {
+		g_gpu_adapter_names.emplace_back(hardwareAdapterDescs[i].Description);
+		g_gpu_adapter_items.push_back({
+			g_gpu_adapter_names.back().c_str(),
+			static_cast<int>(g_gpu_adapter_items.size())
+		});
 	}
-
-	factory->Release();
 
 	g_gpu_adapter_items.push_back({ nullptr, 0 });
 	item_gpu_adapter.list = g_gpu_adapter_items.data();
