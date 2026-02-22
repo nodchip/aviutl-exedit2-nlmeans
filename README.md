@@ -28,6 +28,19 @@ $cmd='"C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Buil
 cmd.exe /c $cmd
 ```
 
+PowerShell からのテスト/ベンチ実行例:
+
+```powershell
+cl /nologo /utf-8 /EHsc /I .\nlmeans_filter .\nlmeans_filter\tests\CacheSizingTests.cpp /Fe:CacheSizingTests.exe
+.\CacheSizingTests.exe
+cl /nologo /utf-8 /EHsc /I .\nlmeans_filter .\nlmeans_filter\tests\NlmKernelTests.cpp /Fe:NlmKernelTests.exe
+.\NlmKernelTests.exe
+cl /nologo /utf-8 /EHsc /I .\nlmeans_filter .\nlmeans_filter\tests\NlmFrameReferenceTests.cpp /Fe:NlmFrameReferenceTests.exe
+.\NlmFrameReferenceTests.exe
+cl /nologo /utf-8 /EHsc /O2 /I .\nlmeans_filter .\nlmeans_filter\tests\NlmKernelBenchmark.cpp /Fe:NlmKernelBenchmark.exe
+.\NlmKernelBenchmark.exe
+```
+
 ## オプション解説
 
 ### 空間範囲
