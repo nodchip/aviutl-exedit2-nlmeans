@@ -40,6 +40,7 @@ std::vector<std::wstring> g_gpu_adapter_names;
 std::vector<FILTER_ITEM_SELECT::ITEM> g_gpu_adapter_items;
 std::vector<PIXEL_RGBA> g_input_pixels;
 std::vector<PIXEL_RGBA> g_output_pixels;
+int g_runtime_gpu_adapter_ordinal = -1;
 extern FILTER_ITEM_TRACK item_search_radius;
 extern FILTER_ITEM_TRACK item_sigma;
 extern FILTER_ITEM_SELECT item_mode;
@@ -334,18 +335,26 @@ bool apply_nlm_cpu_avx2(FILTER_PROC_VIDEO* video)
 }
 
 // TODO: ExEdit2 向けに GPU 実処理を接続する。
+bool apply_nlm_gpu_dx11(FILTER_PROC_VIDEO* video, int adapterOrdinal)
+{
+	(void)adapterOrdinal;
+	if (is_avx2_available()) {
+		return apply_nlm_cpu_avx2(video);
+	}
+	return apply_nlm_cpu_naive(video);
+}
+
 bool func_proc_video(FILTER_PROC_VIDEO* video)
 {
 	const ExecutionMode mode = resolve_execution_mode(item_mode.value);
-	(void)get_selected_gpu_adapter_ordinal();
+	g_runtime_gpu_adapter_ordinal = get_selected_gpu_adapter_ordinal();
 	switch (mode) {
 	case ExecutionMode::CpuNaive:
 		return apply_nlm_cpu_naive(video);
 	case ExecutionMode::CpuAvx2:
 		return apply_nlm_cpu_avx2(video);
 	case ExecutionMode::GpuDx11:
-		// 現時点では GPU 未接続のため Naive 実装へフォールバックする。
-		return apply_nlm_cpu_naive(video);
+		return apply_nlm_gpu_dx11(video, g_runtime_gpu_adapter_ordinal);
 	default:
 		return apply_nlm_cpu_naive(video);
 	}
