@@ -64,6 +64,8 @@ cmd.exe /c $cmd
 
 - `scripts/generate_nlm_variants_report.cmd` で `docs/reports/nlm-variants-benchmark.md` を生成できます。
 - GitHub Actions CI では同レポートを artifact (`nlm-variants-benchmark`) として保存します。
+- `scripts/generate_gpu_coop_report.cmd` で `docs/reports/gpu-coop-benchmark.md` を生成できます。
+- GitHub Actions CI では同レポートを artifact (`gpu-coop-benchmark`) として保存します。
 
 ## Pull Request
 

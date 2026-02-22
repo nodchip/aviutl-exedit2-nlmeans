@@ -40,3 +40,13 @@ jobs:
         with:
           name: nlm-variants-benchmark
           path: docs/reports/nlm-variants-benchmark.md
+
+      - name: Generate GPU Coop Benchmark Report
+        shell: cmd
+        run: scripts\generate_gpu_coop_report.cmd
+
+      - name: Upload GPU Coop Benchmark Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: gpu-coop-benchmark
+          path: docs/reports/gpu-coop-benchmark.md
