@@ -1,4 +1,4 @@
-# AviUtl NL-Means Filter by nodchip
+# AviUtl ExEdit2 NL-Means Filter by nodchip
 
 - Original site: http://kishibe.dyndns.tv/
 - License: Apache License 2.0
@@ -8,9 +8,8 @@
 このリポジトリは `AviUtl NL-Means filter by nodchip` の ExEdit2 向けリメイク作業中の状態です。
 現時点では以下を実施済みです。
 
-- Visual Studio 2022 向けプロジェクトへ移行
+- ExEdit2 専用プロジェクトへ移行（AviUtl1 対応は破棄）
 - 旧 SDK (`aviutl_plugin_sdk`) の削除
-- 旧 SSE2/CUDA 実装の削除
 - DirectX 11 Compute Shader バックエンドの導入
 - GPU の空間 + 時間方向 NL-Means（暫定実装）
 
@@ -31,12 +30,14 @@ cmd.exe /c $cmd
 PowerShell からのテスト/ベンチ実行例:
 
 ```powershell
-cl /nologo /utf-8 /EHsc /I .\nlmeans_filter .\nlmeans_filter\tests\CacheSizingTests.cpp /Fe:CacheSizingTests.exe
-.\CacheSizingTests.exe
 cl /nologo /utf-8 /EHsc /I .\nlmeans_filter .\nlmeans_filter\tests\NlmKernelTests.cpp /Fe:NlmKernelTests.exe
 .\NlmKernelTests.exe
 cl /nologo /utf-8 /EHsc /I .\nlmeans_filter .\nlmeans_filter\tests\NlmFrameReferenceTests.cpp /Fe:NlmFrameReferenceTests.exe
 .\NlmFrameReferenceTests.exe
+cl /nologo /utf-8 /EHsc /I .\nlmeans_filter .\nlmeans_filter\tests\NlmFrameOutputTests.cpp /Fe:NlmFrameOutputTests.exe
+.\NlmFrameOutputTests.exe
+cl /nologo /utf-8 /EHsc /I .\nlmeans_filter .\nlmeans_filter\tests\NlmFrameOutputMultiCaseTests.cpp /Fe:NlmFrameOutputMultiCaseTests.exe
+.\NlmFrameOutputMultiCaseTests.exe
 cl /nologo /utf-8 /EHsc /O2 /I .\nlmeans_filter .\nlmeans_filter\tests\NlmKernelBenchmark.cpp /Fe:NlmKernelBenchmark.exe
 .\NlmKernelBenchmark.exe
 ```
@@ -55,18 +56,17 @@ cl /nologo /utf-8 /EHsc /O2 /I .\nlmeans_filter .\nlmeans_filter\tests\NlmKernel
 
 右に行くほど平均化（ぼかし）が強くなります。45〜55程度が目安です。
 
-### 計算モード（現行）
+### 計算モード（ExEdit2 現行）
 
-- `0`: CPU (Naive)
-- `1`: CPU (AVX2 枠。現状は CPU Naive フォールバック)
-- `2`: GPU (DirectX 11 Compute Shader)
+- `CPU (Naive)`
+- `CPU (AVX2)`
+- `GPU (DirectX 11)`
 
 ## シェーダー配布方式（確定）
 
 - 方式: `外部 HLSL 同梱 + 実行時コンパイル`
 - フォールバック: 外部 HLSL 読み込み失敗時は埋め込みシェーダーを実行時コンパイル
 - 対象ファイル:
-  - `nlmeans_filter/gpu_nlm_cs.hlsl`
   - `nlmeans_filter/exedit2/nlmeans_exedit2_cs.hlsl`
 
 この方式により、配布後のシェーダー調整（差し替え）と、単体配布時の自己完結性を両立します。
@@ -79,8 +79,7 @@ cl /nologo /utf-8 /EHsc /O2 /I .\nlmeans_filter .\nlmeans_filter\tests\NlmKernel
 
 ## 既知の不具合
 
-- AVX2 は専用最適化が未実装です（現状フォールバック）。
-- ExEdit2 SDK への完全移植は未完了です。
+- AVX2 最適化は継続中です。
 - GPU 実装の品質/速度チューニングは継続中です。
 
 ## NL-Means アルゴリズム概要

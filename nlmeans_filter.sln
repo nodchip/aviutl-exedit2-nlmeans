@@ -2,8 +2,6 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.0.31903.59
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "nlmeans_filter", "nlmeans_filter\nlmeans_filter.vcxproj", "{9A8B82FD-4252-4C70-A4CE-901A9FC019C0}"
-EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "nlmeans_filter_exedit2", "nlmeans_filter\exedit2\nlmeans_filter_exedit2.vcxproj", "{4DD7ED1D-8A35-4A62-84C1-DAA87A7AF506}"
 EndProject
 Global
@@ -12,10 +10,6 @@ Global
 		Release|Win32 = Release|Win32
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{9A8B82FD-4252-4C70-A4CE-901A9FC019C0}.Debug|Win32.ActiveCfg = Debug|Win32
-		{9A8B82FD-4252-4C70-A4CE-901A9FC019C0}.Debug|Win32.Build.0 = Debug|Win32
-		{9A8B82FD-4252-4C70-A4CE-901A9FC019C0}.Release|Win32.ActiveCfg = Release|Win32
-		{9A8B82FD-4252-4C70-A4CE-901A9FC019C0}.Release|Win32.Build.0 = Release|Win32
 		{4DD7ED1D-8A35-4A62-84C1-DAA87A7AF506}.Debug|Win32.ActiveCfg = Debug|Win32
 		{4DD7ED1D-8A35-4A62-84C1-DAA87A7AF506}.Debug|Win32.Build.0 = Debug|Win32
 		{4DD7ED1D-8A35-4A62-84C1-DAA87A7AF506}.Release|Win32.ActiveCfg = Release|Win32

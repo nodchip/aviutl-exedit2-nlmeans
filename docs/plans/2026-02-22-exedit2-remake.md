@@ -4,7 +4,12 @@
 
 **Goal:** AviUtl NL-Means filter を ExEdit2 向けに再設計し、CPU（Naive/AVX2）と GPU（DirectX 11.3+）を選択可能な構成へ移行する。
 
-**Architecture:** 既存 AviUtl1 + D3D9 実装から、ExEdit2 SDK ベースの新規プラグイン構成へ段階移行する。アルゴリズムは共通コアを CPU/GPU バックエンドで共有し、UI 層から実行デバイスを選択する。最初にリポジトリ整理（UTF-8化・ドキュメント整備・旧SDK除去）を完了し、その後ビルド基盤、CPU/GPU 実装、テストを順次追加する。
+**Architecture:** ExEdit2 SDK ベースのプラグインへ一本化する。AviUtl1 対応は破棄し、ExEdit2 の CPU/GPU バックエンド実装・テスト・UI 統合に集中する。
+
+## 2026-02-22 方針更新
+
+- AviUtl1 対応（`.auf` / `nlmeans_filter.vcxproj` / `filter.h` 系 API 依存）は破棄済み。
+- 本計画の AviUtl1 前提タスクは ExEdit2 専用タスクへ読み替える。
 
 **Tech Stack:** C++17/20, Visual Studio 2022 (v143), AviUtl ExEdit2 Plugin SDK, Direct3D 11.3+, HLSL, GoogleTest (or Catch2)
 
