@@ -63,12 +63,6 @@ jobs:
           cl /nologo /utf-8 /EHsc /I nlmeans_filter nlmeans_filter\tests\VideoProcessingDispatcherTests.cpp /Fe:VideoProcessingDispatcherTests.exe
           && VideoProcessingDispatcherTests.exe
 
-      - name: Run UI Selection Route Test
-        shell: cmd
-        run: >
-          cl /nologo /utf-8 /EHsc /I nlmeans_filter nlmeans_filter\tests\UiSelectionRouteTests.cpp /Fe:UiSelectionRouteTests.exe
-          && UiSelectionRouteTests.exe
-
       - name: Run UI To Dispatcher Integration Test
         shell: cmd
         run: >
@@ -93,5 +87,6 @@ jobs:
           nlmeans_filter\tests\GpuRunnerDispatchTests.cpp
           nlmeans_filter\tests\ModeIdsGoogleTest.cpp
           nlmeans_filter\tests\ProcessingRoutePolicyTests.cpp
+          nlmeans_filter\tests\UiSelectionRouteTests.cpp
           /Fe:GoogleTests.exe
           && GoogleTests.exe

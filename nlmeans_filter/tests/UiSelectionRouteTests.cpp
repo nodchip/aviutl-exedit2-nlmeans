@@ -1,50 +1,75 @@
-// UI 設定値と実行経路の結合ロジックを検証する。
+// UI 設定値と実行経路の結合ロジックを GoogleTest で検証する。
+#include <gtest/gtest.h>
 #include "../exedit2/UiSelectionRoute.h"
 
-int main()
+TEST(UiSelectionRouteTests, GpuAutoSelectionResolvesToGpu)
 {
 	UiSelectionSnapshot ui{};
 	ui.modeValue = kModeGpuDx11;
 	ui.gpuAdapterValue = 0;
 
-	ProcessingRoute route = resolve_route_from_ui_selection(ui, 2, true);
-	if (route.mode != ExecutionMode::GpuDx11 || route.gpuAdapterOrdinal != -1 || route.gpuFallbackMode != ExecutionMode::CpuAvx2) {
-		return 1;
-	}
+	const ProcessingRoute route = resolve_route_from_ui_selection(ui, 2, true);
+	EXPECT_EQ(route.mode, ExecutionMode::GpuDx11);
+	EXPECT_EQ(route.gpuAdapterOrdinal, -1);
+	EXPECT_EQ(route.gpuFallbackMode, ExecutionMode::CpuAvx2);
+}
 
+TEST(UiSelectionRouteTests, CpuAvx2ModeFallsBackToCpuNaiveWithoutAvx2)
+{
+	UiSelectionSnapshot ui{};
 	ui.modeValue = kModeCpuAvx2;
-	route = resolve_route_from_ui_selection(ui, 0, false);
-	if (route.mode != ExecutionMode::CpuNaive || route.gpuAdapterOrdinal != -1 || route.gpuFallbackMode != ExecutionMode::CpuNaive) {
-		return 2;
-	}
+	ui.gpuAdapterValue = 0;
 
+	const ProcessingRoute route = resolve_route_from_ui_selection(ui, 0, false);
+	EXPECT_EQ(route.mode, ExecutionMode::CpuNaive);
+	EXPECT_EQ(route.gpuAdapterOrdinal, -1);
+	EXPECT_EQ(route.gpuFallbackMode, ExecutionMode::CpuNaive);
+}
+
+TEST(UiSelectionRouteTests, InvalidGpuAdapterFallsBackToCpuAvx2)
+{
+	UiSelectionSnapshot ui{};
 	ui.modeValue = kModeGpuDx11;
 	ui.gpuAdapterValue = 3;
-	route = resolve_route_from_ui_selection(ui, 2, true);
-	if (route.mode != ExecutionMode::CpuAvx2 || route.gpuAdapterOrdinal != -1 || route.gpuFallbackMode != ExecutionMode::CpuAvx2) {
-		return 3;
-	}
 
+	const ProcessingRoute route = resolve_route_from_ui_selection(ui, 2, true);
+	EXPECT_EQ(route.mode, ExecutionMode::CpuAvx2);
+	EXPECT_EQ(route.gpuAdapterOrdinal, -1);
+	EXPECT_EQ(route.gpuFallbackMode, ExecutionMode::CpuAvx2);
+}
+
+TEST(UiSelectionRouteTests, NegativeGpuAdapterIsTreatedAsAuto)
+{
+	UiSelectionSnapshot ui{};
 	ui.modeValue = kModeGpuDx11;
 	ui.gpuAdapterValue = -1;
-	route = resolve_route_from_ui_selection(ui, 2, true);
-	if (route.mode != ExecutionMode::GpuDx11 || route.gpuAdapterOrdinal != -1 || route.gpuFallbackMode != ExecutionMode::CpuAvx2) {
-		return 4;
-	}
 
+	const ProcessingRoute route = resolve_route_from_ui_selection(ui, 2, true);
+	EXPECT_EQ(route.mode, ExecutionMode::GpuDx11);
+	EXPECT_EQ(route.gpuAdapterOrdinal, -1);
+	EXPECT_EQ(route.gpuFallbackMode, ExecutionMode::CpuAvx2);
+}
+
+TEST(UiSelectionRouteTests, NegativeModeDefaultsToCpuNaive)
+{
+	UiSelectionSnapshot ui{};
 	ui.modeValue = -1;
 	ui.gpuAdapterValue = 0;
-	route = resolve_route_from_ui_selection(ui, 2, true);
-	if (route.mode != ExecutionMode::CpuNaive || route.gpuAdapterOrdinal != -1 || route.gpuFallbackMode != ExecutionMode::CpuAvx2) {
-		return 5;
-	}
 
+	const ProcessingRoute route = resolve_route_from_ui_selection(ui, 2, true);
+	EXPECT_EQ(route.mode, ExecutionMode::CpuNaive);
+	EXPECT_EQ(route.gpuAdapterOrdinal, -1);
+	EXPECT_EQ(route.gpuFallbackMode, ExecutionMode::CpuAvx2);
+}
+
+TEST(UiSelectionRouteTests, UnknownModeFallsBackToGpuSelectionPath)
+{
+	UiSelectionSnapshot ui{};
 	ui.modeValue = 999;
 	ui.gpuAdapterValue = 1;
-	route = resolve_route_from_ui_selection(ui, 2, true);
-	if (route.mode != ExecutionMode::GpuDx11 || route.gpuAdapterOrdinal != 0 || route.gpuFallbackMode != ExecutionMode::CpuAvx2) {
-		return 6;
-	}
 
-	return 0;
+	const ProcessingRoute route = resolve_route_from_ui_selection(ui, 2, true);
+	EXPECT_EQ(route.mode, ExecutionMode::GpuDx11);
+	EXPECT_EQ(route.gpuAdapterOrdinal, 0);
+	EXPECT_EQ(route.gpuFallbackMode, ExecutionMode::CpuAvx2);
 }
