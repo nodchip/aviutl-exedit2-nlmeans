@@ -37,7 +37,7 @@
 
 #if __has_include("../aviutl2_sdk/filter2.h")
 #include "Exedit2GpuRunner.h"
-#include "GpuFallbackExecution.h"
+#include "GpuRunnerDispatch.h"
 #include "UiToDispatcherIntegration.h"
 #include "../DxgiAdapterUtil.h"
 
@@ -304,9 +304,9 @@ bool apply_nlm_gpu_dx11(FILTER_PROC_VIDEO* video, int adapterOrdinal, ExecutionM
 	if (g_gpu_runner == nullptr) {
 		g_gpu_runner = std::unique_ptr<Exedit2GpuRunner>(new Exedit2GpuRunner());
 	}
-	return execute_gpu_with_fallback(
-		[gpuRunner = g_gpu_runner.get(), adapterOrdinal]() {
-			return gpuRunner != nullptr && gpuRunner->initialize(adapterOrdinal);
+	const GpuRunnerDispatchOps ops = {
+		[gpuRunner = g_gpu_runner.get()](int requestedAdapterOrdinal) {
+			return gpuRunner != nullptr && gpuRunner->initialize(requestedAdapterOrdinal);
 		},
 		[video, gpuRunner = g_gpu_runner.get()]() {
 			const int width = video->scene->width;
@@ -337,8 +337,9 @@ bool apply_nlm_gpu_dx11(FILTER_PROC_VIDEO* video, int adapterOrdinal, ExecutionM
 		},
 		[video](ExecutionMode mode) {
 			return apply_nlm_cpu_by_mode(video, mode);
-		},
-		fallbackMode);
+		}
+	};
+	return dispatch_gpu_runner(ops, adapterOrdinal, fallbackMode);
 }
 
 bool dispatch_cpu_naive(void* context)
