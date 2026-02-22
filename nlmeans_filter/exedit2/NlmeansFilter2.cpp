@@ -42,6 +42,7 @@
 
 #if __has_include("../aviutl2_sdk/filter2.h")
 #include "../aviutl2_sdk/filter2.h"
+#include "../ShaderCompileUtil.h"
 
 namespace {
 
@@ -266,7 +267,6 @@ private:
 			return true;
 		}
 
-		const wchar_t* shaderFileName = L"nlmeans_exedit2_cs.hlsl";
 		static const char* shaderSource =
 			"cbuffer Constants : register(b0)\n"
 			"{\n"
@@ -325,45 +325,14 @@ private:
 
 		CComPtr<ID3DBlob> shaderBlob;
 		CComPtr<ID3DBlob> errorBlob;
-		bool compiled = false;
-		wchar_t modulePath[MAX_PATH] = {};
-		if (GetModuleFileNameW(reinterpret_cast<HMODULE>(&__ImageBase), modulePath, MAX_PATH) > 0) {
-			wchar_t shaderPath[MAX_PATH] = {};
-			std::wcsncpy(shaderPath, modulePath, MAX_PATH - 1);
-			wchar_t* filePart = wcsrchr(shaderPath, L'\\');
-			if (filePart != nullptr) {
-				*(filePart + 1) = L'\0';
-				std::wcsncat(shaderPath, shaderFileName, MAX_PATH - std::wcslen(shaderPath) - 1);
-				if (SUCCEEDED(D3DCompileFromFile(
-					shaderPath,
-					nullptr,
-					D3D_COMPILE_STANDARD_FILE_INCLUDE,
-					"main",
-					"cs_5_0",
-					0,
-					0,
-					&shaderBlob,
-					&errorBlob))) {
-					compiled = true;
-				}
-			}
-		}
-
-		if (!compiled) {
-			if (FAILED(D3DCompile(
-				shaderSource,
-				strlen(shaderSource),
-				"Exedit2NlmEmbedded.hlsl",
-				nullptr,
-				nullptr,
-				"main",
-				"cs_5_0",
-				0,
-				0,
-				&shaderBlob,
-				&errorBlob))) {
-				return false;
-			}
+		if (!compile_compute_shader_from_file_or_embedded(
+			reinterpret_cast<HMODULE>(&__ImageBase),
+			L"nlmeans_exedit2_cs.hlsl",
+			shaderSource,
+			"Exedit2NlmEmbedded.hlsl",
+			&shaderBlob,
+			&errorBlob)) {
+			return false;
 		}
 
 		if (FAILED(device->CreateComputeShader(shaderBlob->GetBufferPointer(), shaderBlob->GetBufferSize(), nullptr, &computeShader))) {

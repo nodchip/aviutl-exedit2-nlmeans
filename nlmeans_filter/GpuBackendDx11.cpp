@@ -14,8 +14,8 @@
 
 #include "stdafx.h"
 #include "GpuBackendDx11.h"
+#include "ShaderCompileUtil.h"
 #include <cmath>
-#include <cwchar>
 #include <string>
 #include <vector>
 #include <d3dcompiler.h>
@@ -371,48 +371,16 @@ bool GpuBackendDx11::ensurePipeline()
 		return true;
 	}
 
-	const wchar_t* shaderFileName = L"gpu_nlm_cs.hlsl";
 	CComPtr<ID3DBlob> shaderBlob;
 	CComPtr<ID3DBlob> errorBlob;
-	bool compiled = false;
-	wchar_t modulePath[MAX_PATH] = {};
-	if (GetModuleFileNameW(reinterpret_cast<HMODULE>(&::__ImageBase), modulePath, MAX_PATH) > 0){
-		wchar_t shaderPath[MAX_PATH] = {};
-		std::wcsncpy(shaderPath, modulePath, MAX_PATH - 1);
-		wchar_t* filePart = std::wcsrchr(shaderPath, L'\\');
-		if (filePart != nullptr){
-			*(filePart + 1) = L'\0';
-			std::wcsncat(shaderPath, shaderFileName, MAX_PATH - std::wcslen(shaderPath) - 1);
-			if (SUCCEEDED(D3DCompileFromFile(
-				shaderPath,
-				NULL,
-				D3D_COMPILE_STANDARD_FILE_INCLUDE,
-				"main",
-				"cs_5_0",
-				0,
-				0,
-				&shaderBlob,
-				&errorBlob))){
-				compiled = true;
-			}
-		}
-	}
-
-	if (!compiled){
-		if (FAILED(D3DCompile(
-			NLM_SHADER_SOURCE,
-			strlen(NLM_SHADER_SOURCE),
-			"GpuNlmEmbedded.hlsl",
-			NULL,
-			NULL,
-			"main",
-			"cs_5_0",
-			0,
-			0,
-			&shaderBlob,
-			&errorBlob))){
-			return false;
-		}
+	if (!compile_compute_shader_from_file_or_embedded(
+		reinterpret_cast<HMODULE>(&::__ImageBase),
+		L"gpu_nlm_cs.hlsl",
+		NLM_SHADER_SOURCE,
+		"GpuNlmEmbedded.hlsl",
+		&shaderBlob,
+		&errorBlob)) {
+		return false;
 	}
 
 	if (FAILED(device->CreateComputeShader(shaderBlob->GetBufferPointer(), shaderBlob->GetBufferSize(), NULL, &passThroughShader))){
