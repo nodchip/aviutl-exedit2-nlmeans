@@ -16,6 +16,7 @@
 // 現時点では SDK 統合の下地のみ実装し、実処理は今後移植する。
 
 #include <windows.h>
+#include <cstdint>
 
 #if __has_include("../aviutl2_sdk/filter2.h")
 #include "../aviutl2_sdk/filter2.h"
@@ -40,13 +41,25 @@ FILTER_ITEM_SELECT::ITEM item_mode_list[] = {
 	{ nullptr }
 };
 FILTER_ITEM_SELECT item_mode = FILTER_ITEM_SELECT(L"計算モード", 2, item_mode_list);
-void* items[] = { &item_search_radius, &item_time_radius, &item_sigma, &item_mode, nullptr };
+FILTER_ITEM_SELECT::ITEM item_gpu_adapter_list[] = {
+	{ L"Auto", 0 },
+	{ nullptr }
+};
+FILTER_ITEM_SELECT item_gpu_adapter = FILTER_ITEM_SELECT(L"GPUアダプタ", 0, item_gpu_adapter_list);
+void* items[] = {
+	&item_search_radius,
+	&item_time_radius,
+	&item_sigma,
+	&item_mode,
+	&item_gpu_adapter,
+	nullptr
+};
 
 FILTER_PLUGIN_TABLE filter_plugin_table = {
 	FILTER_PLUGIN_TABLE::FLAG_VIDEO,
 	L"NL-Means Filter (ExEdit2)",
 	L"NL-Means",
-	L"NL-Means Filter for AviUtl ExEdit2 (Work in Progress)",
+	L"NL-Means Filter for AviUtl ExEdit2 (WIP: CPU/GPU backend migration)",
 	items,
 	func_proc_video,
 	nullptr
