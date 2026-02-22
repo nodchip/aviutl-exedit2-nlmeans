@@ -25,5 +25,26 @@ int main()
 		return 3;
 	}
 
+	ui.modeValue = kModeGpuDx11;
+	ui.gpuAdapterValue = -1;
+	route = resolve_route_from_ui_selection(ui, 2, true);
+	if (route.mode != ExecutionMode::GpuDx11 || route.gpuAdapterOrdinal != -1 || route.gpuFallbackMode != ExecutionMode::CpuAvx2) {
+		return 4;
+	}
+
+	ui.modeValue = -1;
+	ui.gpuAdapterValue = 0;
+	route = resolve_route_from_ui_selection(ui, 2, true);
+	if (route.mode != ExecutionMode::CpuNaive || route.gpuAdapterOrdinal != -1 || route.gpuFallbackMode != ExecutionMode::CpuAvx2) {
+		return 5;
+	}
+
+	ui.modeValue = 999;
+	ui.gpuAdapterValue = 1;
+	route = resolve_route_from_ui_selection(ui, 2, true);
+	if (route.mode != ExecutionMode::GpuDx11 || route.gpuAdapterOrdinal != 0 || route.gpuFallbackMode != ExecutionMode::CpuAvx2) {
+		return 6;
+	}
+
 	return 0;
 }
