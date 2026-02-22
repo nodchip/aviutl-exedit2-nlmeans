@@ -41,6 +41,7 @@ std::vector<PIXEL_RGBA> g_output_pixels;
 extern FILTER_ITEM_TRACK item_search_radius;
 extern FILTER_ITEM_TRACK item_sigma;
 extern FILTER_ITEM_SELECT item_mode;
+extern FILTER_ITEM_SELECT item_gpu_adapter;
 
 // 実行バックエンドの選択状態を表す。
 enum class ExecutionMode : int {
@@ -81,10 +82,42 @@ bool has_hardware_gpu_adapter()
 	return g_gpu_adapter_items.size() >= 3;
 }
 
+// UI の選択値を実アダプタ番号へ変換する。Auto は -1 を返す。
+int get_selected_gpu_adapter_ordinal()
+{
+	const int selected = item_gpu_adapter.value;
+	if (selected <= 0) {
+		return -1;
+	}
+
+	const size_t hardware_count = g_gpu_adapter_names.size() > 0 ? (g_gpu_adapter_names.size() - 1) : 0;
+	const int ordinal = selected - 1;
+	if (ordinal < 0 || static_cast<size_t>(ordinal) >= hardware_count) {
+		return -1;
+	}
+	return ordinal;
+}
+
+// 選択値が現在の列挙結果で有効かを返す。
+bool is_selected_gpu_adapter_available()
+{
+	if (!has_hardware_gpu_adapter()) {
+		return false;
+	}
+	const int selected = item_gpu_adapter.value;
+	if (selected <= 0) {
+		return true;
+	}
+	const size_t hardware_count = g_gpu_adapter_names.size() > 0 ? (g_gpu_adapter_names.size() - 1) : 0;
+	return static_cast<size_t>(selected - 1) < hardware_count;
+}
+
 // 要求モードと環境能力から、実際に実行するモードを決定する。
 ExecutionMode resolve_execution_mode(int requested_mode)
 {
-	if (requested_mode >= static_cast<int>(ExecutionMode::GpuDx11) && has_hardware_gpu_adapter()) {
+	if (requested_mode >= static_cast<int>(ExecutionMode::GpuDx11) &&
+		has_hardware_gpu_adapter() &&
+		is_selected_gpu_adapter_available()) {
 		return ExecutionMode::GpuDx11;
 	}
 	if (requested_mode >= static_cast<int>(ExecutionMode::CpuAvx2) && is_avx2_available()) {
@@ -163,6 +196,7 @@ bool apply_nlm_cpu_naive(FILTER_PROC_VIDEO* video)
 bool func_proc_video(FILTER_PROC_VIDEO* video)
 {
 	const ExecutionMode mode = resolve_execution_mode(item_mode.value);
+	(void)get_selected_gpu_adapter_ordinal();
 	switch (mode) {
 	case ExecutionMode::CpuNaive:
 		return apply_nlm_cpu_naive(video);
