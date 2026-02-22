@@ -26,3 +26,9 @@ jobs:
           /p:Configuration=Release
           /p:Platform=Win32
           /m:1
+
+      - name: Run Cache Sizing Unit Test
+        shell: cmd
+        run: >
+          cl /nologo /utf-8 /EHsc /I nlmeans_filter nlmeans_filter\tests\CacheSizingTests.cpp /Fe:CacheSizingTests.exe
+          && CacheSizingTests.exe
