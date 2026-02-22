@@ -38,3 +38,9 @@ jobs:
         run: >
           cl /nologo /utf-8 /EHsc /I nlmeans_filter nlmeans_filter\tests\NlmKernelTests.cpp /Fe:NlmKernelTests.exe
           && NlmKernelTests.exe
+
+      - name: Run NLM Frame Reference Test
+        shell: cmd
+        run: >
+          cl /nologo /utf-8 /EHsc /I nlmeans_filter nlmeans_filter\tests\NlmFrameReferenceTests.cpp /Fe:NlmFrameReferenceTests.exe
+          && NlmFrameReferenceTests.exe
