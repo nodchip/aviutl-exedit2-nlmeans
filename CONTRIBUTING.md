@@ -72,3 +72,8 @@ cmd.exe /c $cmd
 1. 変更内容を説明し、目的を1つに絞ってください。
 2. 実行した build / test コマンドと結果を記載してください。
 3. 既知の制約や未検証範囲があれば明記してください。
+
+## GPU 実機 CI
+
+- `.github/workflows/gpu-selfhosted-ci.yml` は `self-hosted, windows, gpu` ラベルのランナー向けです。
+- GPU 品質比較と協調ベンチを含む結果を artifact (`gpu-selfhosted-reports`) に保存します。

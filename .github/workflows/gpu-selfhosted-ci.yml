@@ -1,0 +1,52 @@
+name: GPU Self-Hosted CI
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - master
+  pull_request:
+
+jobs:
+  gpu-quality-windows:
+    runs-on:
+      - self-hosted
+      - windows
+      - gpu
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup MSVC
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x86
+
+      - name: Build Release Win32
+        shell: cmd
+        run: >
+          MSBuild.exe nlmeans_filter.sln
+          /p:Configuration=Release
+          /p:Platform=Win32
+          /m:1
+
+      - name: Run GoogleTest Suite
+        shell: cmd
+        run: scripts\run_gtests.cmd
+
+      - name: Generate NLM Variants Benchmark Report
+        shell: cmd
+        run: scripts\generate_nlm_variants_report.cmd
+
+      - name: Generate GPU Coop Benchmark Report
+        shell: cmd
+        run: scripts\generate_gpu_coop_report.cmd
+
+      - name: Upload GPU Reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: gpu-selfhosted-reports
+          path: |
+            docs/reports/nlm-variants-benchmark.md
+            docs/reports/gpu-coop-benchmark.md
