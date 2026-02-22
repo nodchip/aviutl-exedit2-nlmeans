@@ -42,6 +42,7 @@ cmd.exe /c $cmd
 - `ProcessingRoutePolicyTests.cpp`（GoogleTest）
 - `GpuFallbackPolicyTests.cpp`（GoogleTest）
 - `GpuFallbackExecutionTests.cpp`（GoogleTest）
+- `GpuQualityComparisonTests.cpp`（GoogleTest, SDK配置時）
 - `GpuRunnerDispatchTests.cpp`（GoogleTest）
 - `UiSelectionRouteTests.cpp`（GoogleTest）
 - `UiToDispatcherIntegrationTests.cpp`（GoogleTest）

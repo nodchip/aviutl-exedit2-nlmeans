@@ -10,16 +10,8 @@ cbuffer Constants : register(b0)
     float Reserved1;
 };
 
-struct PixelData
-{
-    uint r;
-    uint g;
-    uint b;
-    uint a;
-};
-
-StructuredBuffer<PixelData> InputPixels : register(t0);
-RWStructuredBuffer<PixelData> OutputPixels : register(u0);
+StructuredBuffer<uint> InputPixels : register(t0);
+RWStructuredBuffer<uint> OutputPixels : register(u0);
 
 int clampi(int v, int low, int high)
 {
@@ -31,6 +23,27 @@ uint frameIndex(uint t, uint x, uint y)
     return (t * Height + y) * Width + x;
 }
 
+float3 unpack_rgb(uint packed)
+{
+    return float3(
+        (float)(packed & 0xffu),
+        (float)((packed >> 8) & 0xffu),
+        (float)((packed >> 16) & 0xffu));
+}
+
+uint unpack_a(uint packed)
+{
+    return (packed >> 24) & 0xffu;
+}
+
+uint pack_rgba(float3 rgb, uint a)
+{
+    const uint r = (uint)clamp(rgb.x, 0.0f, 255.0f);
+    const uint g = (uint)clamp(rgb.y, 0.0f, 255.0f);
+    const uint b = (uint)clamp(rgb.z, 0.0f, 255.0f);
+    return (a << 24) | (b << 16) | (g << 8) | r;
+}
+
 [numthreads(16,16,1)]
 void main(uint3 tid : SV_DispatchThreadID)
 {
@@ -40,7 +53,9 @@ void main(uint3 tid : SV_DispatchThreadID)
     const int x = (int)tid.x;
     const int y = (int)tid.y;
     const uint centerIndex = frameIndex(CurrentFrameIndex, tid.x, tid.y);
-    const PixelData center = InputPixels[centerIndex];
+    const uint centerPacked = InputPixels[centerIndex];
+    const float3 center = unpack_rgb(centerPacked);
+    const uint alpha = unpack_a(centerPacked);
 
     float sumW = 0.0f;
     float sumR = 0.0f;
@@ -55,26 +70,24 @@ void main(uint3 tid : SV_DispatchThreadID)
             for (int dx = -((int)SearchRadius); dx <= (int)SearchRadius; ++dx)
             {
                 const int sx = clampi(x + dx, 0, (int)Width - 1);
-                const PixelData sample = InputPixels[frameIndex(t, (uint)sx, (uint)sy)];
-                const float dr = (float)sample.r - (float)center.r;
-                const float dg = (float)sample.g - (float)center.g;
-                const float db = (float)sample.b - (float)center.b;
+                const float3 sample = unpack_rgb(InputPixels[frameIndex(t, (uint)sx, (uint)sy)]);
+                const float dr = sample.r - center.r;
+                const float dg = sample.g - center.g;
+                const float db = sample.b - center.b;
                 const float dist2 = dr * dr + dg * dg + db * db;
                 const float w = exp(-dist2 * InvSigma2);
                 sumW += w;
-                sumR += w * (float)sample.r;
-                sumG += w * (float)sample.g;
-                sumB += w * (float)sample.b;
+                sumR += w * sample.r;
+                sumG += w * sample.g;
+                sumB += w * sample.b;
             }
         }
     }
 
-    PixelData outPixel = center;
+    float3 outRgb = center;
     if (sumW > 0.0f)
     {
-        outPixel.r = (uint)clamp(sumR / sumW, 0.0f, 255.0f);
-        outPixel.g = (uint)clamp(sumG / sumW, 0.0f, 255.0f);
-        outPixel.b = (uint)clamp(sumB / sumW, 0.0f, 255.0f);
+        outRgb = float3(sumR / sumW, sumG / sumW, sumB / sumW);
     }
-    OutputPixels[tid.y * Width + tid.x] = outPixel;
+    OutputPixels[tid.y * Width + tid.x] = pack_rgba(outRgb, alpha);
 }
