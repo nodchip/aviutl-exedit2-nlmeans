@@ -111,7 +111,8 @@ BOOL GpuBackendDx11::process(FILTER& fp, FILTER_PROC_INFO& fpip)
 {
 	(void)fp;
 	(void)fpip;
-	return FALSE;
+	// D3D11 実処理実装までの暫定動作: 入力をそのまま通す。
+	return TRUE;
 }
 
 const std::vector<std::string>& GpuBackendDx11::getAdapterNames() const
