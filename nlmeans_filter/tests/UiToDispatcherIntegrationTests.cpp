@@ -26,6 +26,12 @@ bool cpu_fast_stub(void*)
 	return true;
 }
 
+bool cpu_temporal_stub(void*)
+{
+	g_last_call = 5;
+	return true;
+}
+
 bool gpu_stub(void*, int adapterOrdinal, ExecutionMode fallbackMode)
 {
 	g_last_call = 3;
@@ -48,6 +54,7 @@ VideoProcessingHandlers make_handlers()
 	handlers.cpuNaive = cpu_naive_stub;
 	handlers.cpuAvx2 = cpu_avx2_stub;
 	handlers.cpuFast = cpu_fast_stub;
+	handlers.cpuTemporal = cpu_temporal_stub;
 	handlers.gpuDx11 = gpu_stub;
 	return handlers;
 }
@@ -98,4 +105,15 @@ TEST(UiToDispatcherIntegrationTests, CpuFastDispatchesCpuFast)
 	reset_state();
 	EXPECT_TRUE(dispatch_from_ui_selection(ui, 0, true, make_handlers()));
 	EXPECT_EQ(g_last_call, 4);
+}
+
+TEST(UiToDispatcherIntegrationTests, CpuTemporalDispatchesCpuTemporal)
+{
+	UiSelectionSnapshot ui{};
+	ui.modeValue = kModeCpuTemporal;
+	ui.gpuAdapterValue = 0;
+
+	reset_state();
+	EXPECT_TRUE(dispatch_from_ui_selection(ui, 0, true, make_handlers()));
+	EXPECT_EQ(g_last_call, 5);
 }

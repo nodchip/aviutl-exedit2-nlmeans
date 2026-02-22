@@ -85,3 +85,15 @@ TEST(UiSelectionRouteTests, CpuFastModeResolvesToCpuFast)
 	EXPECT_EQ(route.gpuAdapterOrdinal, -1);
 	EXPECT_EQ(route.gpuFallbackMode, ExecutionMode::CpuAvx2);
 }
+
+TEST(UiSelectionRouteTests, CpuTemporalModeResolvesToCpuTemporal)
+{
+	UiSelectionSnapshot ui{};
+	ui.modeValue = kModeCpuTemporal;
+	ui.gpuAdapterValue = 0;
+
+	const ProcessingRoute route = resolve_route_from_ui_selection(ui, 0, true);
+	EXPECT_EQ(route.mode, ExecutionMode::CpuTemporal);
+	EXPECT_EQ(route.gpuAdapterOrdinal, -1);
+	EXPECT_EQ(route.gpuFallbackMode, ExecutionMode::CpuAvx2);
+}

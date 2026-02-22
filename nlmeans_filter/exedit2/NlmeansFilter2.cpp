@@ -25,6 +25,7 @@
 #include <cstdint>
 #include <cstring>
 #include <cwchar>
+#include <deque>
 #include <memory>
 #include <string>
 #include <vector>
@@ -48,11 +49,13 @@ std::vector<std::wstring> g_gpu_adapter_names;
 std::vector<FILTER_ITEM_SELECT::ITEM> g_gpu_adapter_items;
 std::vector<PIXEL_RGBA> g_input_pixels;
 std::vector<PIXEL_RGBA> g_output_pixels;
+std::deque<std::vector<PIXEL_RGBA>> g_cpu_temporal_history;
 int g_runtime_gpu_adapter_ordinal = -1;
 extern FILTER_ITEM_TRACK item_search_radius;
 extern FILTER_ITEM_TRACK item_time_radius;
 extern FILTER_ITEM_TRACK item_sigma;
 extern FILTER_ITEM_TRACK item_fast_spatial_step;
+extern FILTER_ITEM_TRACK item_temporal_decay;
 extern FILTER_ITEM_SELECT item_mode;
 extern FILTER_ITEM_SELECT item_gpu_adapter;
 
@@ -245,6 +248,108 @@ bool apply_nlm_cpu_fast(FILTER_PROC_VIDEO* video)
 	return true;
 }
 
+// 履歴フレームを使う Temporal NLM（Naive）で 1 画素を処理する。
+PIXEL_RGBA process_pixel_temporal(
+	const std::deque<std::vector<PIXEL_RGBA>>& historyFrames,
+	int width,
+	int height,
+	int x,
+	int y,
+	int search_radius,
+	double sigma2,
+	double temporal_decay)
+{
+	const PIXEL_RGBA& center = historyFrames.back()[static_cast<size_t>(y * width + x)];
+	double sum_r = 0.0;
+	double sum_g = 0.0;
+	double sum_b = 0.0;
+	double sum_w = 0.0;
+
+	for (size_t t = 0; t < historyFrames.size(); ++t) {
+		const size_t reverseIndex = historyFrames.size() - 1 - t;
+		const std::vector<PIXEL_RGBA>& frame = historyFrames[reverseIndex];
+		const double temporalWeight = std::exp(-temporal_decay * static_cast<double>(t));
+		for (int dy = -search_radius; dy <= search_radius; ++dy) {
+			const int sy = std::clamp(y + dy, 0, height - 1);
+			for (int dx = -search_radius; dx <= search_radius; ++dx) {
+				const int sx = std::clamp(x + dx, 0, width - 1);
+				const PIXEL_RGBA& sample = frame[static_cast<size_t>(sy * width + sx)];
+
+				const double dr = static_cast<double>(sample.r) - static_cast<double>(center.r);
+				const double dg = static_cast<double>(sample.g) - static_cast<double>(center.g);
+				const double db = static_cast<double>(sample.b) - static_cast<double>(center.b);
+				const double dist2 = dr * dr + dg * dg + db * db;
+				const double w = std::exp(-dist2 / sigma2) * temporalWeight;
+
+				sum_r += w * static_cast<double>(sample.r);
+				sum_g += w * static_cast<double>(sample.g);
+				sum_b += w * static_cast<double>(sample.b);
+				sum_w += w;
+			}
+		}
+	}
+
+	PIXEL_RGBA out = center;
+	if (sum_w > 0.0) {
+		out.r = static_cast<unsigned char>(std::clamp(sum_r / sum_w, 0.0, 255.0));
+		out.g = static_cast<unsigned char>(std::clamp(sum_g / sum_w, 0.0, 255.0));
+		out.b = static_cast<unsigned char>(std::clamp(sum_b / sum_w, 0.0, 255.0));
+	}
+	return out;
+}
+
+// ExEdit2 の画像バッファへ CPU Temporal NLM を適用する。
+bool apply_nlm_cpu_temporal(FILTER_PROC_VIDEO* video)
+{
+	if (video == nullptr || video->scene == nullptr || video->get_image_data == nullptr || video->set_image_data == nullptr) {
+		return false;
+	}
+
+	const int width = video->scene->width;
+	const int height = video->scene->height;
+	if (width <= 0 || height <= 0) {
+		return false;
+	}
+
+	const int pixel_count = width * height;
+	g_input_pixels.resize(static_cast<size_t>(pixel_count));
+	g_output_pixels.resize(static_cast<size_t>(pixel_count));
+	video->get_image_data(g_input_pixels.data());
+
+	const int search_radius = std::max(1, static_cast<int>(item_search_radius.value));
+	const int time_radius = std::max(0, static_cast<int>(item_time_radius.value));
+	const int required_history = time_radius + 1;
+	const double sigma = std::max(0.001, static_cast<double>(item_sigma.value));
+	const double sigma2 = sigma * sigma;
+	const double temporal_decay = std::max(0.0, static_cast<double>(item_temporal_decay.value));
+
+	if (g_cpu_temporal_history.empty() ||
+		g_cpu_temporal_history.back().size() != static_cast<size_t>(pixel_count)) {
+		g_cpu_temporal_history.clear();
+	}
+	g_cpu_temporal_history.push_back(g_input_pixels);
+	while (g_cpu_temporal_history.size() > static_cast<size_t>(required_history)) {
+		g_cpu_temporal_history.pop_front();
+	}
+
+	for (int y = 0; y < height; ++y) {
+		for (int x = 0; x < width; ++x) {
+			g_output_pixels[static_cast<size_t>(y * width + x)] = process_pixel_temporal(
+				g_cpu_temporal_history,
+				width,
+				height,
+				x,
+				y,
+				search_radius,
+				sigma2,
+				temporal_decay);
+		}
+	}
+
+	video->set_image_data(g_output_pixels.data(), width, height);
+	return true;
+}
+
 // ExEdit2 の画像バッファへ CPU AVX2 な NLM を適用する。
 bool apply_nlm_cpu_avx2(FILTER_PROC_VIDEO* video)
 {
@@ -374,6 +479,9 @@ bool apply_nlm_cpu_avx2(FILTER_PROC_VIDEO* video)
 // CPU モードを切り替えて NLM を適用する。
 bool apply_nlm_cpu_by_mode(FILTER_PROC_VIDEO* video, ExecutionMode mode)
 {
+	if (mode == ExecutionMode::CpuTemporal) {
+		return apply_nlm_cpu_temporal(video);
+	}
 	if (mode == ExecutionMode::CpuFast) {
 		return apply_nlm_cpu_fast(video);
 	}
@@ -445,6 +553,11 @@ bool dispatch_cpu_fast(void* context)
 	return apply_nlm_cpu_fast(static_cast<FILTER_PROC_VIDEO*>(context));
 }
 
+bool dispatch_cpu_temporal(void* context)
+{
+	return apply_nlm_cpu_temporal(static_cast<FILTER_PROC_VIDEO*>(context));
+}
+
 bool dispatch_gpu_dx11(void* context, int adapterOrdinal, ExecutionMode fallbackMode)
 {
 	return apply_nlm_gpu_dx11(static_cast<FILTER_PROC_VIDEO*>(context), adapterOrdinal, fallbackMode);
@@ -462,6 +575,7 @@ bool func_proc_video(FILTER_PROC_VIDEO* video)
 		dispatch_cpu_naive,
 		dispatch_cpu_avx2,
 		dispatch_cpu_fast,
+		dispatch_cpu_temporal,
 		dispatch_gpu_dx11
 	};
 	ProcessingRoute route{};
@@ -474,10 +588,12 @@ FILTER_ITEM_TRACK item_search_radius = FILTER_ITEM_TRACK(L"空間範囲", 3.0, 1
 FILTER_ITEM_TRACK item_time_radius = FILTER_ITEM_TRACK(L"時間範囲", 0.0, 0.0, 7.0, 1.0);
 FILTER_ITEM_TRACK item_sigma = FILTER_ITEM_TRACK(L"分散", 50.0, 0.0, 100.0, 1.0);
 FILTER_ITEM_TRACK item_fast_spatial_step = FILTER_ITEM_TRACK(L"Fast間引き", 2.0, 1.0, 4.0, 1.0);
+FILTER_ITEM_TRACK item_temporal_decay = FILTER_ITEM_TRACK(L"Temporal減衰", 1.0, 0.0, 4.0, 0.1);
 FILTER_ITEM_SELECT::ITEM item_mode_list[] = {
 	{ L"CPU (Naive)", kModeCpuNaive },
 	{ L"CPU (AVX2)", kModeCpuAvx2 },
 	{ L"CPU (Fast)", kModeCpuFast },
+	{ L"CPU (Temporal)", kModeCpuTemporal },
 	{ L"GPU (DirectX 11)", kModeGpuDx11 },
 	{ nullptr }
 };
@@ -492,6 +608,7 @@ void* items[] = {
 	&item_time_radius,
 	&item_sigma,
 	&item_fast_spatial_step,
+	&item_temporal_decay,
 	&item_mode,
 	&item_gpu_adapter,
 	nullptr
@@ -559,5 +676,6 @@ EXTERN_C __declspec(dllexport) bool InitializePlugin(DWORD version)
 EXTERN_C __declspec(dllexport) void UninitializePlugin()
 {
 	g_gpu_runner.reset();
+	g_cpu_temporal_history.clear();
 }
 #endif

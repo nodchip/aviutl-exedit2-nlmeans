@@ -27,6 +27,12 @@ bool cpu_fast_stub(void*)
 	return g_return_value;
 }
 
+bool cpu_temporal_stub(void*)
+{
+	g_last_call = 5;
+	return g_return_value;
+}
+
 bool gpu_stub(void*, int adapterOrdinal, ExecutionMode fallbackMode)
 {
 	g_last_call = 3;
@@ -54,6 +60,7 @@ VideoProcessingHandlers make_handlers()
 	handlers.cpuNaive = cpu_naive_stub;
 	handlers.cpuAvx2 = cpu_avx2_stub;
 	handlers.cpuFast = cpu_fast_stub;
+	handlers.cpuTemporal = cpu_temporal_stub;
 	handlers.gpuDx11 = gpu_stub;
 	return handlers;
 }
@@ -106,6 +113,16 @@ TEST(VideoProcessingDispatcherTests, DispatchesCpuFast)
 	EXPECT_EQ(g_last_call, 4);
 }
 
+TEST(VideoProcessingDispatcherTests, DispatchesCpuTemporal)
+{
+	VideoProcessingHandlers handlers = make_handlers();
+	ProcessingRoute route{};
+	route.mode = ExecutionMode::CpuTemporal;
+	reset_state();
+	EXPECT_TRUE(dispatch_video_processing(route, handlers));
+	EXPECT_EQ(g_last_call, 5);
+}
+
 TEST(VideoProcessingDispatcherTests, UnknownModeFallsBackToCpuNaive)
 {
 	VideoProcessingHandlers handlers = make_handlers();
@@ -150,5 +167,14 @@ TEST(VideoProcessingDispatcherTests, ReturnsFalseWithoutCpuFastHandler)
 	ProcessingRoute route{};
 	handlers.cpuFast = nullptr;
 	route.mode = ExecutionMode::CpuFast;
+	EXPECT_FALSE(dispatch_video_processing(route, handlers));
+}
+
+TEST(VideoProcessingDispatcherTests, ReturnsFalseWithoutCpuTemporalHandler)
+{
+	VideoProcessingHandlers handlers = make_handlers();
+	ProcessingRoute route{};
+	handlers.cpuTemporal = nullptr;
+	route.mode = ExecutionMode::CpuTemporal;
 	EXPECT_FALSE(dispatch_video_processing(route, handlers));
 }

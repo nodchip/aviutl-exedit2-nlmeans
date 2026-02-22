@@ -28,3 +28,9 @@ TEST(BackendSelectionTests, CpuFastModeResolvesToCpuFast)
 	EXPECT_EQ(resolve_execution_mode_for_test(kModeCpuFast, false, false, false), kModeCpuFast);
 	EXPECT_EQ(resolve_execution_mode_for_test(kModeCpuFast, true, true, true), kModeCpuFast);
 }
+
+TEST(BackendSelectionTests, CpuTemporalModeResolvesToCpuTemporal)
+{
+	EXPECT_EQ(resolve_execution_mode_for_test(kModeCpuTemporal, false, false, false), kModeCpuTemporal);
+	EXPECT_EQ(resolve_execution_mode_for_test(kModeCpuTemporal, true, true, true), kModeCpuTemporal);
+}

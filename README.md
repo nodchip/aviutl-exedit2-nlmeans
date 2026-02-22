@@ -60,11 +60,16 @@ cmd.exe /c $cmd
 
 `CPU (Fast)` 使用時の探索間引きステップです。値を上げると高速化しやすく、画質はやや低下します。
 
+### Temporal減衰
+
+`CPU (Temporal)` 使用時の時間方向重みの減衰係数です。値を上げるほど過去フレームの寄与が小さくなります。
+
 ### 計算モード（ExEdit2 現行）
 
 - `CPU (Naive)`
 - `CPU (AVX2)`
 - `CPU (Fast)`
+- `CPU (Temporal)`
 - `GPU (DirectX 11)`
 
 ## シェーダー配布方式（確定）

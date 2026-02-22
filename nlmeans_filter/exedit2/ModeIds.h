@@ -5,6 +5,7 @@
 constexpr int kModeCpuNaive = 0;
 constexpr int kModeCpuAvx2 = 1;
 constexpr int kModeCpuFast = 2;
-constexpr int kModeGpuDx11 = 3;
+constexpr int kModeCpuTemporal = 3;
+constexpr int kModeGpuDx11 = 4;
 
 #endif
