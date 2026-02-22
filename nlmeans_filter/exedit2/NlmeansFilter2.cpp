@@ -44,6 +44,7 @@
 #include "../aviutl2_sdk/filter2.h"
 #include "../D3d11BufferUtil.h"
 #include "../D3d11ComputeUtil.h"
+#include "../D3d11DeviceUtil.h"
 #include "../DxgiAdapterUtil.h"
 #include "../ShaderCompileUtil.h"
 
@@ -87,36 +88,12 @@ public:
 
 		clearResources();
 
-		CComPtr<IDXGIFactory1> factory;
-		if (FAILED(CreateDXGIFactory1(__uuidof(IDXGIFactory1), reinterpret_cast<void**>(&factory)))) {
-			return false;
-		}
-
-		std::vector<CComPtr<IDXGIAdapter1>> hardwareAdapters;
-		enumerate_hardware_adapters(factory, hardwareAdapters, nullptr);
-		CComPtr<IDXGIAdapter1> selectedAdapter = select_hardware_adapter(
-			hardwareAdapters,
+		if (!create_d3d11_device_with_preferred_adapter(
 			adapterOrdinal,
-			&activeAdapterOrdinal);
-
-		static const D3D_FEATURE_LEVEL levels[] = {
-			D3D_FEATURE_LEVEL_11_1,
-			D3D_FEATURE_LEVEL_11_0
-		};
-		D3D_FEATURE_LEVEL outputLevel = D3D_FEATURE_LEVEL_11_0;
-		IDXGIAdapter* rawAdapter = selectedAdapter;
-		const D3D_DRIVER_TYPE driverType = rawAdapter != nullptr ? D3D_DRIVER_TYPE_UNKNOWN : D3D_DRIVER_TYPE_HARDWARE;
-		if (FAILED(D3D11CreateDevice(
-			rawAdapter,
-			driverType,
-			nullptr,
-			D3D11_CREATE_DEVICE_BGRA_SUPPORT,
-			levels,
-			static_cast<UINT>(std::size(levels)),
-			D3D11_SDK_VERSION,
 			&device,
-			&outputLevel,
-			&context))) {
+			&context,
+			&activeAdapterOrdinal,
+			nullptr)) {
 			clearResources();
 			return false;
 		}

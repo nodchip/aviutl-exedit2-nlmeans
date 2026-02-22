@@ -16,6 +16,7 @@
 #include "GpuBackendDx11.h"
 #include "D3d11BufferUtil.h"
 #include "D3d11ComputeUtil.h"
+#include "D3d11DeviceUtil.h"
 #include "DxgiAdapterUtil.h"
 #include "ShaderCompileUtil.h"
 #include <cmath>
@@ -178,43 +179,17 @@ bool GpuBackendDx11::initialize(int requestedAdapterIndex)
 	bufferHeight = 0;
 	bufferFrames = 0;
 
-	if (FAILED(CreateDXGIFactory1(__uuidof(IDXGIFactory1), reinterpret_cast<void**>(&dxgiFactory)))){
+	std::vector<DXGI_ADAPTER_DESC1> hardwareAdapterDescs;
+	if (!create_d3d11_device_with_preferred_adapter(
+		preferredAdapterIndex,
+		&device,
+		&context,
+		nullptr,
+		&hardwareAdapterDescs)) {
 		return false;
 	}
-
-	std::vector<CComPtr<IDXGIAdapter1>> hardwareAdapters;
-	std::vector<DXGI_ADAPTER_DESC1> hardwareAdapterDescs;
-	enumerate_hardware_adapters(dxgiFactory, hardwareAdapters, &hardwareAdapterDescs);
 	for (size_t i = 0; i < hardwareAdapterDescs.size(); ++i){
 		adapterNames.push_back(wideToUtf8(hardwareAdapterDescs[i].Description));
-	}
-
-	static const D3D_FEATURE_LEVEL levels[] = {
-		D3D_FEATURE_LEVEL_11_1,
-		D3D_FEATURE_LEVEL_11_0
-	};
-
-	D3D_FEATURE_LEVEL outputLevel = D3D_FEATURE_LEVEL_11_0;
-	const UINT flags = D3D11_CREATE_DEVICE_BGRA_SUPPORT;
-	CComPtr<IDXGIAdapter1> selectedAdapter = select_hardware_adapter(hardwareAdapters, preferredAdapterIndex, nullptr);
-
-	IDXGIAdapter* rawAdapter = selectedAdapter;
-	const D3D_DRIVER_TYPE driverType = (rawAdapter != NULL) ? D3D_DRIVER_TYPE_UNKNOWN : D3D_DRIVER_TYPE_HARDWARE;
-	const HRESULT hr = D3D11CreateDevice(
-		rawAdapter,
-		driverType,
-		NULL,
-		flags,
-		levels,
-		2,
-		D3D11_SDK_VERSION,
-		&device,
-		&outputLevel,
-		&context
-	);
-
-	if (FAILED(hr)){
-		return false;
 	}
 
 	available = true;
