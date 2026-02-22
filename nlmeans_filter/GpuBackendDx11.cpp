@@ -14,6 +14,7 @@
 
 #include "stdafx.h"
 #include "GpuBackendDx11.h"
+#include "D3d11BufferUtil.h"
 #include "DxgiAdapterUtil.h"
 #include "ShaderCompileUtil.h"
 #include <cmath>
@@ -404,59 +405,44 @@ bool GpuBackendDx11::ensureBuffers(int width, int height, int frames)
 	const UINT inputElementCount = static_cast<UINT>(width * height * frames);
 	const UINT inputByteSize = inputElementCount * sizeof(GpuBackendDx11::GpuPixel);
 
-	D3D11_BUFFER_DESC inputDesc;
-	ZeroMemory(&inputDesc, sizeof(inputDesc));
-	inputDesc.ByteWidth = inputByteSize;
-	inputDesc.Usage = D3D11_USAGE_DYNAMIC;
-	inputDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
-	inputDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-	inputDesc.MiscFlags = D3D11_RESOURCE_MISC_BUFFER_STRUCTURED;
-	inputDesc.StructureByteStride = sizeof(GpuBackendDx11::GpuPixel);
-	if (FAILED(device->CreateBuffer(&inputDesc, NULL, &inputBuffer))){
+	if (FAILED(create_structured_buffer(
+		device,
+		inputByteSize,
+		sizeof(GpuBackendDx11::GpuPixel),
+		D3D11_USAGE_DYNAMIC,
+		D3D11_BIND_SHADER_RESOURCE,
+		D3D11_CPU_ACCESS_WRITE,
+		&inputBuffer))) {
 		return false;
 	}
 
-	D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc;
-	ZeroMemory(&srvDesc, sizeof(srvDesc));
-	srvDesc.Format = DXGI_FORMAT_UNKNOWN;
-	srvDesc.ViewDimension = D3D11_SRV_DIMENSION_BUFFER;
-	srvDesc.Buffer.FirstElement = 0;
-	srvDesc.Buffer.NumElements = inputElementCount;
-	if (FAILED(device->CreateShaderResourceView(inputBuffer, &srvDesc, &inputSrv))){
+	if (FAILED(create_structured_srv(device, inputBuffer, inputElementCount, &inputSrv))) {
 		return false;
 	}
 
-	D3D11_BUFFER_DESC outputDesc;
-	ZeroMemory(&outputDesc, sizeof(outputDesc));
-	outputDesc.ByteWidth = outputByteSize;
-	outputDesc.Usage = D3D11_USAGE_DEFAULT;
-	outputDesc.BindFlags = D3D11_BIND_UNORDERED_ACCESS;
-	outputDesc.CPUAccessFlags = 0;
-	outputDesc.MiscFlags = D3D11_RESOURCE_MISC_BUFFER_STRUCTURED;
-	outputDesc.StructureByteStride = sizeof(GpuBackendDx11::GpuPixel);
-	if (FAILED(device->CreateBuffer(&outputDesc, NULL, &outputBuffer))){
+	if (FAILED(create_structured_buffer(
+		device,
+		outputByteSize,
+		sizeof(GpuBackendDx11::GpuPixel),
+		D3D11_USAGE_DEFAULT,
+		D3D11_BIND_UNORDERED_ACCESS,
+		0,
+		&outputBuffer))) {
 		return false;
 	}
 
-	D3D11_UNORDERED_ACCESS_VIEW_DESC uavDesc;
-	ZeroMemory(&uavDesc, sizeof(uavDesc));
-	uavDesc.Format = DXGI_FORMAT_UNKNOWN;
-	uavDesc.ViewDimension = D3D11_UAV_DIMENSION_BUFFER;
-	uavDesc.Buffer.FirstElement = 0;
-	uavDesc.Buffer.NumElements = outputElementCount;
-	if (FAILED(device->CreateUnorderedAccessView(outputBuffer, &uavDesc, &outputUav))){
+	if (FAILED(create_structured_uav(device, outputBuffer, outputElementCount, &outputUav))) {
 		return false;
 	}
 
-	D3D11_BUFFER_DESC readbackDesc;
-	ZeroMemory(&readbackDesc, sizeof(readbackDesc));
-	readbackDesc.ByteWidth = outputByteSize;
-	readbackDesc.Usage = D3D11_USAGE_STAGING;
-	readbackDesc.BindFlags = 0;
-	readbackDesc.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
-	readbackDesc.MiscFlags = D3D11_RESOURCE_MISC_BUFFER_STRUCTURED;
-	readbackDesc.StructureByteStride = sizeof(GpuBackendDx11::GpuPixel);
-	if (FAILED(device->CreateBuffer(&readbackDesc, NULL, &readbackBuffer))){
+	if (FAILED(create_structured_buffer(
+		device,
+		outputByteSize,
+		sizeof(GpuBackendDx11::GpuPixel),
+		D3D11_USAGE_STAGING,
+		0,
+		D3D11_CPU_ACCESS_READ,
+		&readbackBuffer))) {
 		return false;
 	}
 
