@@ -36,7 +36,7 @@ public:
 	// バックエンドが利用可能かを返す。
 	bool isAvailable() const;
 
-	// GPU 処理本体。現時点では未実装のため FALSE を返す。
+	// GPU 処理本体。
 	BOOL process(FILTER& fp, FILTER_PROC_INFO& fpip);
 
 	// 列挙した GPU 名を返す。
@@ -52,7 +52,7 @@ private:
 	};
 
 	bool ensurePipeline();
-	bool ensureBuffers(int width, int height);
+	bool ensureBuffers(int width, int height, int frames);
 
 	bool available;
 	std::vector<std::string> adapterNames;
@@ -68,6 +68,7 @@ private:
 	CComPtr<ID3D11Buffer> readbackBuffer;
 	int bufferWidth;
 	int bufferHeight;
+	int bufferFrames;
 };
 
 #endif

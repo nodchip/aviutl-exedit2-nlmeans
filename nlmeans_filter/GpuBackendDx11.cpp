@@ -42,11 +42,15 @@ struct ShaderConstants
 	UINT width;
 	UINT height;
 	UINT searchRadius;
+	UINT frameCount;
+	UINT currentFrameIndex;
 	UINT reserved0;
+	UINT reserved1;
+	UINT reserved2;
 	float h2;
-	float reserved1;
-	float reserved2;
 	float reserved3;
+	float reserved4;
+	float reserved5;
 };
 
 static const char* NLM_SHADER_SOURCE =
@@ -55,11 +59,15 @@ static const char* NLM_SHADER_SOURCE =
 	"	uint Width;\n"
 	"	uint Height;\n"
 	"	uint SearchRadius;\n"
+	"	uint FrameCount;\n"
+	"	uint CurrentFrameIndex;\n"
 	"	uint Reserved0;\n"
+	"	uint Reserved1;\n"
+	"	uint Reserved2;\n"
 	"	float H2;\n"
-	"	float Reserved1;\n"
-	"	float Reserved2;\n"
 	"	float Reserved3;\n"
+	"	float Reserved4;\n"
+	"	float Reserved5;\n"
 	"};\n"
 	"struct PixelData\n"
 	"{\n"
@@ -80,11 +88,13 @@ static const char* NLM_SHADER_SOURCE =
 	"	if (channel == 1) return p.cb;\n"
 	"	return p.cr;\n"
 	"}\n"
-	"int readChannel(int x, int y, int channel)\n"
+	"int readChannel(int x, int y, int t, int channel)\n"
 	"{\n"
 	"	const int cx = clampi(x, 0, (int)Width - 1);\n"
 	"	const int cy = clampi(y, 0, (int)Height - 1);\n"
-	"	return getChannel(InputPixels[cy * Width + cx], channel);\n"
+	"	const int ct = clampi(t, 0, (int)FrameCount - 1);\n"
+	"	const uint frameOffset = (uint)ct * Width * Height;\n"
+	"	return getChannel(InputPixels[frameOffset + cy * Width + cx], channel);\n"
 	"}\n"
 	"[numthreads(16, 16, 1)]\n"
 	"void main(uint3 tid : SV_DispatchThreadID)\n"
@@ -102,21 +112,23 @@ static const char* NLM_SHADER_SOURCE =
 	"		float value = 0.0f;\n"
 	"		for (int dy = -((int)SearchRadius); dy <= (int)SearchRadius; ++dy){\n"
 	"			for (int dx = -((int)SearchRadius); dx <= (int)SearchRadius; ++dx){\n"
-	"				float sum2 = 0.0f;\n"
-	"				for (int ny = -1; ny <= 1; ++ny){\n"
-	"					for (int nx = -1; nx <= 1; ++nx){\n"
-	"						const float a = (float)readChannel(x + nx, y + ny, channel);\n"
-	"						const float b = (float)readChannel(x + dx + nx, y + dy + ny, channel);\n"
-	"						const float diff = a - b;\n"
-	"						sum2 += diff * diff;\n"
+	"				for (int dt = 0; dt < (int)FrameCount; ++dt){\n"
+	"					float sum2 = 0.0f;\n"
+	"					for (int ny = -1; ny <= 1; ++ny){\n"
+	"						for (int nx = -1; nx <= 1; ++nx){\n"
+	"							const float a = (float)readChannel(x + nx, y + ny, (int)CurrentFrameIndex, channel);\n"
+	"							const float b = (float)readChannel(x + dx + nx, y + dy + ny, dt, channel);\n"
+	"							const float diff = a - b;\n"
+	"							sum2 += diff * diff;\n"
+	"						}\n"
 	"					}\n"
+	"					const float w = exp(-sum2 * H2);\n"
+	"					sum += w;\n"
+	"					value += (float)readChannel(x + dx, y + dy, dt, channel) * w;\n"
 	"				}\n"
-	"				const float w = exp(-sum2 * H2);\n"
-	"				sum += w;\n"
-	"				value += (float)readChannel(x + dx, y + dy, channel) * w;\n"
 	"			}\n"
 	"		}\n"
-	"		const float filtered = (sum > 0.0f) ? (value / sum) : (float)readChannel(x, y, channel);\n"
+	"		const float filtered = (sum > 0.0f) ? (value / sum) : (float)readChannel(x, y, (int)CurrentFrameIndex, channel);\n"
 	"		const int v = (int)filtered;\n"
 	"		if (channel == 0) outPixel.y = v;\n"
 	"		if (channel == 1) outPixel.cb = v;\n"
@@ -127,7 +139,7 @@ static const char* NLM_SHADER_SOURCE =
 
 }
 
-GpuBackendDx11::GpuBackendDx11() : available(false), bufferWidth(0), bufferHeight(0)
+GpuBackendDx11::GpuBackendDx11() : available(false), bufferWidth(0), bufferHeight(0), bufferFrames(0)
 {
 }
 
@@ -151,6 +163,7 @@ bool GpuBackendDx11::initialize()
 	readbackBuffer = NULL;
 	bufferWidth = 0;
 	bufferHeight = 0;
+	bufferFrames = 0;
 
 	if (FAILED(CreateDXGIFactory1(__uuidof(IDXGIFactory1), reinterpret_cast<void**>(&dxgiFactory)))){
 		return false;
@@ -215,7 +228,9 @@ BOOL GpuBackendDx11::process(FILTER& fp, FILTER_PROC_INFO& fpip)
 
 	const int width = fpip.w;
 	const int height = fpip.h;
-	if (width <= 0 || height <= 0){
+	const int timeSearchRadius = fp.track[1];
+	const int frameCount = timeSearchRadius * 2 + 1;
+	if (width <= 0 || height <= 0 || frameCount <= 0){
 		return FALSE;
 	}
 
@@ -223,8 +238,22 @@ BOOL GpuBackendDx11::process(FILTER& fp, FILTER_PROC_INFO& fpip)
 		return FALSE;
 	}
 
-	if (!ensureBuffers(width, height)){
+	if (!ensureBuffers(width, height, frameCount)){
 		return FALSE;
+	}
+
+	const int currentFrame = fp.exfunc->get_frame(fpip.editp);
+	const int totalFrames = fp.exfunc->get_frame_n(fpip.editp);
+	fp.exfunc->set_ycp_filtering_cache_size(&fp, width, height, frameCount, NULL);
+
+	std::vector<PIXEL_YC*> frames(frameCount, NULL);
+	for (int dt = -timeSearchRadius; dt <= timeSearchRadius; ++dt){
+		const int idx = dt + timeSearchRadius;
+		const int targetFrame = max(0, min(totalFrames - 1, currentFrame + dt));
+		frames[idx] = fp.exfunc->get_ycp_filtering_cache_ex(&fp, fpip.editp, targetFrame, NULL, NULL);
+		if (frames[idx] == NULL){
+			return FALSE;
+		}
 	}
 
 	D3D11_MAPPED_SUBRESOURCE mappedInput;
@@ -233,14 +262,18 @@ BOOL GpuBackendDx11::process(FILTER& fp, FILTER_PROC_INFO& fpip)
 	}
 
 	GpuBackendDx11::GpuPixel* inputPixels = reinterpret_cast<GpuBackendDx11::GpuPixel*>(mappedInput.pData);
-	for (int y = 0; y < height; ++y){
-		for (int x = 0; x < width; ++x){
-			const PIXEL_YC& src = fpip.ycp_edit[y * fpip.max_w + x];
-			GpuBackendDx11::GpuPixel& dst = inputPixels[y * width + x];
-			dst.y = src.y;
-			dst.cb = src.cb;
-			dst.cr = src.cr;
-			dst.reserved = 0;
+	for (int t = 0; t < frameCount; ++t){
+		const PIXEL_YC* frame = frames[t];
+		for (int y = 0; y < height; ++y){
+			for (int x = 0; x < width; ++x){
+				const PIXEL_YC& src = frame[y * fpip.max_w + x];
+				const int offset = (t * height + y) * width + x;
+				GpuBackendDx11::GpuPixel& dst = inputPixels[offset];
+				dst.y = src.y;
+				dst.cb = src.cb;
+				dst.cr = src.cr;
+				dst.reserved = 0;
+			}
 		}
 	}
 	context->Unmap(inputBuffer, 0);
@@ -253,12 +286,16 @@ BOOL GpuBackendDx11::process(FILTER& fp, FILTER_PROC_INFO& fpip)
 	constants->width = static_cast<UINT>(width);
 	constants->height = static_cast<UINT>(height);
 	constants->searchRadius = static_cast<UINT>(fp.track[0]);
+	constants->frameCount = static_cast<UINT>(frameCount);
+	constants->currentFrameIndex = static_cast<UINT>(timeSearchRadius);
 	constants->reserved0 = 0;
-	const double h = std::pow(10.0, static_cast<double>(fp.track[2]) / 22.0);
-	constants->h2 = static_cast<float>(1.0 / (h * h));
 	constants->reserved1 = 0;
 	constants->reserved2 = 0;
+	const double h = std::pow(10.0, static_cast<double>(fp.track[2]) / 22.0);
+	constants->h2 = static_cast<float>(1.0 / (h * h));
 	constants->reserved3 = 0;
+	constants->reserved4 = 0;
+	constants->reserved5 = 0;
 	context->Unmap(constantBuffer, 0);
 
 	ID3D11ShaderResourceView* srvs[1] = { inputSrv };
@@ -347,9 +384,10 @@ bool GpuBackendDx11::ensurePipeline()
 	return true;
 }
 
-bool GpuBackendDx11::ensureBuffers(int width, int height)
+bool GpuBackendDx11::ensureBuffers(int width, int height, int frames)
 {
-	if (inputBuffer != NULL && outputBuffer != NULL && readbackBuffer != NULL && width == bufferWidth && height == bufferHeight){
+	if (inputBuffer != NULL && outputBuffer != NULL && readbackBuffer != NULL
+		&& width == bufferWidth && height == bufferHeight && frames == bufferFrames){
 		return true;
 	}
 
@@ -360,13 +398,16 @@ bool GpuBackendDx11::ensureBuffers(int width, int height)
 	readbackBuffer = NULL;
 	bufferWidth = width;
 	bufferHeight = height;
+	bufferFrames = frames;
 
-	const UINT elementCount = static_cast<UINT>(width * height);
-	const UINT byteSize = elementCount * sizeof(GpuBackendDx11::GpuPixel);
+	const UINT outputElementCount = static_cast<UINT>(width * height);
+	const UINT outputByteSize = outputElementCount * sizeof(GpuBackendDx11::GpuPixel);
+	const UINT inputElementCount = static_cast<UINT>(width * height * frames);
+	const UINT inputByteSize = inputElementCount * sizeof(GpuBackendDx11::GpuPixel);
 
 	D3D11_BUFFER_DESC inputDesc;
 	ZeroMemory(&inputDesc, sizeof(inputDesc));
-	inputDesc.ByteWidth = byteSize;
+	inputDesc.ByteWidth = inputByteSize;
 	inputDesc.Usage = D3D11_USAGE_DYNAMIC;
 	inputDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
 	inputDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
@@ -381,14 +422,14 @@ bool GpuBackendDx11::ensureBuffers(int width, int height)
 	srvDesc.Format = DXGI_FORMAT_UNKNOWN;
 	srvDesc.ViewDimension = D3D11_SRV_DIMENSION_BUFFER;
 	srvDesc.Buffer.FirstElement = 0;
-	srvDesc.Buffer.NumElements = elementCount;
+	srvDesc.Buffer.NumElements = inputElementCount;
 	if (FAILED(device->CreateShaderResourceView(inputBuffer, &srvDesc, &inputSrv))){
 		return false;
 	}
 
 	D3D11_BUFFER_DESC outputDesc;
 	ZeroMemory(&outputDesc, sizeof(outputDesc));
-	outputDesc.ByteWidth = byteSize;
+	outputDesc.ByteWidth = outputByteSize;
 	outputDesc.Usage = D3D11_USAGE_DEFAULT;
 	outputDesc.BindFlags = D3D11_BIND_UNORDERED_ACCESS;
 	outputDesc.CPUAccessFlags = 0;
@@ -403,14 +444,14 @@ bool GpuBackendDx11::ensureBuffers(int width, int height)
 	uavDesc.Format = DXGI_FORMAT_UNKNOWN;
 	uavDesc.ViewDimension = D3D11_UAV_DIMENSION_BUFFER;
 	uavDesc.Buffer.FirstElement = 0;
-	uavDesc.Buffer.NumElements = elementCount;
+	uavDesc.Buffer.NumElements = outputElementCount;
 	if (FAILED(device->CreateUnorderedAccessView(outputBuffer, &uavDesc, &outputUav))){
 		return false;
 	}
 
 	D3D11_BUFFER_DESC readbackDesc;
 	ZeroMemory(&readbackDesc, sizeof(readbackDesc));
-	readbackDesc.ByteWidth = byteSize;
+	readbackDesc.ByteWidth = outputByteSize;
 	readbackDesc.Usage = D3D11_USAGE_STAGING;
 	readbackDesc.BindFlags = 0;
 	readbackDesc.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
