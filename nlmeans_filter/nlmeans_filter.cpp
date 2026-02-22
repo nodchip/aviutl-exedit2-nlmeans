@@ -39,16 +39,17 @@ using namespace std;
 //---------------------------------------------------------------------
 //		フィルタ構造体定義
 //---------------------------------------------------------------------
-#define	TRACK_N	4						//	トラックバーの数
+#define	TRACK_N	5						//	トラックバーの数
 TCHAR	*track_name[] =		{
 	const_cast<TCHAR*>("空間範囲"),
 	const_cast<TCHAR*>("時間範囲"),
 	const_cast<TCHAR*>("分散"),
-	const_cast<TCHAR*>("計算モード")
+	const_cast<TCHAR*>("計算モード"),
+	const_cast<TCHAR*>("GPUアダプタ")
 };	//	トラックバーの名前
-int		track_default[] =	{3, 0, 50, 2};	//	トラックバーの初期値
-int		track_s[] =			{1, 0, 0, 0};	//	トラックバーの下限値
-int		track_e[] =			{16, 7, 100, 2};	//	トラックバーの上限値
+int		track_default[] =	{3, 0, 50, 2, 0};	//	トラックバーの初期値
+int		track_s[] =			{1, 0, 0, 0, 0};	//	トラックバーの下限値
+int		track_e[] =			{16, 7, 100, 2, 8};	//	トラックバーの上限値
 #define	CHECK_N	0														//	チェックボックスの数
 TCHAR	*check_name[] = 	{const_cast<TCHAR*>("ダミー")};				//	チェックボックスの名前
 int		check_default[] = 	{0};				//	チェックボックスの初期値 (値は0か1)
@@ -98,6 +99,11 @@ std::shared_ptr<Processor> currentProcessor;
 static BOOL func_proc( FILTER *fp,FILTER_PROC_INFO *fpip )
 {
 	int calculationMode = fp->track[3];
+	if (processorGpu != NULL){
+		// 0 は自動選択、1 以上は DXGI のアダプタ番号(1始まり)。
+		const int requestedAdapter = fp->track[4] - 1;
+		processorGpu->setPreferredAdapterIndex(requestedAdapter);
+	}
 
 	while (!processors[calculationMode]->isPrepared()){
 		--calculationMode;

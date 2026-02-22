@@ -16,9 +16,10 @@
 #include "ProcessorGpu.h"
 #include "GpuBackendDx11.h"
 
-ProcessorGpu::ProcessorGpu() : prepared(false), backend(new GpuBackendDx11())
+ProcessorGpu::ProcessorGpu()
+	: prepared(false), preferredAdapterIndex(-2), backend(new GpuBackendDx11())
 {
-	prepared = backend->initialize();
+	setPreferredAdapterIndex(-1);
 }
 
 ProcessorGpu::~ProcessorGpu()
@@ -28,9 +29,21 @@ ProcessorGpu::~ProcessorGpu()
 BOOL ProcessorGpu::proc(FILTER& fp, FILTER_PROC_INFO& fpip)
 {
 	if (!prepared){
+		prepared = backend->initialize(preferredAdapterIndex);
+	}
+	if (!prepared){
 		return FALSE;
 	}
 	return backend->process(fp, fpip);
+}
+
+void ProcessorGpu::setPreferredAdapterIndex(int adapterIndex)
+{
+	if (preferredAdapterIndex == adapterIndex){
+		return;
+	}
+	preferredAdapterIndex = adapterIndex;
+	prepared = backend->initialize(preferredAdapterIndex);
 }
 
 BOOL ProcessorGpu::wndProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam, void *editp, FILTER *fp)

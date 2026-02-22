@@ -27,9 +27,11 @@ public:
 	virtual ~ProcessorGpu();
 	BOOL proc(FILTER& fp, FILTER_PROC_INFO& fpip);
 	bool isPrepared() const{return prepared;}
+	void setPreferredAdapterIndex(int adapterIndex);
 	BOOL wndProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam, void *editp, FILTER *fp);
 private:
 	bool prepared;
+	int preferredAdapterIndex;
 	std::unique_ptr<GpuBackendDx11> backend;
 };
 
