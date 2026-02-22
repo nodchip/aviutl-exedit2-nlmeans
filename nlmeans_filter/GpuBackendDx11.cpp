@@ -15,6 +15,7 @@
 #include "stdafx.h"
 #include "GpuBackendDx11.h"
 #include "D3d11BufferUtil.h"
+#include "D3d11ComputeUtil.h"
 #include "DxgiAdapterUtil.h"
 #include "ShaderCompileUtil.h"
 #include <cmath>
@@ -261,19 +262,14 @@ BOOL GpuBackendDx11::process(FILTER& fp, FILTER_PROC_INFO& fpip)
 		}
 	}
 
-	D3D11_MAPPED_SUBRESOURCE mappedInput;
-	if (FAILED(context->Map(inputBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedInput))){
-		return FALSE;
-	}
-
-	GpuBackendDx11::GpuPixel* inputPixels = reinterpret_cast<GpuBackendDx11::GpuPixel*>(mappedInput.pData);
+	std::vector<GpuBackendDx11::GpuPixel> uploadPixels(static_cast<size_t>(width) * static_cast<size_t>(height) * static_cast<size_t>(frameCount));
 	for (int t = 0; t < frameCount; ++t){
 		const PIXEL_YC* frame = frames[t];
 		for (int y = 0; y < height; ++y){
 			for (int x = 0; x < width; ++x){
 				const PIXEL_YC& src = frame[y * fpip.max_w + x];
 				const int offset = (t * height + y) * width + x;
-				GpuBackendDx11::GpuPixel& dst = inputPixels[offset];
+				GpuBackendDx11::GpuPixel& dst = uploadPixels[static_cast<size_t>(offset)];
 				dst.y = src.y;
 				dst.cb = src.cb;
 				dst.cr = src.cr;
@@ -281,66 +277,59 @@ BOOL GpuBackendDx11::process(FILTER& fp, FILTER_PROC_INFO& fpip)
 			}
 		}
 	}
-	context->Unmap(inputBuffer, 0);
-
-	D3D11_MAPPED_SUBRESOURCE mappedConstants;
-	if (FAILED(context->Map(constantBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedConstants))){
+	if (FAILED(map_write_discard_buffer(
+		context,
+		inputBuffer,
+		uploadPixels.data(),
+		uploadPixels.size() * sizeof(GpuBackendDx11::GpuPixel)))) {
 		return FALSE;
 	}
-	ShaderConstants* constants = reinterpret_cast<ShaderConstants*>(mappedConstants.pData);
-	constants->width = static_cast<UINT>(width);
-	constants->height = static_cast<UINT>(height);
-	constants->searchRadius = static_cast<UINT>(fp.track[0]);
-	constants->frameCount = static_cast<UINT>(frameCount);
-	constants->currentFrameIndex = static_cast<UINT>(timeSearchRadius);
-	constants->reserved0 = 0;
-	constants->reserved1 = 0;
-	constants->reserved2 = 0;
+
+	ShaderConstants constants = {};
+	constants.width = static_cast<UINT>(width);
+	constants.height = static_cast<UINT>(height);
+	constants.searchRadius = static_cast<UINT>(fp.track[0]);
+	constants.frameCount = static_cast<UINT>(frameCount);
+	constants.currentFrameIndex = static_cast<UINT>(timeSearchRadius);
+	constants.reserved0 = 0;
+	constants.reserved1 = 0;
+	constants.reserved2 = 0;
 	const double h = std::pow(10.0, static_cast<double>(fp.track[2]) / 22.0);
-	constants->h2 = static_cast<float>(1.0 / (h * h));
-	constants->reserved3 = 0;
-	constants->reserved4 = 0;
-	constants->reserved5 = 0;
-	context->Unmap(constantBuffer, 0);
+	constants.h2 = static_cast<float>(1.0 / (h * h));
+	constants.reserved3 = 0;
+	constants.reserved4 = 0;
+	constants.reserved5 = 0;
+	if (FAILED(map_write_discard_buffer(context, constantBuffer, &constants, sizeof(constants)))) {
+		return FALSE;
+	}
 
-	ID3D11ShaderResourceView* srvs[1] = { inputSrv };
-	ID3D11UnorderedAccessView* uavs[1] = { outputUav };
-	ID3D11Buffer* cbs[1] = { constantBuffer };
-
-	context->CSSetShader(passThroughShader, NULL, 0);
-	context->CSSetShaderResources(0, 1, srvs);
-	context->CSSetUnorderedAccessViews(0, 1, uavs, NULL);
-	context->CSSetConstantBuffers(0, 1, cbs);
-
-	const UINT gx = static_cast<UINT>((width + 15) / 16);
-	const UINT gy = static_cast<UINT>((height + 15) / 16);
-	context->Dispatch(gx, gy, 1);
-
-	ID3D11UnorderedAccessView* nullUav[1] = { NULL };
-	ID3D11ShaderResourceView* nullSrv[1] = { NULL };
-	context->CSSetUnorderedAccessViews(0, 1, nullUav, NULL);
-	context->CSSetShaderResources(0, 1, nullSrv);
-	context->CSSetShader(NULL, NULL, 0);
+	dispatch_compute_pass(
+		context,
+		passThroughShader,
+		inputSrv,
+		outputUav,
+		constantBuffer,
+		static_cast<UINT>(width),
+		static_cast<UINT>(height));
 
 	context->CopyResource(readbackBuffer, outputBuffer);
-
-	D3D11_MAPPED_SUBRESOURCE mappedOutput;
-	if (FAILED(context->Map(readbackBuffer, 0, D3D11_MAP_READ, 0, &mappedOutput))){
+	std::vector<GpuBackendDx11::GpuPixel> outputPixels(static_cast<size_t>(width) * static_cast<size_t>(height));
+	if (FAILED(map_read_buffer(
+		context,
+		readbackBuffer,
+		outputPixels.data(),
+		outputPixels.size() * sizeof(GpuBackendDx11::GpuPixel)))) {
 		return FALSE;
 	}
-
-	const GpuBackendDx11::GpuPixel* outputPixels = reinterpret_cast<const GpuBackendDx11::GpuPixel*>(mappedOutput.pData);
 	for (int y = 0; y < height; ++y){
 		for (int x = 0; x < width; ++x){
-			const GpuBackendDx11::GpuPixel& src = outputPixels[y * width + x];
+			const GpuBackendDx11::GpuPixel& src = outputPixels[static_cast<size_t>(y * width + x)];
 			PIXEL_YC& dst = fpip.ycp_edit[y * fpip.max_w + x];
 			dst.y = static_cast<short>(max(-32768, min(32767, src.y)));
 			dst.cb = static_cast<short>(max(-32768, min(32767, src.cb)));
 			dst.cr = static_cast<short>(max(-32768, min(32767, src.cr)));
 		}
 	}
-
-	context->Unmap(readbackBuffer, 0);
 	return TRUE;
 }
 
