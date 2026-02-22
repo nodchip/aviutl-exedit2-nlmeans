@@ -37,6 +37,7 @@
 
 #if __has_include("../aviutl2_sdk/filter2.h")
 #include "Exedit2GpuRunner.h"
+#include "FastModeConfig.h"
 #include "GpuRunnerDispatch.h"
 #include "UiToDispatcherIntegration.h"
 #include "../DxgiAdapterUtil.h"
@@ -51,6 +52,7 @@ int g_runtime_gpu_adapter_ordinal = -1;
 extern FILTER_ITEM_TRACK item_search_radius;
 extern FILTER_ITEM_TRACK item_time_radius;
 extern FILTER_ITEM_TRACK item_sigma;
+extern FILTER_ITEM_TRACK item_fast_spatial_step;
 extern FILTER_ITEM_SELECT item_mode;
 extern FILTER_ITEM_SELECT item_gpu_adapter;
 
@@ -230,7 +232,7 @@ bool apply_nlm_cpu_fast(FILTER_PROC_VIDEO* video)
 	const int search_radius = std::max(1, static_cast<int>(item_search_radius.value));
 	const double sigma = std::max(0.001, static_cast<double>(item_sigma.value));
 	const double sigma2 = sigma * sigma;
-	const int spatial_step = 2;
+	const int spatial_step = resolve_fast_spatial_step(static_cast<int>(item_fast_spatial_step.value));
 
 	for (int y = 0; y < height; ++y) {
 		for (int x = 0; x < width; ++x) {
@@ -471,6 +473,7 @@ bool func_proc_video(FILTER_PROC_VIDEO* video)
 FILTER_ITEM_TRACK item_search_radius = FILTER_ITEM_TRACK(L"空間範囲", 3.0, 1.0, 16.0, 1.0);
 FILTER_ITEM_TRACK item_time_radius = FILTER_ITEM_TRACK(L"時間範囲", 0.0, 0.0, 7.0, 1.0);
 FILTER_ITEM_TRACK item_sigma = FILTER_ITEM_TRACK(L"分散", 50.0, 0.0, 100.0, 1.0);
+FILTER_ITEM_TRACK item_fast_spatial_step = FILTER_ITEM_TRACK(L"Fast間引き", 2.0, 1.0, 4.0, 1.0);
 FILTER_ITEM_SELECT::ITEM item_mode_list[] = {
 	{ L"CPU (Naive)", kModeCpuNaive },
 	{ L"CPU (AVX2)", kModeCpuAvx2 },
@@ -488,6 +491,7 @@ void* items[] = {
 	&item_search_radius,
 	&item_time_radius,
 	&item_sigma,
+	&item_fast_spatial_step,
 	&item_mode,
 	&item_gpu_adapter,
 	nullptr
