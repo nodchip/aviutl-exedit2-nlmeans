@@ -31,7 +31,10 @@ public:
 	~GpuBackendDx11();
 
 	// 利用可能な GPU を列挙し、既定デバイスを初期化する。
-	bool initialize();
+	bool initialize(int preferredAdapterIndex = -1);
+
+	// 利用する GPU アダプタ番号を指定する。-1 は自動選択。
+	void setPreferredAdapterIndex(int adapterIndex);
 
 	// バックエンドが利用可能かを返す。
 	bool isAvailable() const;
@@ -55,6 +58,7 @@ private:
 	bool ensureBuffers(int width, int height, int frames);
 
 	bool available;
+	int preferredAdapterIndex;
 	std::vector<std::string> adapterNames;
 	CComPtr<IDXGIFactory1> dxgiFactory;
 	CComPtr<ID3D11Device> device;
