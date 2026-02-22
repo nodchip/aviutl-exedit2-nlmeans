@@ -40,6 +40,7 @@
 #include "Exedit2GpuRunner.h"
 #include "FastModeConfig.h"
 #include "GpuRunnerDispatch.h"
+#include "MultiGpuTiling.h"
 #include "UiToDispatcherIntegration.h"
 #include "../DxgiAdapterUtil.h"
 
@@ -58,10 +59,12 @@ extern FILTER_ITEM_TRACK item_fast_spatial_step;
 extern FILTER_ITEM_TRACK item_temporal_decay;
 extern FILTER_ITEM_TRACK item_gpu_spatial_step;
 extern FILTER_ITEM_TRACK item_gpu_temporal_decay;
+extern FILTER_ITEM_TRACK item_gpu_coop_count;
 extern FILTER_ITEM_SELECT item_mode;
 extern FILTER_ITEM_SELECT item_gpu_adapter;
 
 std::unique_ptr<Exedit2GpuRunner> g_gpu_runner;
+std::vector<std::unique_ptr<Exedit2GpuRunner>> g_gpu_coop_runners;
 
 // AVX2 命令が利用可能かを判定する。
 bool is_avx2_available()
@@ -506,7 +509,7 @@ bool apply_nlm_gpu_dx11(FILTER_PROC_VIDEO* video, int adapterOrdinal, ExecutionM
 		[gpuRunner = g_gpu_runner.get()](int requestedAdapterOrdinal) {
 			return gpuRunner != nullptr && gpuRunner->initialize(requestedAdapterOrdinal);
 		},
-		[video, gpuRunner = g_gpu_runner.get()]() {
+		[video, gpuRunner = g_gpu_runner.get(), adapterOrdinal]() {
 			const int width = video->scene->width;
 			const int height = video->scene->height;
 			if (width <= 0 || height <= 0) {
@@ -522,18 +525,73 @@ bool apply_nlm_gpu_dx11(FILTER_PROC_VIDEO* video, int adapterOrdinal, ExecutionM
 			const double sigma = std::max(0.001, static_cast<double>(item_sigma.value));
 			const int gpu_spatial_step = std::max(1, static_cast<int>(item_gpu_spatial_step.value));
 			const double gpu_temporal_decay = std::max(0.0, static_cast<double>(item_gpu_temporal_decay.value));
-			if (gpuRunner == nullptr || !gpuRunner->process(
-				g_input_pixels.data(),
-				g_output_pixels.data(),
-				width,
-				height,
-				search_radius,
-				time_radius,
-				sigma,
-				gpu_spatial_step,
-				gpu_temporal_decay)) {
+			const size_t hardware_count = g_gpu_adapter_names.size() > 0 ? (g_gpu_adapter_names.size() - 1) : 0;
+			const size_t requested_coop = static_cast<size_t>(std::max(1, static_cast<int>(item_gpu_coop_count.value)));
+			const bool enable_multi_gpu = (adapterOrdinal < 0) && (hardware_count > 1) && (requested_coop > 1);
+			if (!enable_multi_gpu) {
+				if (gpuRunner == nullptr || !gpuRunner->process(
+					g_input_pixels.data(),
+					g_output_pixels.data(),
+					width,
+					height,
+					search_radius,
+					time_radius,
+					sigma,
+					gpu_spatial_step,
+					gpu_temporal_decay)) {
+					return false;
+				}
+				video->set_image_data(g_output_pixels.data(), width, height);
+				return true;
+			}
+
+			const size_t active_gpu_count = std::min(hardware_count, requested_coop);
+			const std::vector<GpuRowTile> tiles = plan_gpu_row_tiles(height, active_gpu_count, 8);
+			if (tiles.empty()) {
 				return false;
 			}
+			if (g_gpu_coop_runners.size() < active_gpu_count) {
+				g_gpu_coop_runners.resize(active_gpu_count);
+			}
+			std::vector<std::vector<PIXEL_RGBA>> temp_outputs;
+			temp_outputs.resize(active_gpu_count);
+			for (size_t i = 0; i < active_gpu_count; ++i) {
+				if (g_gpu_coop_runners[i] == nullptr) {
+					g_gpu_coop_runners[i] = std::unique_ptr<Exedit2GpuRunner>(new Exedit2GpuRunner());
+				}
+				temp_outputs[i].resize(static_cast<size_t>(pixel_count));
+			}
+
+			for (const auto& tile : tiles) {
+				Exedit2GpuRunner* runner = g_gpu_coop_runners[tile.adapterIndex].get();
+				if (runner == nullptr) {
+					return false;
+				}
+				if (!runner->initialize(static_cast<int>(tile.adapterIndex))) {
+					return false;
+				}
+				if (!runner->process(
+					g_input_pixels.data(),
+					temp_outputs[tile.adapterIndex].data(),
+					width,
+					height,
+					search_radius,
+					time_radius,
+					sigma,
+					gpu_spatial_step,
+					gpu_temporal_decay)) {
+					return false;
+				}
+				for (int y = tile.yBegin; y < tile.yEnd; ++y) {
+					const size_t row_begin = static_cast<size_t>(y * width);
+					const size_t row_count = static_cast<size_t>(width);
+					std::memcpy(
+						g_output_pixels.data() + row_begin,
+						temp_outputs[tile.adapterIndex].data() + row_begin,
+						row_count * sizeof(PIXEL_RGBA));
+				}
+			}
+
 			video->set_image_data(g_output_pixels.data(), width, height);
 			return true;
 		},
@@ -597,6 +655,7 @@ FILTER_ITEM_TRACK item_fast_spatial_step = FILTER_ITEM_TRACK(L"Fast間引き", 2
 FILTER_ITEM_TRACK item_temporal_decay = FILTER_ITEM_TRACK(L"Temporal減衰", 1.0, 0.0, 4.0, 0.1);
 FILTER_ITEM_TRACK item_gpu_spatial_step = FILTER_ITEM_TRACK(L"GPU間引き", 1.0, 1.0, 4.0, 1.0);
 FILTER_ITEM_TRACK item_gpu_temporal_decay = FILTER_ITEM_TRACK(L"GPU時間減衰", 0.0, 0.0, 4.0, 0.1);
+FILTER_ITEM_TRACK item_gpu_coop_count = FILTER_ITEM_TRACK(L"GPU協調数", 1.0, 1.0, 4.0, 1.0);
 FILTER_ITEM_SELECT::ITEM item_mode_list[] = {
 	{ L"CPU (Naive)", kModeCpuNaive },
 	{ L"CPU (AVX2)", kModeCpuAvx2 },
@@ -619,6 +678,7 @@ void* items[] = {
 	&item_temporal_decay,
 	&item_gpu_spatial_step,
 	&item_gpu_temporal_decay,
+	&item_gpu_coop_count,
 	&item_mode,
 	&item_gpu_adapter,
 	nullptr
@@ -686,6 +746,7 @@ EXTERN_C __declspec(dllexport) bool InitializePlugin(DWORD version)
 EXTERN_C __declspec(dllexport) void UninitializePlugin()
 {
 	g_gpu_runner.reset();
+	g_gpu_coop_runners.clear();
 	g_cpu_temporal_history.clear();
 }
 #endif
