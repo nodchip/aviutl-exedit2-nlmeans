@@ -15,7 +15,10 @@
 #ifndef PROCESSOR_GPU_H
 #define PROCESSOR_GPU_H
 
+#include <memory>
 #include "Processor.h"
+
+class GpuBackendDx11;
 
 class ProcessorGpu : public Processor
 {
@@ -27,6 +30,7 @@ public:
 	BOOL wndProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam, void *editp, FILTER *fp);
 private:
 	bool prepared;
+	std::unique_ptr<GpuBackendDx11> backend;
 };
 
 #endif

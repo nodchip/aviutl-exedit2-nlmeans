@@ -14,9 +14,11 @@
 
 #include "stdafx.h"
 #include "ProcessorGpu.h"
+#include "GpuBackendDx11.h"
 
-ProcessorGpu::ProcessorGpu() : prepared(false)
+ProcessorGpu::ProcessorGpu() : prepared(false), backend(new GpuBackendDx11())
 {
+	prepared = backend->initialize();
 }
 
 ProcessorGpu::~ProcessorGpu()
@@ -25,9 +27,10 @@ ProcessorGpu::~ProcessorGpu()
 
 BOOL ProcessorGpu::proc(FILTER& fp, FILTER_PROC_INFO& fpip)
 {
-	(void)fp;
-	(void)fpip;
-	return FALSE;
+	if (!prepared){
+		return FALSE;
+	}
+	return backend->process(fp, fpip);
 }
 
 BOOL ProcessorGpu::wndProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam, void *editp, FILTER *fp)
