@@ -37,9 +37,9 @@ cmd.exe /c $cmd
 - `NlmFrameOutputMultiCaseTests.cpp`
 - `BackendSelectionTests.cpp`
 - `GpuAdapterSelectionTests.cpp`
-- `ExecutionPolicyTests.cpp`
 - `GpuFallbackPolicyTests.cpp`
-- `ModeIdsGoogleTest.cpp`（GoogleTest 導入サンプル）
+- `ModeIdsGoogleTest.cpp`（GoogleTest）
+- `ExecutionPolicyTests.cpp`（GoogleTest）
 
 ## コーディング規約
 

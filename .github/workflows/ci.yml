@@ -63,12 +63,6 @@ jobs:
           cl /nologo /utf-8 /EHsc /I nlmeans_filter nlmeans_filter\tests\GpuAdapterSelectionTests.cpp /Fe:GpuAdapterSelectionTests.exe
           && GpuAdapterSelectionTests.exe
 
-      - name: Run Execution Policy Test
-        shell: cmd
-        run: >
-          cl /nologo /utf-8 /EHsc /I nlmeans_filter nlmeans_filter\tests\ExecutionPolicyTests.cpp /Fe:ExecutionPolicyTests.exe
-          && ExecutionPolicyTests.exe
-
       - name: Run GPU Fallback Policy Test
         shell: cmd
         run: >
@@ -117,7 +111,7 @@ jobs:
           cl /nologo /utf-8 /EHsc /I nlmeans_filter nlmeans_filter\tests\GpuRunnerDispatchTests.cpp /Fe:GpuRunnerDispatchTests.exe
           && GpuRunnerDispatchTests.exe
 
-      - name: Run GoogleTest Mode IDs Test
+      - name: Run GoogleTest Suite
         shell: cmd
         run: >
           cl /nologo /utf-8 /EHsc
@@ -127,6 +121,7 @@ jobs:
           /I nlmeans_filter
           third_party\googletest\googletest\src\gtest-all.cc
           third_party\googletest\googletest\src\gtest_main.cc
+          nlmeans_filter\tests\ExecutionPolicyTests.cpp
           nlmeans_filter\tests\ModeIdsGoogleTest.cpp
-          /Fe:ModeIdsGoogleTest.exe
-          && ModeIdsGoogleTest.exe
+          /Fe:GoogleTests.exe
+          && GoogleTests.exe

@@ -1,32 +1,38 @@
-// ExEdit2 の実行ポリシー決定ロジックを検証する。
+// ExEdit2 の実行ポリシー決定ロジックを GoogleTest で検証する。
+#include <gtest/gtest.h>
 #include "../exedit2/ExecutionPolicy.h"
 
-int main()
+TEST(ExecutionPolicyTests, GpuAutoUsesNoPinnedAdapter)
 {
-	ExecutionPolicy p = resolve_execution_policy(kModeGpuDx11, 0, 2, true);
-	if (p.mode != ExecutionMode::GpuDx11 || p.gpuAdapterOrdinal != -1) {
-		return 1;
-	}
+	const ExecutionPolicy p = resolve_execution_policy(kModeGpuDx11, 0, 2, true);
+	EXPECT_EQ(p.mode, ExecutionMode::GpuDx11);
+	EXPECT_EQ(p.gpuAdapterOrdinal, -1);
+}
 
-	p = resolve_execution_policy(kModeGpuDx11, 1, 2, true);
-	if (p.mode != ExecutionMode::GpuDx11 || p.gpuAdapterOrdinal != 0) {
-		return 2;
-	}
+TEST(ExecutionPolicyTests, GpuSpecificAdapterUsesZeroBasedOrdinal)
+{
+	const ExecutionPolicy p = resolve_execution_policy(kModeGpuDx11, 1, 2, true);
+	EXPECT_EQ(p.mode, ExecutionMode::GpuDx11);
+	EXPECT_EQ(p.gpuAdapterOrdinal, 0);
+}
 
-	p = resolve_execution_policy(kModeGpuDx11, 3, 2, true);
-	if (p.mode != ExecutionMode::CpuAvx2 || p.gpuAdapterOrdinal != -1) {
-		return 3;
-	}
+TEST(ExecutionPolicyTests, OutOfRangeAdapterFallsBackToCpuAvx2)
+{
+	const ExecutionPolicy p = resolve_execution_policy(kModeGpuDx11, 3, 2, true);
+	EXPECT_EQ(p.mode, ExecutionMode::CpuAvx2);
+	EXPECT_EQ(p.gpuAdapterOrdinal, -1);
+}
 
-	p = resolve_execution_policy(kModeGpuDx11, 0, 0, true);
-	if (p.mode != ExecutionMode::CpuAvx2 || p.gpuAdapterOrdinal != -1) {
-		return 4;
-	}
+TEST(ExecutionPolicyTests, NoGpuFallsBackToCpuAvx2)
+{
+	const ExecutionPolicy p = resolve_execution_policy(kModeGpuDx11, 0, 0, true);
+	EXPECT_EQ(p.mode, ExecutionMode::CpuAvx2);
+	EXPECT_EQ(p.gpuAdapterOrdinal, -1);
+}
 
-	p = resolve_execution_policy(kModeCpuAvx2, 0, 0, false);
-	if (p.mode != ExecutionMode::CpuNaive || p.gpuAdapterOrdinal != -1) {
-		return 5;
-	}
-
-	return 0;
+TEST(ExecutionPolicyTests, NoAvx2FallsBackToCpuNaive)
+{
+	const ExecutionPolicy p = resolve_execution_policy(kModeCpuAvx2, 0, 0, false);
+	EXPECT_EQ(p.mode, ExecutionMode::CpuNaive);
+	EXPECT_EQ(p.gpuAdapterOrdinal, -1);
 }
