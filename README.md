@@ -18,7 +18,7 @@
 - Windows
 - Visual Studio 2022 Community
 - MSBuild 17.x
-- DirectX 11 対応 GPU / ドライバ
+- DirectX 11.3 以降対応 GPU / ドライバ（`ID3D11Device3` が取得できること）
 - GoogleTest（`third_party/googletest` に同梱）
 
 PowerShell からのビルド例:

@@ -295,7 +295,7 @@ bool apply_nlm_cpu_by_mode(FILTER_PROC_VIDEO* video, ExecutionMode mode)
 	return apply_nlm_cpu_naive(video);
 }
 
-// TODO: ExEdit2 向けに GPU 実処理を接続する。
+// ExEdit2 向け GPU 実処理（DirectX 11 Compute Shader）を適用する。
 bool apply_nlm_gpu_dx11(FILTER_PROC_VIDEO* video, int adapterOrdinal, ExecutionMode fallbackMode)
 {
 	if (video == nullptr || video->scene == nullptr || video->get_image_data == nullptr || video->set_image_data == nullptr) {

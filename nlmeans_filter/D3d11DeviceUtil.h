@@ -17,6 +17,7 @@
 
 #include <vector>
 #include <d3d11.h>
+#include <d3d11_3.h>
 #include <dxgi1_2.h>
 #include <atlbase.h>
 #include "DxgiAdapterUtil.h"
@@ -74,6 +75,15 @@ inline bool create_d3d11_device_with_preferred_adapter(
 		out_device,
 		&output_level,
 		out_context))) {
+		return false;
+	}
+	// DirectX 11.3 以降を要件とするため、ID3D11Device3 が取得できることを確認する。
+	CComPtr<ID3D11Device3> device3;
+	if (FAILED((*out_device)->QueryInterface(__uuidof(ID3D11Device3), reinterpret_cast<void**>(&device3)))) {
+		(*out_context)->Release();
+		(*out_device)->Release();
+		*out_context = nullptr;
+		*out_device = nullptr;
 		return false;
 	}
 
