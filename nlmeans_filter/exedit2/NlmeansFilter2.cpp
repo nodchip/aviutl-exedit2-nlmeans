@@ -39,6 +39,7 @@
 #if __has_include("../aviutl2_sdk/filter2.h")
 #include "Exedit2GpuRunner.h"
 #include "FastModeConfig.h"
+#include "GpuCoopPolicy.h"
 #include "GpuRunnerDispatch.h"
 #include "MultiGpuTiling.h"
 #include "UiToDispatcherIntegration.h"
@@ -526,8 +527,8 @@ bool apply_nlm_gpu_dx11(FILTER_PROC_VIDEO* video, int adapterOrdinal, ExecutionM
 			const int gpu_spatial_step = std::max(1, static_cast<int>(item_gpu_spatial_step.value));
 			const double gpu_temporal_decay = std::max(0.0, static_cast<double>(item_gpu_temporal_decay.value));
 			const size_t hardware_count = g_gpu_adapter_names.size() > 0 ? (g_gpu_adapter_names.size() - 1) : 0;
-			const size_t requested_coop = static_cast<size_t>(std::max(1, static_cast<int>(item_gpu_coop_count.value)));
-			const bool enable_multi_gpu = (adapterOrdinal < 0) && (hardware_count > 1) && (requested_coop > 1);
+			const int requested_coop = static_cast<int>(item_gpu_coop_count.value);
+			const bool enable_multi_gpu = should_enable_multi_gpu(adapterOrdinal, hardware_count, requested_coop);
 			if (!enable_multi_gpu) {
 				if (gpuRunner == nullptr || !gpuRunner->process(
 					g_input_pixels.data(),
@@ -545,7 +546,7 @@ bool apply_nlm_gpu_dx11(FILTER_PROC_VIDEO* video, int adapterOrdinal, ExecutionM
 				return true;
 			}
 
-			const size_t active_gpu_count = std::min(hardware_count, requested_coop);
+			const size_t active_gpu_count = resolve_active_gpu_count(hardware_count, requested_coop);
 			const std::vector<GpuRowTile> tiles = plan_gpu_row_tiles(height, active_gpu_count, 8);
 			if (tiles.empty()) {
 				return false;
