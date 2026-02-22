@@ -38,6 +38,7 @@
 #if __has_include("../aviutl2_sdk/filter2.h")
 #include "Exedit2GpuRunner.h"
 #include "ProcessingRoutePolicy.h"
+#include "VideoProcessingDispatcher.h"
 #include "../DxgiAdapterUtil.h"
 
 namespace {
@@ -334,6 +335,21 @@ bool apply_nlm_gpu_dx11(FILTER_PROC_VIDEO* video, int adapterOrdinal, ExecutionM
 	return true;
 }
 
+bool dispatch_cpu_naive(void* context)
+{
+	return apply_nlm_cpu_naive(static_cast<FILTER_PROC_VIDEO*>(context));
+}
+
+bool dispatch_cpu_avx2(void* context)
+{
+	return apply_nlm_cpu_avx2(static_cast<FILTER_PROC_VIDEO*>(context));
+}
+
+bool dispatch_gpu_dx11(void* context, int adapterOrdinal, ExecutionMode fallbackMode)
+{
+	return apply_nlm_gpu_dx11(static_cast<FILTER_PROC_VIDEO*>(context), adapterOrdinal, fallbackMode);
+}
+
 bool func_proc_video(FILTER_PROC_VIDEO* video)
 {
 	const size_t hardware_count = g_gpu_adapter_names.size() > 0 ? (g_gpu_adapter_names.size() - 1) : 0;
@@ -343,16 +359,13 @@ bool func_proc_video(FILTER_PROC_VIDEO* video)
 		hardware_count,
 		is_avx2_available());
 	g_runtime_gpu_adapter_ordinal = route.gpuAdapterOrdinal;
-	switch (route.mode) {
-	case ExecutionMode::CpuNaive:
-		return apply_nlm_cpu_naive(video);
-	case ExecutionMode::CpuAvx2:
-		return apply_nlm_cpu_avx2(video);
-	case ExecutionMode::GpuDx11:
-		return apply_nlm_gpu_dx11(video, g_runtime_gpu_adapter_ordinal, route.gpuFallbackMode);
-	default:
-		return apply_nlm_cpu_naive(video);
-	}
+	const VideoProcessingHandlers handlers = {
+		video,
+		dispatch_cpu_naive,
+		dispatch_cpu_avx2,
+		dispatch_gpu_dx11
+	};
+	return dispatch_video_processing(route, handlers);
 }
 
 FILTER_ITEM_TRACK item_search_radius = FILTER_ITEM_TRACK(L"空間範囲", 3.0, 1.0, 16.0, 1.0);
