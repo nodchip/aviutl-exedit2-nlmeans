@@ -581,7 +581,9 @@ bool apply_nlm_gpu_dx11(FILTER_PROC_VIDEO* video, int adapterOrdinal, ExecutionM
 					time_radius,
 					sigma,
 					gpu_spatial_step,
-					gpu_temporal_decay)) {
+					gpu_temporal_decay,
+					tile.yBegin,
+					tile.yEnd)) {
 					return false;
 				}
 			}

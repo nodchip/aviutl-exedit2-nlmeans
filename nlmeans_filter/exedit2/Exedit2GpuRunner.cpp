@@ -64,7 +64,9 @@ bool Exedit2GpuRunner::process(
 	int timeRadius,
 	double sigmaValue,
 	int spatialStep,
-	double temporalDecay)
+	double temporalDecay,
+	int processYBegin,
+	int processYEnd)
 {
 	if (device == nullptr || context == nullptr || inputPixels == nullptr || outputPixels == nullptr) {
 		return false;
@@ -74,6 +76,9 @@ bool Exedit2GpuRunner::process(
 	}
 	const int clampedTimeRadius = std::max(0, timeRadius);
 	const int requiredHistory = clampedTimeRadius + 1;
+	const int clampedYBegin = std::clamp(processYBegin, 0, imageHeight);
+	const int normalizedYEnd = (processYEnd < 0) ? imageHeight : processYEnd;
+	const int clampedYEnd = std::clamp(normalizedYEnd, clampedYBegin, imageHeight);
 
 	const size_t pixelCount = static_cast<size_t>(imageWidth) * static_cast<size_t>(imageHeight);
 	if (width != imageWidth || height != imageHeight) {
@@ -118,17 +123,20 @@ bool Exedit2GpuRunner::process(
 	constants.searchRadius = static_cast<UINT>(std::max(1, searchRadius));
 	constants.frameCount = static_cast<UINT>(frameCount);
 	constants.currentFrameIndex = static_cast<UINT>(frameCount - 1);
-	constants.reserved0 = 0.0f;
+	constants.processYBegin = static_cast<UINT>(clampedYBegin);
+	constants.processYEnd = static_cast<UINT>(clampedYEnd);
+	constants.reservedU0 = 0;
+	constants.reservedU1 = 0;
 	const double sigma = std::max(0.001, sigmaValue);
 	const int clampedSpatialStep = std::max(1, spatialStep);
 	const float clampedTemporalDecay = static_cast<float>(std::max(0.0, temporalDecay));
 	constants.invSigma2 = static_cast<float>(1.0 / (sigma * sigma));
 	constants.temporalDecay = clampedTemporalDecay;
 	constants.spatialStep = static_cast<UINT>(clampedSpatialStep);
-	constants.reserved0 = 0.0f;
-	constants.reserved1 = 0.0f;
-	constants.reserved2 = 0.0f;
-	constants.reserved3 = 0.0f;
+	constants.reservedF0 = 0.0f;
+	constants.reservedF1 = 0.0f;
+	constants.reservedF2 = 0.0f;
+	constants.reservedF3 = 0.0f;
 	if (FAILED(map_write_discard_buffer(context, constantBuffer, &constants, sizeof(constants)))) {
 		return false;
 	}
@@ -140,7 +148,7 @@ bool Exedit2GpuRunner::process(
 		outputUav,
 		constantBuffer,
 		static_cast<UINT>(imageWidth),
-		static_cast<UINT>(imageHeight));
+		static_cast<UINT>(std::max(0, clampedYEnd - clampedYBegin)));
 
 	context->CopyResource(readbackBuffer, outputBuffer);
 	if (FAILED(map_read_buffer(context, readbackBuffer, outputPixels, pixelCount * sizeof(PIXEL_RGBA)))) {
@@ -164,12 +172,16 @@ bool Exedit2GpuRunner::ensurePipeline()
 		"	uint FrameCount;\n"
 		"	uint CurrentFrameIndex;\n"
 		"	uint SpatialStep;\n"
+		"	uint ProcessYBegin;\n"
+		"	uint ProcessYEnd;\n"
+		"	uint ReservedU0;\n"
+		"	uint ReservedU1;\n"
 		"	float InvSigma2;\n"
 		"	float TemporalDecay;\n"
-		"	float Reserved0;\n"
-		"	float Reserved1;\n"
-		"	float Reserved2;\n"
-		"	float Reserved3;\n"
+		"	float ReservedF0;\n"
+		"	float ReservedF1;\n"
+		"	float ReservedF2;\n"
+		"	float ReservedF3;\n"
 		"};\n"
 		"StructuredBuffer<uint> InputPixels : register(t0);\n"
 		"RWStructuredBuffer<uint> OutputPixels : register(u0);\n"
@@ -188,10 +200,11 @@ bool Exedit2GpuRunner::ensurePipeline()
 		"[numthreads(16,16,1)]\n"
 		"void main(uint3 tid : SV_DispatchThreadID)\n"
 		"{\n"
-		"	if (tid.x >= Width || tid.y >= Height) return;\n"
+		"	const uint yGlobal = tid.y + ProcessYBegin;\n"
+		"	if (tid.x >= Width || yGlobal >= Height || yGlobal >= ProcessYEnd) return;\n"
 		"	const int x = (int)tid.x;\n"
-		"	const int y = (int)tid.y;\n"
-		"	const uint centerIndex = frameIndex(CurrentFrameIndex, tid.x, tid.y);\n"
+		"	const int y = (int)yGlobal;\n"
+		"	const uint centerIndex = frameIndex(CurrentFrameIndex, tid.x, yGlobal);\n"
 		"	const uint centerPacked = InputPixels[centerIndex];\n"
 		"	const float3 center = unpack_rgb(centerPacked);\n"
 		"	const uint alpha = unpack_a(centerPacked);\n"
@@ -223,7 +236,7 @@ bool Exedit2GpuRunner::ensurePipeline()
 		"	if (sumW > 0.0f){\n"
 		"		outRgb = float3(sumR / sumW, sumG / sumW, sumB / sumW);\n"
 		"	}\n"
-		"	OutputPixels[tid.y * Width + tid.x] = pack_rgba(outRgb, alpha);\n"
+		"	OutputPixels[yGlobal * Width + tid.x] = pack_rgba(outRgb, alpha);\n"
 		"}\n";
 
 	CComPtr<ID3DBlob> shaderBlob;

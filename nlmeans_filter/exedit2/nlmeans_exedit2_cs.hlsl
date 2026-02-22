@@ -6,12 +6,16 @@ cbuffer Constants : register(b0)
     uint FrameCount;
     uint CurrentFrameIndex;
     uint SpatialStep;
+    uint ProcessYBegin;
+    uint ProcessYEnd;
+    uint ReservedU0;
+    uint ReservedU1;
     float InvSigma2;
     float TemporalDecay;
-    float Reserved0;
-    float Reserved1;
-    float Reserved2;
-    float Reserved3;
+    float ReservedF0;
+    float ReservedF1;
+    float ReservedF2;
+    float ReservedF3;
 };
 
 StructuredBuffer<uint> InputPixels : register(t0);
@@ -51,12 +55,13 @@ uint pack_rgba(float3 rgb, uint a)
 [numthreads(16,16,1)]
 void main(uint3 tid : SV_DispatchThreadID)
 {
-    if (tid.x >= Width || tid.y >= Height)
+    const uint yGlobal = tid.y + ProcessYBegin;
+    if (tid.x >= Width || yGlobal >= Height || yGlobal >= ProcessYEnd)
         return;
 
     const int x = (int)tid.x;
-    const int y = (int)tid.y;
-    const uint centerIndex = frameIndex(CurrentFrameIndex, tid.x, tid.y);
+    const int y = (int)yGlobal;
+    const uint centerIndex = frameIndex(CurrentFrameIndex, tid.x, yGlobal);
     const uint centerPacked = InputPixels[centerIndex];
     const float3 center = unpack_rgb(centerPacked);
     const uint alpha = unpack_a(centerPacked);
@@ -95,5 +100,5 @@ void main(uint3 tid : SV_DispatchThreadID)
     {
         outRgb = float3(sumR / sumW, sumG / sumW, sumB / sumW);
     }
-    OutputPixels[tid.y * Width + tid.x] = pack_rgba(outRgb, alpha);
+    OutputPixels[yGlobal * Width + tid.x] = pack_rgba(outRgb, alpha);
 }

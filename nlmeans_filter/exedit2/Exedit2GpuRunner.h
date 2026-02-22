@@ -44,7 +44,9 @@ public:
 		int timeRadius,
 		double sigmaValue,
 		int spatialStep = 1,
-		double temporalDecay = 0.0);
+		double temporalDecay = 0.0,
+		int processYBegin = 0,
+		int processYEnd = -1);
 
 private:
 	struct ShaderConstants
@@ -55,12 +57,16 @@ private:
 		UINT frameCount;
 		UINT currentFrameIndex;
 		UINT spatialStep;
+		UINT processYBegin;
+		UINT processYEnd;
+		UINT reservedU0;
+		UINT reservedU1;
 		float invSigma2;
 		float temporalDecay;
-		float reserved0;
-		float reserved1;
-		float reserved2;
-		float reserved3;
+		float reservedF0;
+		float reservedF1;
+		float reservedF2;
+		float reservedF3;
 	};
 
 	bool ensurePipeline();
