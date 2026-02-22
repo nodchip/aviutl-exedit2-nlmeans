@@ -86,6 +86,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="Exedit2GpuRunner.cpp" />
     <ClCompile Include="NlmeansFilter2.cpp" />
   </ItemGroup>
   <ItemGroup>
