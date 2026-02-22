@@ -149,4 +149,24 @@ inline ProcessorRunResult run_processor_avx2(const ProcessorRunConfig& cfg)
 	return run_processor_impl<ProcessorAvx2>(cfg);
 }
 
+inline bool run_processor_parity_case(const ProcessorRunConfig& cfg)
+{
+	ProcessorRunResult cpu = run_processor_cpu(cfg);
+	ProcessorRunResult avx2 = run_processor_avx2(cfg);
+	if (cpu.output.size() == 0 || avx2.output.size() == 0) {
+		return false;
+	}
+	if (cpu.output.size() != avx2.output.size()) {
+		return false;
+	}
+	for (size_t i = 0; i < cpu.output.size(); ++i) {
+		if (cpu.output[i].y != avx2.output[i].y ||
+			cpu.output[i].cb != avx2.output[i].cb ||
+			cpu.output[i].cr != avx2.output[i].cr) {
+			return false;
+		}
+	}
+	return true;
+}
+
 #endif

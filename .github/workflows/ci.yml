@@ -66,3 +66,13 @@ jobs:
           nlmeans_filter\ProcessorAvx2.cpp
           /Fe:ProcessorParityTests.exe
           && ProcessorParityTests.exe
+
+      - name: Run Processor CPU/AVX2 Parity Multi-Case Test
+        shell: cmd
+        run: >
+          cl /nologo /utf-8 /EHsc /I nlmeans_filter
+          nlmeans_filter\tests\ProcessorParityMultiCaseTests.cpp
+          nlmeans_filter\ProcessorCpu.cpp
+          nlmeans_filter\ProcessorAvx2.cpp
+          /Fe:ProcessorParityMultiCaseTests.exe
+          && ProcessorParityMultiCaseTests.exe
