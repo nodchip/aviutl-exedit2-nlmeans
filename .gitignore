@@ -1,0 +1,19 @@
+# AviUtl ExEdit2 SDK (local copy)
+nlmeans_filter/aviutl2_sdk/
+
+# Legacy runtime binary
+vcomp90.dll
+
+# Visual Studio / build artifacts
+.vs/
+*.user
+*.suo
+*.ncb
+*.opensdf
+*.sdf
+*.ipch
+x64/
+Win32/
+Debug/
+Release/
+out/

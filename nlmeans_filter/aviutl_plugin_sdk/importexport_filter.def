@@ -1,5 +1,0 @@
-LIBRARY importexport_filter
-
-EXPORTS
-	GetFilterTable @1
-

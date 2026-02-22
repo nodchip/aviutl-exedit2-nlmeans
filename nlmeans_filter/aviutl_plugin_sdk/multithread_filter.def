@@ -1,5 +1,0 @@
-LIBRARY multithread_filter
-
-EXPORTS
-	GetFilterTable @1
-

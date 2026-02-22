@@ -1,5 +1,0 @@
-LIBRARY edit_filter
-
-EXPORTS
-	GetFilterTable @1
-

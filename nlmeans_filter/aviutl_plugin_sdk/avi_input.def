@@ -1,5 +1,0 @@
-LIBRARY avi_input
-
-EXPORTS
-	GetInputPluginTable @1
-
