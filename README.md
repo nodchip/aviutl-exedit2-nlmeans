@@ -42,6 +42,13 @@ $cmd='"C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Buil
 cmd.exe /c $cmd
 ```
 
+NLM 亜種ベンチレポート生成例:
+
+```powershell
+$cmd='"C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat" && .\scripts\generate_nlm_variants_report.cmd'
+cmd.exe /c $cmd
+```
+
 ## オプション解説
 
 ### 空間範囲
