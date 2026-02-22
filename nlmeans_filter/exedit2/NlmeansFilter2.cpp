@@ -17,11 +17,19 @@
 
 #include <windows.h>
 #include <cstdint>
+#include <string>
+#include <vector>
+#include <dxgi1_6.h>
+
+#pragma comment(lib, "dxgi.lib")
 
 #if __has_include("../aviutl2_sdk/filter2.h")
 #include "../aviutl2_sdk/filter2.h"
 
 namespace {
+
+std::vector<std::wstring> g_gpu_adapter_names;
+std::vector<FILTER_ITEM_SELECT::ITEM> g_gpu_adapter_items;
 
 // TODO: 既存の ProcessorCpu / ProcessorAvx2 / GpuBackendDx11 を
 // ExEdit2 の FILTER_PROC_VIDEO へ接続する。
@@ -65,10 +73,66 @@ FILTER_PLUGIN_TABLE filter_plugin_table = {
 	nullptr
 };
 
+// DXGI から利用可能な GPU アダプタ名を列挙する。
+void rebuild_gpu_adapter_list()
+{
+	g_gpu_adapter_names.clear();
+	g_gpu_adapter_items.clear();
+
+	g_gpu_adapter_names.emplace_back(L"Auto");
+	g_gpu_adapter_items.push_back({ g_gpu_adapter_names.back().c_str(), 0 });
+
+	IDXGIFactory1* factory = nullptr;
+	if (FAILED(CreateDXGIFactory1(__uuidof(IDXGIFactory1), reinterpret_cast<void**>(&factory)))) {
+		g_gpu_adapter_items.push_back({ nullptr, 0 });
+		item_gpu_adapter.list = g_gpu_adapter_items.data();
+		item_gpu_adapter.value = 0;
+		return;
+	}
+
+	for (UINT index = 0;; ++index) {
+		IDXGIAdapter1* adapter = nullptr;
+		if (factory->EnumAdapters1(index, &adapter) == DXGI_ERROR_NOT_FOUND) {
+			break;
+		}
+		if (adapter == nullptr) {
+			continue;
+		}
+
+		DXGI_ADAPTER_DESC1 desc = {};
+		if (SUCCEEDED(adapter->GetDesc1(&desc))) {
+			// ソフトウェアアダプタ以外のみ候補として表示する。
+			if ((desc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE) == 0) {
+				g_gpu_adapter_names.emplace_back(desc.Description);
+				g_gpu_adapter_items.push_back({
+					g_gpu_adapter_names.back().c_str(),
+					static_cast<int>(g_gpu_adapter_items.size())
+				});
+			}
+		}
+
+		adapter->Release();
+	}
+
+	factory->Release();
+
+	g_gpu_adapter_items.push_back({ nullptr, 0 });
+	item_gpu_adapter.list = g_gpu_adapter_items.data();
+	item_gpu_adapter.value = 0;
+}
+
 }
 
 EXTERN_C __declspec(dllexport) FILTER_PLUGIN_TABLE* GetFilterPluginTable(void)
 {
 	return &filter_plugin_table;
+}
+
+// プラグイン初期化時に GPU アダプタ候補を更新する。
+EXTERN_C __declspec(dllexport) bool InitializePlugin(DWORD version)
+{
+	(void)version;
+	rebuild_gpu_adapter_list();
+	return true;
 }
 #endif
