@@ -32,3 +32,9 @@ jobs:
         run: >
           cl /nologo /utf-8 /EHsc /I nlmeans_filter nlmeans_filter\tests\CacheSizingTests.cpp /Fe:CacheSizingTests.exe
           && CacheSizingTests.exe
+
+      - name: Run NLM Kernel Unit Test
+        shell: cmd
+        run: >
+          cl /nologo /utf-8 /EHsc /I nlmeans_filter nlmeans_filter\tests\NlmKernelTests.cpp /Fe:NlmKernelTests.exe
+          && NlmKernelTests.exe
