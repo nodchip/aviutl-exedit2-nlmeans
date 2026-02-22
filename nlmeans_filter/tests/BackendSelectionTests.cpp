@@ -22,3 +22,9 @@ TEST(BackendSelectionTests, CpuAvx2ModeFallsBackToCpuNaiveWhenAvx2Unavailable)
 	EXPECT_EQ(resolve_execution_mode_for_test(kModeCpuAvx2, false, true, false), kModeCpuNaive);
 	EXPECT_EQ(resolve_execution_mode_for_test(kModeCpuAvx2, false, false, false), kModeCpuNaive);
 }
+
+TEST(BackendSelectionTests, CpuFastModeResolvesToCpuFast)
+{
+	EXPECT_EQ(resolve_execution_mode_for_test(kModeCpuFast, false, false, false), kModeCpuFast);
+	EXPECT_EQ(resolve_execution_mode_for_test(kModeCpuFast, true, true, true), kModeCpuFast);
+}

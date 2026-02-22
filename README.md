@@ -60,6 +60,7 @@ cmd.exe /c $cmd
 
 - `CPU (Naive)`
 - `CPU (AVX2)`
+- `CPU (Fast)`
 - `GPU (DirectX 11)`
 
 ## シェーダー配布方式（確定）

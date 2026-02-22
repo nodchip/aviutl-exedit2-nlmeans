@@ -6,5 +6,6 @@ TEST(ModeIdsGoogleTest, ConstantsAreStable)
 {
 	EXPECT_EQ(kModeCpuNaive, 0);
 	EXPECT_EQ(kModeCpuAvx2, 1);
-	EXPECT_EQ(kModeGpuDx11, 2);
+	EXPECT_EQ(kModeCpuFast, 2);
+	EXPECT_EQ(kModeGpuDx11, 3);
 }

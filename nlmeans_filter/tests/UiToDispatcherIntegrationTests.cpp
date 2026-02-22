@@ -20,6 +20,12 @@ bool cpu_avx2_stub(void*)
 	return true;
 }
 
+bool cpu_fast_stub(void*)
+{
+	g_last_call = 4;
+	return true;
+}
+
 bool gpu_stub(void*, int adapterOrdinal, ExecutionMode fallbackMode)
 {
 	g_last_call = 3;
@@ -41,6 +47,7 @@ VideoProcessingHandlers make_handlers()
 	handlers.context = nullptr;
 	handlers.cpuNaive = cpu_naive_stub;
 	handlers.cpuAvx2 = cpu_avx2_stub;
+	handlers.cpuFast = cpu_fast_stub;
 	handlers.gpuDx11 = gpu_stub;
 	return handlers;
 }
@@ -80,4 +87,15 @@ TEST(UiToDispatcherIntegrationTests, CpuAvx2WithoutSupportFallsBackToCpuNaive)
 	reset_state();
 	EXPECT_TRUE(dispatch_from_ui_selection(ui, 0, false, make_handlers()));
 	EXPECT_EQ(g_last_call, 1);
+}
+
+TEST(UiToDispatcherIntegrationTests, CpuFastDispatchesCpuFast)
+{
+	UiSelectionSnapshot ui{};
+	ui.modeValue = kModeCpuFast;
+	ui.gpuAdapterValue = 0;
+
+	reset_state();
+	EXPECT_TRUE(dispatch_from_ui_selection(ui, 0, true, make_handlers()));
+	EXPECT_EQ(g_last_call, 4);
 }

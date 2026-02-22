@@ -127,6 +127,54 @@ PIXEL_RGBA process_pixel_scalar(
 	return out;
 }
 
+// 空間窓を間引く Fast NLM（近似）で 1 画素を処理する。
+PIXEL_RGBA process_pixel_fast(
+	const std::vector<PIXEL_RGBA>& input,
+	int width,
+	int height,
+	int x,
+	int y,
+	int search_radius,
+	double sigma2,
+	int spatial_step)
+{
+	const int step = std::max(1, spatial_step);
+	const int center_index = y * width + x;
+	const PIXEL_RGBA& center = input[static_cast<size_t>(center_index)];
+
+	double sum_r = 0.0;
+	double sum_g = 0.0;
+	double sum_b = 0.0;
+	double sum_w = 0.0;
+
+	for (int dy = -search_radius; dy <= search_radius; dy += step) {
+		const int sy = std::clamp(y + dy, 0, height - 1);
+		for (int dx = -search_radius; dx <= search_radius; dx += step) {
+			const int sx = std::clamp(x + dx, 0, width - 1);
+			const PIXEL_RGBA& sample = input[static_cast<size_t>(sy * width + sx)];
+
+			const double dr = static_cast<double>(sample.r) - static_cast<double>(center.r);
+			const double dg = static_cast<double>(sample.g) - static_cast<double>(center.g);
+			const double db = static_cast<double>(sample.b) - static_cast<double>(center.b);
+			const double dist2 = dr * dr + dg * dg + db * db;
+			const double w = std::exp(-dist2 / sigma2);
+
+			sum_r += w * static_cast<double>(sample.r);
+			sum_g += w * static_cast<double>(sample.g);
+			sum_b += w * static_cast<double>(sample.b);
+			sum_w += w;
+		}
+	}
+
+	PIXEL_RGBA out = center;
+	if (sum_w > 0.0) {
+		out.r = static_cast<unsigned char>(std::clamp(sum_r / sum_w, 0.0, 255.0));
+		out.g = static_cast<unsigned char>(std::clamp(sum_g / sum_w, 0.0, 255.0));
+		out.b = static_cast<unsigned char>(std::clamp(sum_b / sum_w, 0.0, 255.0));
+	}
+	return out;
+}
+
 bool apply_nlm_cpu_naive(FILTER_PROC_VIDEO* video)
 {
 	if (video == nullptr || video->scene == nullptr || video->get_image_data == nullptr || video->set_image_data == nullptr) {
@@ -153,6 +201,41 @@ bool apply_nlm_cpu_naive(FILTER_PROC_VIDEO* video)
 		for (int x = 0; x < width; ++x) {
 			g_output_pixels[static_cast<size_t>(y * width + x)] =
 				process_pixel_scalar(g_input_pixels, width, height, x, y, search_radius, sigma2);
+		}
+	}
+
+	video->set_image_data(g_output_pixels.data(), width, height);
+	return true;
+}
+
+// ExEdit2 の画像バッファへ CPU Fast な NLM 近似を適用する。
+bool apply_nlm_cpu_fast(FILTER_PROC_VIDEO* video)
+{
+	if (video == nullptr || video->scene == nullptr || video->get_image_data == nullptr || video->set_image_data == nullptr) {
+		return false;
+	}
+
+	const int width = video->scene->width;
+	const int height = video->scene->height;
+	if (width <= 0 || height <= 0) {
+		return false;
+	}
+
+	const int pixel_count = width * height;
+	g_input_pixels.resize(static_cast<size_t>(pixel_count));
+	g_output_pixels.resize(static_cast<size_t>(pixel_count));
+
+	video->get_image_data(g_input_pixels.data());
+
+	const int search_radius = std::max(1, static_cast<int>(item_search_radius.value));
+	const double sigma = std::max(0.001, static_cast<double>(item_sigma.value));
+	const double sigma2 = sigma * sigma;
+	const int spatial_step = 2;
+
+	for (int y = 0; y < height; ++y) {
+		for (int x = 0; x < width; ++x) {
+			g_output_pixels[static_cast<size_t>(y * width + x)] =
+				process_pixel_fast(g_input_pixels, width, height, x, y, search_radius, sigma2, spatial_step);
 		}
 	}
 
@@ -289,6 +372,9 @@ bool apply_nlm_cpu_avx2(FILTER_PROC_VIDEO* video)
 // CPU モードを切り替えて NLM を適用する。
 bool apply_nlm_cpu_by_mode(FILTER_PROC_VIDEO* video, ExecutionMode mode)
 {
+	if (mode == ExecutionMode::CpuFast) {
+		return apply_nlm_cpu_fast(video);
+	}
 	if (mode == ExecutionMode::CpuAvx2) {
 		return apply_nlm_cpu_avx2(video);
 	}
@@ -352,6 +438,11 @@ bool dispatch_cpu_avx2(void* context)
 	return apply_nlm_cpu_avx2(static_cast<FILTER_PROC_VIDEO*>(context));
 }
 
+bool dispatch_cpu_fast(void* context)
+{
+	return apply_nlm_cpu_fast(static_cast<FILTER_PROC_VIDEO*>(context));
+}
+
 bool dispatch_gpu_dx11(void* context, int adapterOrdinal, ExecutionMode fallbackMode)
 {
 	return apply_nlm_gpu_dx11(static_cast<FILTER_PROC_VIDEO*>(context), adapterOrdinal, fallbackMode);
@@ -368,6 +459,7 @@ bool func_proc_video(FILTER_PROC_VIDEO* video)
 		video,
 		dispatch_cpu_naive,
 		dispatch_cpu_avx2,
+		dispatch_cpu_fast,
 		dispatch_gpu_dx11
 	};
 	ProcessingRoute route{};
@@ -382,6 +474,7 @@ FILTER_ITEM_TRACK item_sigma = FILTER_ITEM_TRACK(L"分散", 50.0, 0.0, 100.0, 1.
 FILTER_ITEM_SELECT::ITEM item_mode_list[] = {
 	{ L"CPU (Naive)", kModeCpuNaive },
 	{ L"CPU (AVX2)", kModeCpuAvx2 },
+	{ L"CPU (Fast)", kModeCpuFast },
 	{ L"GPU (DirectX 11)", kModeGpuDx11 },
 	{ nullptr }
 };

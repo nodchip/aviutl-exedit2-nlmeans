@@ -8,6 +8,7 @@
 enum class ExecutionMode : int {
 	CpuNaive = kModeCpuNaive,
 	CpuAvx2 = kModeCpuAvx2,
+	CpuFast = kModeCpuFast,
 	GpuDx11 = kModeGpuDx11
 };
 
@@ -22,6 +23,9 @@ inline ExecutionMode resolve_execution_mode(
 		hasGpuAdapter &&
 		isSelectedGpuAdapterAvailable) {
 		return ExecutionMode::GpuDx11;
+	}
+	if (requestedMode == static_cast<int>(ExecutionMode::CpuFast)) {
+		return ExecutionMode::CpuFast;
 	}
 	if (requestedMode >= static_cast<int>(ExecutionMode::CpuAvx2) && isAvx2Available) {
 		return ExecutionMode::CpuAvx2;

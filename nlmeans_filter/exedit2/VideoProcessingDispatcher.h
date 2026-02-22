@@ -9,6 +9,7 @@ struct VideoProcessingHandlers {
 	void* context;
 	bool (*cpuNaive)(void* context);
 	bool (*cpuAvx2)(void* context);
+	bool (*cpuFast)(void* context);
 	bool (*gpuDx11)(void* context, int adapterOrdinal, ExecutionMode fallbackMode);
 };
 
@@ -26,6 +27,11 @@ inline bool dispatch_video_processing(const ProcessingRoute& route, const VideoP
 			return false;
 		}
 		return handlers.cpuAvx2(handlers.context);
+	case ExecutionMode::CpuFast:
+		if (handlers.cpuFast == nullptr) {
+			return false;
+		}
+		return handlers.cpuFast(handlers.context);
 	case ExecutionMode::GpuDx11:
 		if (handlers.gpuDx11 == nullptr) {
 			return false;
