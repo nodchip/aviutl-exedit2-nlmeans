@@ -27,19 +27,11 @@ $cmd='"C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Buil
 cmd.exe /c $cmd
 ```
 
-PowerShell からのテスト/ベンチ実行例:
+PowerShell からのテスト/ベンチ実行例（`vcvars64.bat` 初期化つき）:
 
 ```powershell
-cl /nologo /utf-8 /EHsc /I .\nlmeans_filter .\nlmeans_filter\tests\NlmKernelTests.cpp /Fe:NlmKernelTests.exe
-.\NlmKernelTests.exe
-cl /nologo /utf-8 /EHsc /I .\nlmeans_filter .\nlmeans_filter\tests\NlmFrameReferenceTests.cpp /Fe:NlmFrameReferenceTests.exe
-.\NlmFrameReferenceTests.exe
-cl /nologo /utf-8 /EHsc /I .\nlmeans_filter .\nlmeans_filter\tests\NlmFrameOutputTests.cpp /Fe:NlmFrameOutputTests.exe
-.\NlmFrameOutputTests.exe
-cl /nologo /utf-8 /EHsc /I .\nlmeans_filter .\nlmeans_filter\tests\NlmFrameOutputMultiCaseTests.cpp /Fe:NlmFrameOutputMultiCaseTests.exe
-.\NlmFrameOutputMultiCaseTests.exe
-cl /nologo /utf-8 /EHsc /O2 /I .\nlmeans_filter .\nlmeans_filter\tests\NlmKernelBenchmark.cpp /Fe:NlmKernelBenchmark.exe
-.\NlmKernelBenchmark.exe
+$cmd='"C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat" && cl /nologo /utf-8 /EHsc /I .\nlmeans_filter .\nlmeans_filter\tests\NlmKernelTests.cpp /Fe:NlmKernelTests.exe && NlmKernelTests.exe && cl /nologo /utf-8 /EHsc /I .\nlmeans_filter .\nlmeans_filter\tests\NlmFrameReferenceTests.cpp /Fe:NlmFrameReferenceTests.exe && NlmFrameReferenceTests.exe && cl /nologo /utf-8 /EHsc /I .\nlmeans_filter .\nlmeans_filter\tests\NlmFrameOutputTests.cpp /Fe:NlmFrameOutputTests.exe && NlmFrameOutputTests.exe && cl /nologo /utf-8 /EHsc /I .\nlmeans_filter .\nlmeans_filter\tests\NlmFrameOutputMultiCaseTests.cpp /Fe:NlmFrameOutputMultiCaseTests.exe && NlmFrameOutputMultiCaseTests.exe && cl /nologo /utf-8 /EHsc /I .\nlmeans_filter .\nlmeans_filter\tests\BackendSelectionTests.cpp /Fe:BackendSelectionTests.exe && BackendSelectionTests.exe && cl /nologo /utf-8 /EHsc /I .\nlmeans_filter .\nlmeans_filter\tests\GpuAdapterSelectionTests.cpp /Fe:GpuAdapterSelectionTests.exe && GpuAdapterSelectionTests.exe && cl /nologo /utf-8 /EHsc /I .\nlmeans_filter .\nlmeans_filter\tests\ExecutionPolicyTests.cpp /Fe:ExecutionPolicyTests.exe && ExecutionPolicyTests.exe && cl /nologo /utf-8 /EHsc /I .\nlmeans_filter .\nlmeans_filter\tests\GpuFallbackPolicyTests.cpp /Fe:GpuFallbackPolicyTests.exe && GpuFallbackPolicyTests.exe && cl /nologo /utf-8 /EHsc /O2 /I .\nlmeans_filter .\nlmeans_filter\tests\NlmKernelBenchmark.cpp /Fe:NlmKernelBenchmark.exe && NlmKernelBenchmark.exe'
+cmd.exe /c $cmd
 ```
 
 ## オプション解説
