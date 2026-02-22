@@ -17,6 +17,19 @@ struct QualityStats
 	double meanAbsDiff;
 };
 
+struct QualityCase
+{
+	int width;
+	int height;
+	int searchRadius;
+	int timeRadius;
+	double sigma;
+	int seed0;
+	int seed1;
+	int maxAbsTolerance;
+	double meanAbsTolerance;
+};
+
 std::vector<PIXEL_RGBA> make_frame(int width, int height, int seed)
 {
 	const size_t pixel_count = static_cast<size_t>(width) * static_cast<size_t>(height);
@@ -110,82 +123,78 @@ QualityStats evaluate_quality(const std::vector<PIXEL_RGBA>& gpu, const std::vec
 	return { max_abs, denom > 0.0 ? (static_cast<double>(total_abs) / denom) : 0.0 };
 }
 
-}
-
-TEST(GpuQualityComparisonTests, SingleFrameMatchesCpuReferenceWithinTolerance)
+void run_quality_case(const QualityCase& test_case)
 {
-	const int width = 32;
-	const int height = 24;
-	const int search_radius = 1;
-	const int time_radius = 0;
-	const double sigma = 50.0;
-
 	Exedit2GpuRunner runner;
 	if (!runner.initialize(-1)) {
 		GTEST_SKIP() << "GPU runner initialization failed.";
 	}
 
-	const std::vector<PIXEL_RGBA> frame = make_frame(width, height, 1);
-	std::vector<PIXEL_RGBA> gpu_out(static_cast<size_t>(width) * static_cast<size_t>(height));
-
-	ASSERT_TRUE(runner.process(
-		frame.data(),
-		gpu_out.data(),
-		width,
-		height,
-		search_radius,
-		time_radius,
-		sigma));
-
-	const std::vector<std::vector<PIXEL_RGBA>> history = { frame };
-	const std::vector<PIXEL_RGBA> cpu_ref = build_cpu_reference(history, width, height, search_radius, sigma);
-	const QualityStats stats = evaluate_quality(gpu_out, cpu_ref);
-
-	EXPECT_LE(stats.maxAbsDiff, 1);
-	EXPECT_LE(stats.meanAbsDiff, 0.25);
-}
-
-TEST(GpuQualityComparisonTests, TemporalTwoFrameMatchesCpuReferenceWithinTolerance)
-{
-	const int width = 32;
-	const int height = 24;
-	const int search_radius = 1;
-	const int time_radius = 1;
-	const double sigma = 50.0;
-
-	Exedit2GpuRunner runner;
-	if (!runner.initialize(-1)) {
-		GTEST_SKIP() << "GPU runner initialization failed.";
-	}
-
-	const std::vector<PIXEL_RGBA> frame0 = make_frame(width, height, 10);
-	const std::vector<PIXEL_RGBA> frame1 = make_frame(width, height, 20);
-	std::vector<PIXEL_RGBA> gpu_out0(static_cast<size_t>(width) * static_cast<size_t>(height));
-	std::vector<PIXEL_RGBA> gpu_out1(static_cast<size_t>(width) * static_cast<size_t>(height));
+	const std::vector<PIXEL_RGBA> frame0 = make_frame(test_case.width, test_case.height, test_case.seed0);
+	std::vector<PIXEL_RGBA> gpu_out0(static_cast<size_t>(test_case.width) * static_cast<size_t>(test_case.height));
 
 	ASSERT_TRUE(runner.process(
 		frame0.data(),
 		gpu_out0.data(),
-		width,
-		height,
-		search_radius,
-		time_radius,
-		sigma));
+		test_case.width,
+		test_case.height,
+		test_case.searchRadius,
+		test_case.timeRadius,
+		test_case.sigma));
+
+	if (test_case.timeRadius <= 0) {
+		const std::vector<std::vector<PIXEL_RGBA>> history = { frame0 };
+		const std::vector<PIXEL_RGBA> cpu_ref = build_cpu_reference(
+			history,
+			test_case.width,
+			test_case.height,
+			test_case.searchRadius,
+			test_case.sigma);
+		const QualityStats stats = evaluate_quality(gpu_out0, cpu_ref);
+		EXPECT_LE(stats.maxAbsDiff, test_case.maxAbsTolerance);
+		EXPECT_LE(stats.meanAbsDiff, test_case.meanAbsTolerance);
+		return;
+	}
+
+	const std::vector<PIXEL_RGBA> frame1 = make_frame(test_case.width, test_case.height, test_case.seed1);
+	std::vector<PIXEL_RGBA> gpu_out1(static_cast<size_t>(test_case.width) * static_cast<size_t>(test_case.height));
 	ASSERT_TRUE(runner.process(
 		frame1.data(),
 		gpu_out1.data(),
-		width,
-		height,
-		search_radius,
-		time_radius,
-		sigma));
+		test_case.width,
+		test_case.height,
+		test_case.searchRadius,
+		test_case.timeRadius,
+		test_case.sigma));
 
 	const std::vector<std::vector<PIXEL_RGBA>> history = { frame0, frame1 };
-	const std::vector<PIXEL_RGBA> cpu_ref = build_cpu_reference(history, width, height, search_radius, sigma);
+	const std::vector<PIXEL_RGBA> cpu_ref = build_cpu_reference(
+		history,
+		test_case.width,
+		test_case.height,
+		test_case.searchRadius,
+		test_case.sigma);
 	const QualityStats stats = evaluate_quality(gpu_out1, cpu_ref);
+	EXPECT_LE(stats.maxAbsDiff, test_case.maxAbsTolerance);
+	EXPECT_LE(stats.meanAbsDiff, test_case.meanAbsTolerance);
+}
 
-	EXPECT_LE(stats.maxAbsDiff, 1);
-	EXPECT_LE(stats.meanAbsDiff, 0.25);
+}
+
+TEST(GpuQualityComparisonTests, MatchesCpuReferenceAcrossQualityMatrix)
+{
+	const std::vector<QualityCase> cases = {
+		// Single-frame spatial quality.
+		{ 32, 24, 1, 0, 40.0, 1, 2, 1, 0.30 },
+		{ 48, 36, 2, 0, 55.0, 3, 4, 1, 0.35 },
+		// Temporal quality (2-frame history).
+		{ 32, 24, 1, 1, 45.0, 10, 20, 1, 0.30 },
+		{ 48, 36, 2, 1, 60.0, 30, 40, 1, 0.40 }
+	};
+
+	for (const auto& test_case : cases) {
+		run_quality_case(test_case);
+	}
 }
 
 #else
