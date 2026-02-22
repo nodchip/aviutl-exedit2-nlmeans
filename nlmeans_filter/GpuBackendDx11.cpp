@@ -14,6 +14,7 @@
 
 #include "stdafx.h"
 #include "GpuBackendDx11.h"
+#include <cmath>
 #include <string>
 #include <vector>
 #include <d3dcompiler.h>
@@ -40,17 +41,25 @@ struct ShaderConstants
 {
 	UINT width;
 	UINT height;
+	UINT searchRadius;
 	UINT reserved0;
-	UINT reserved1;
+	float h2;
+	float reserved1;
+	float reserved2;
+	float reserved3;
 };
 
-static const char* PASS_THROUGH_SHADER_SOURCE =
+static const char* NLM_SHADER_SOURCE =
 	"cbuffer Constants : register(b0)\n"
 	"{\n"
 	"	uint Width;\n"
 	"	uint Height;\n"
+	"	uint SearchRadius;\n"
 	"	uint Reserved0;\n"
-	"	uint Reserved1;\n"
+	"	float H2;\n"
+	"	float Reserved1;\n"
+	"	float Reserved2;\n"
+	"	float Reserved3;\n"
 	"};\n"
 	"struct PixelData\n"
 	"{\n"
@@ -61,14 +70,59 @@ static const char* PASS_THROUGH_SHADER_SOURCE =
 	"};\n"
 	"StructuredBuffer<PixelData> InputPixels : register(t0);\n"
 	"RWStructuredBuffer<PixelData> OutputPixels : register(u0);\n"
+	"int clampi(int v, int low, int high)\n"
+	"{\n"
+	"	return min(high, max(low, v));\n"
+	"}\n"
+	"int getChannel(PixelData p, int channel)\n"
+	"{\n"
+	"	if (channel == 0) return p.y;\n"
+	"	if (channel == 1) return p.cb;\n"
+	"	return p.cr;\n"
+	"}\n"
+	"int readChannel(int x, int y, int channel)\n"
+	"{\n"
+	"	const int cx = clampi(x, 0, (int)Width - 1);\n"
+	"	const int cy = clampi(y, 0, (int)Height - 1);\n"
+	"	return getChannel(InputPixels[cy * Width + cx], channel);\n"
+	"}\n"
 	"[numthreads(16, 16, 1)]\n"
 	"void main(uint3 tid : SV_DispatchThreadID)\n"
 	"{\n"
 	"	if (tid.x >= Width || tid.y >= Height){\n"
 	"		return;\n"
 	"	}\n"
+	"	const int x = (int)tid.x;\n"
+	"	const int y = (int)tid.y;\n"
 	"	const uint index = tid.y * Width + tid.x;\n"
-	"	OutputPixels[index] = InputPixels[index];\n"
+	"	PixelData outPixel;\n"
+	"	outPixel.reserved = 0;\n"
+	"	for (int channel = 0; channel < 3; ++channel){\n"
+	"		float sum = 0.0f;\n"
+	"		float value = 0.0f;\n"
+	"		for (int dy = -((int)SearchRadius); dy <= (int)SearchRadius; ++dy){\n"
+	"			for (int dx = -((int)SearchRadius); dx <= (int)SearchRadius; ++dx){\n"
+	"				float sum2 = 0.0f;\n"
+	"				for (int ny = -1; ny <= 1; ++ny){\n"
+	"					for (int nx = -1; nx <= 1; ++nx){\n"
+	"						const float a = (float)readChannel(x + nx, y + ny, channel);\n"
+	"						const float b = (float)readChannel(x + dx + nx, y + dy + ny, channel);\n"
+	"						const float diff = a - b;\n"
+	"						sum2 += diff * diff;\n"
+	"					}\n"
+	"				}\n"
+	"				const float w = exp(-sum2 * H2);\n"
+	"				sum += w;\n"
+	"				value += (float)readChannel(x + dx, y + dy, channel) * w;\n"
+	"			}\n"
+	"		}\n"
+	"		const float filtered = (sum > 0.0f) ? (value / sum) : (float)readChannel(x, y, channel);\n"
+	"		const int v = (int)filtered;\n"
+	"		if (channel == 0) outPixel.y = v;\n"
+	"		if (channel == 1) outPixel.cb = v;\n"
+	"		if (channel == 2) outPixel.cr = v;\n"
+	"	}\n"
+	"	OutputPixels[index] = outPixel;\n"
 	"}\n";
 
 }
@@ -155,8 +209,6 @@ bool GpuBackendDx11::isAvailable() const
 
 BOOL GpuBackendDx11::process(FILTER& fp, FILTER_PROC_INFO& fpip)
 {
-	(void)fp;
-
 	if (!available){
 		return FALSE;
 	}
@@ -200,8 +252,13 @@ BOOL GpuBackendDx11::process(FILTER& fp, FILTER_PROC_INFO& fpip)
 	ShaderConstants* constants = reinterpret_cast<ShaderConstants*>(mappedConstants.pData);
 	constants->width = static_cast<UINT>(width);
 	constants->height = static_cast<UINT>(height);
+	constants->searchRadius = static_cast<UINT>(fp.track[0]);
 	constants->reserved0 = 0;
+	const double h = std::pow(10.0, static_cast<double>(fp.track[2]) / 22.0);
+	constants->h2 = static_cast<float>(1.0 / (h * h));
 	constants->reserved1 = 0;
+	constants->reserved2 = 0;
+	constants->reserved3 = 0;
 	context->Unmap(constantBuffer, 0);
 
 	ID3D11ShaderResourceView* srvs[1] = { inputSrv };
@@ -235,9 +292,9 @@ BOOL GpuBackendDx11::process(FILTER& fp, FILTER_PROC_INFO& fpip)
 		for (int x = 0; x < width; ++x){
 			const GpuBackendDx11::GpuPixel& src = outputPixels[y * width + x];
 			PIXEL_YC& dst = fpip.ycp_edit[y * fpip.max_w + x];
-			dst.y = static_cast<short>(src.y);
-			dst.cb = static_cast<short>(src.cb);
-			dst.cr = static_cast<short>(src.cr);
+			dst.y = static_cast<short>(max(-32768, min(32767, src.y)));
+			dst.cb = static_cast<short>(max(-32768, min(32767, src.cb)));
+			dst.cr = static_cast<short>(max(-32768, min(32767, src.cr)));
 		}
 	}
 
@@ -259,9 +316,9 @@ bool GpuBackendDx11::ensurePipeline()
 	CComPtr<ID3DBlob> shaderBlob;
 	CComPtr<ID3DBlob> errorBlob;
 	if (FAILED(D3DCompile(
-		PASS_THROUGH_SHADER_SOURCE,
-		strlen(PASS_THROUGH_SHADER_SOURCE),
-		"GpuPassThrough.hlsl",
+		NLM_SHADER_SOURCE,
+		strlen(NLM_SHADER_SOURCE),
+		"GpuNlm.hlsl",
 		NULL,
 		NULL,
 		"main",
