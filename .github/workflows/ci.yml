@@ -62,3 +62,9 @@ jobs:
         run: >
           cl /nologo /utf-8 /EHsc /I nlmeans_filter nlmeans_filter\tests\GpuAdapterSelectionTests.cpp /Fe:GpuAdapterSelectionTests.exe
           && GpuAdapterSelectionTests.exe
+
+      - name: Run Execution Policy Test
+        shell: cmd
+        run: >
+          cl /nologo /utf-8 /EHsc /I nlmeans_filter nlmeans_filter\tests\ExecutionPolicyTests.cpp /Fe:ExecutionPolicyTests.exe
+          && ExecutionPolicyTests.exe

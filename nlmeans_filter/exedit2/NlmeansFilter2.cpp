@@ -38,7 +38,7 @@
 #if __has_include("../aviutl2_sdk/filter2.h")
 #include "Exedit2GpuRunner.h"
 #include "BackendSelection.h"
-#include "GpuAdapterSelection.h"
+#include "ExecutionPolicy.h"
 #include "../DxgiAdapterUtil.h"
 
 namespace {
@@ -79,27 +79,6 @@ bool is_avx2_available()
 
 	__cpuidex(cpuInfo, 7, 0);
 	return (cpuInfo[1] & (1 << 5)) != 0;
-}
-
-// 少なくとも 1 つのハードウェア GPU が列挙できるかを返す。
-bool has_hardware_gpu_adapter()
-{
-	const size_t hardware_count = g_gpu_adapter_names.size() > 0 ? (g_gpu_adapter_names.size() - 1) : 0;
-	return hardware_count > 0;
-}
-
-// UI の選択値を実アダプタ番号へ変換する。Auto は -1 を返す。
-int get_selected_gpu_adapter_ordinal()
-{
-	const size_t hardware_count = g_gpu_adapter_names.size() > 0 ? (g_gpu_adapter_names.size() - 1) : 0;
-	return resolve_gpu_adapter_ordinal(item_gpu_adapter.value, hardware_count);
-}
-
-// 選択値が現在の列挙結果で有効かを返す。
-bool is_selected_gpu_adapter_available()
-{
-	const size_t hardware_count = g_gpu_adapter_names.size() > 0 ? (g_gpu_adapter_names.size() - 1) : 0;
-	return is_gpu_adapter_selection_available(item_gpu_adapter.value, hardware_count);
 }
 
 // ExEdit2 の画像バッファへ CPU Naive な NLM を適用する。
@@ -355,13 +334,14 @@ bool apply_nlm_gpu_dx11(FILTER_PROC_VIDEO* video, int adapterOrdinal)
 
 bool func_proc_video(FILTER_PROC_VIDEO* video)
 {
-	const ExecutionMode mode = resolve_execution_mode(
+	const size_t hardware_count = g_gpu_adapter_names.size() > 0 ? (g_gpu_adapter_names.size() - 1) : 0;
+	const ExecutionPolicy policy = resolve_execution_policy(
 		item_mode.value,
-		has_hardware_gpu_adapter(),
-		is_selected_gpu_adapter_available(),
+		item_gpu_adapter.value,
+		hardware_count,
 		is_avx2_available());
-	g_runtime_gpu_adapter_ordinal = get_selected_gpu_adapter_ordinal();
-	switch (mode) {
+	g_runtime_gpu_adapter_ordinal = policy.gpuAdapterOrdinal;
+	switch (policy.mode) {
 	case ExecutionMode::CpuNaive:
 		return apply_nlm_cpu_naive(video);
 	case ExecutionMode::CpuAvx2:
