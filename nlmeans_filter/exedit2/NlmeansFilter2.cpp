@@ -37,6 +37,7 @@
 
 #if __has_include("../aviutl2_sdk/filter2.h")
 #include "Exedit2GpuRunner.h"
+#include "GpuFallbackExecution.h"
 #include "UiToDispatcherIntegration.h"
 #include "../DxgiAdapterUtil.h"
 
@@ -303,35 +304,41 @@ bool apply_nlm_gpu_dx11(FILTER_PROC_VIDEO* video, int adapterOrdinal, ExecutionM
 	if (g_gpu_runner == nullptr) {
 		g_gpu_runner = std::unique_ptr<Exedit2GpuRunner>(new Exedit2GpuRunner());
 	}
-	if (!g_gpu_runner->initialize(adapterOrdinal)) {
-		return apply_nlm_cpu_by_mode(video, fallbackMode);
-	}
+	return execute_gpu_with_fallback(
+		[gpuRunner = g_gpu_runner.get(), adapterOrdinal]() {
+			return gpuRunner != nullptr && gpuRunner->initialize(adapterOrdinal);
+		},
+		[video, gpuRunner = g_gpu_runner.get()]() {
+			const int width = video->scene->width;
+			const int height = video->scene->height;
+			if (width <= 0 || height <= 0) {
+				return false;
+			}
+			const int pixel_count = width * height;
+			g_input_pixels.resize(static_cast<size_t>(pixel_count));
+			g_output_pixels.resize(static_cast<size_t>(pixel_count));
+			video->get_image_data(g_input_pixels.data());
 
-	const int width = video->scene->width;
-	const int height = video->scene->height;
-	if (width <= 0 || height <= 0) {
-		return false;
-	}
-	const int pixel_count = width * height;
-	g_input_pixels.resize(static_cast<size_t>(pixel_count));
-	g_output_pixels.resize(static_cast<size_t>(pixel_count));
-	video->get_image_data(g_input_pixels.data());
-
-	const int search_radius = std::max(1, static_cast<int>(item_search_radius.value));
-	const int time_radius = std::max(0, static_cast<int>(item_time_radius.value));
-	const double sigma = std::max(0.001, static_cast<double>(item_sigma.value));
-	if (!g_gpu_runner->process(
-		g_input_pixels.data(),
-		g_output_pixels.data(),
-		width,
-		height,
-		search_radius,
-		time_radius,
-		sigma)) {
-		return apply_nlm_cpu_by_mode(video, fallbackMode);
-	}
-	video->set_image_data(g_output_pixels.data(), width, height);
-	return true;
+			const int search_radius = std::max(1, static_cast<int>(item_search_radius.value));
+			const int time_radius = std::max(0, static_cast<int>(item_time_radius.value));
+			const double sigma = std::max(0.001, static_cast<double>(item_sigma.value));
+			if (gpuRunner == nullptr || !gpuRunner->process(
+				g_input_pixels.data(),
+				g_output_pixels.data(),
+				width,
+				height,
+				search_radius,
+				time_radius,
+				sigma)) {
+				return false;
+			}
+			video->set_image_data(g_output_pixels.data(), width, height);
+			return true;
+		},
+		[video](ExecutionMode mode) {
+			return apply_nlm_cpu_by_mode(video, mode);
+		},
+		fallbackMode);
 }
 
 bool dispatch_cpu_naive(void* context)

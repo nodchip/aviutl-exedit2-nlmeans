@@ -104,3 +104,9 @@ jobs:
         run: >
           cl /nologo /utf-8 /EHsc /I nlmeans_filter nlmeans_filter\tests\UiToDispatcherIntegrationTests.cpp /Fe:UiToDispatcherIntegrationTests.exe
           && UiToDispatcherIntegrationTests.exe
+
+      - name: Run GPU Fallback Execution Test
+        shell: cmd
+        run: >
+          cl /nologo /utf-8 /EHsc /I nlmeans_filter nlmeans_filter\tests\GpuFallbackExecutionTests.cpp /Fe:GpuFallbackExecutionTests.exe
+          && GpuFallbackExecutionTests.exe
