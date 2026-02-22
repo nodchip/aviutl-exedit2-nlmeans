@@ -112,6 +112,9 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
+    <None Include="gpu_nlm_cs.hlsl">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
     <None Include="nlm.psh" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
