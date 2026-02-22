@@ -41,6 +41,7 @@ cmd.exe /c $cmd
 - `BackendSelectionTests.cpp`（GoogleTest）
 - `ProcessingRoutePolicyTests.cpp`（GoogleTest）
 - `GpuFallbackPolicyTests.cpp`（GoogleTest）
+- `GpuFallbackExecutionTests.cpp`（GoogleTest）
 
 ## コーディング規約
 

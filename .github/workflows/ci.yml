@@ -75,12 +75,6 @@ jobs:
           cl /nologo /utf-8 /EHsc /I nlmeans_filter nlmeans_filter\tests\UiToDispatcherIntegrationTests.cpp /Fe:UiToDispatcherIntegrationTests.exe
           && UiToDispatcherIntegrationTests.exe
 
-      - name: Run GPU Fallback Execution Test
-        shell: cmd
-        run: >
-          cl /nologo /utf-8 /EHsc /I nlmeans_filter nlmeans_filter\tests\GpuFallbackExecutionTests.cpp /Fe:GpuFallbackExecutionTests.exe
-          && GpuFallbackExecutionTests.exe
-
       - name: Run GPU Runner Dispatch Test
         shell: cmd
         run: >
@@ -100,6 +94,7 @@ jobs:
           nlmeans_filter\tests\BackendSelectionTests.cpp
           nlmeans_filter\tests\ExecutionPolicyTests.cpp
           nlmeans_filter\tests\GpuAdapterSelectionTests.cpp
+          nlmeans_filter\tests\GpuFallbackExecutionTests.cpp
           nlmeans_filter\tests\GpuFallbackPolicyTests.cpp
           nlmeans_filter\tests\ModeIdsGoogleTest.cpp
           nlmeans_filter\tests\ProcessingRoutePolicyTests.cpp
