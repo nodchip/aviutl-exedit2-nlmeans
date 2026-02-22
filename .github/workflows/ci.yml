@@ -30,3 +30,13 @@ jobs:
       - name: Run GoogleTest Suite
         shell: cmd
         run: scripts\run_gtests.cmd
+
+      - name: Generate NLM Variants Benchmark Report
+        shell: cmd
+        run: scripts\generate_nlm_variants_report.cmd
+
+      - name: Upload Benchmark Report Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: nlm-variants-benchmark
+          path: docs/reports/nlm-variants-benchmark.md

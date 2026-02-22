@@ -58,6 +58,12 @@ cmd.exe /c $cmd
 
 - GoogleTest を `third_party/googletest` に同梱しています。
 - GoogleTest テストは `scripts/run_gtests.cmd` で実行してください。
+- `GpuQualityComparisonTests.cpp` は `aviutl2_sdk/filter2.h` がない環境では自動で `SKIP` になります。
+
+## ベンチレポート
+
+- `scripts/generate_nlm_variants_report.cmd` で `docs/reports/nlm-variants-benchmark.md` を生成できます。
+- GitHub Actions CI では同レポートを artifact (`nlm-variants-benchmark`) として保存します。
 
 ## Pull Request
 
