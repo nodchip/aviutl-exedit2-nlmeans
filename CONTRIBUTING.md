@@ -25,7 +25,7 @@ cmd.exe /c $cmd
 PowerShell から実行する場合:
 
 ```powershell
-$cmd='"C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat" && cl /nologo /utf-8 /EHsc /I .\nlmeans_filter .\nlmeans_filter\tests\NlmKernelTests.cpp /Fe:NlmKernelTests.exe && NlmKernelTests.exe'
+$cmd='"C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat" && .\scripts\run_gtests.cmd'
 cmd.exe /c $cmd
 ```
 
@@ -56,7 +56,7 @@ cmd.exe /c $cmd
 ## テストフレームワーク
 
 - GoogleTest を `third_party/googletest` に同梱しています。
-- GoogleTest テストは `gtest-all.cc` と `gtest_main.cc` を同時にコンパイルして実行してください。
+- GoogleTest テストは `scripts/run_gtests.cmd` で実行してください。
 
 ## Pull Request
 
