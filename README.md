@@ -38,7 +38,7 @@ cmd.exe /c $cmd
 GoogleTest テスト実行例:
 
 ```powershell
-$cmd='"C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat" && cl /nologo /utf-8 /EHsc /std:c++17 /I .\third_party\googletest\googletest\include /I .\third_party\googletest\googletest /I .\nlmeans_filter .\third_party\googletest\googletest\src\gtest-all.cc .\third_party\googletest\googletest\src\gtest_main.cc .\nlmeans_filter\tests\ModeIdsGoogleTest.cpp .\nlmeans_filter\tests\ExecutionPolicyTests.cpp /Fe:GoogleTests.exe && .\GoogleTests.exe'
+$cmd='"C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat" && cl /nologo /utf-8 /EHsc /std:c++17 /I .\third_party\googletest\googletest\include /I .\third_party\googletest\googletest /I .\nlmeans_filter .\third_party\googletest\googletest\src\gtest-all.cc .\third_party\googletest\googletest\src\gtest_main.cc .\nlmeans_filter\tests\ModeIdsGoogleTest.cpp .\nlmeans_filter\tests\ExecutionPolicyTests.cpp .\nlmeans_filter\tests\GpuAdapterSelectionTests.cpp /Fe:GoogleTests.exe && .\GoogleTests.exe'
 cmd.exe /c $cmd
 ```
 

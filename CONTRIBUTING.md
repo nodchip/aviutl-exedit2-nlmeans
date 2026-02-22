@@ -36,10 +36,10 @@ cmd.exe /c $cmd
 - `NlmFrameOutputTests.cpp`
 - `NlmFrameOutputMultiCaseTests.cpp`
 - `BackendSelectionTests.cpp`
-- `GpuAdapterSelectionTests.cpp`
 - `GpuFallbackPolicyTests.cpp`
 - `ModeIdsGoogleTest.cpp`（GoogleTest）
 - `ExecutionPolicyTests.cpp`（GoogleTest）
+- `GpuAdapterSelectionTests.cpp`（GoogleTest）
 
 ## コーディング規約
 
