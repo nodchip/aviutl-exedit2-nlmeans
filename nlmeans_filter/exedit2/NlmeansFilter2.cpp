@@ -19,6 +19,7 @@
 #include <cstdint>
 #include <string>
 #include <vector>
+#include <intrin.h>
 #include <dxgi1_6.h>
 
 #pragma comment(lib, "dxgi.lib")
@@ -30,11 +31,64 @@ namespace {
 
 std::vector<std::wstring> g_gpu_adapter_names;
 std::vector<FILTER_ITEM_SELECT::ITEM> g_gpu_adapter_items;
+extern FILTER_ITEM_SELECT item_mode;
+
+// 実行バックエンドの選択状態を表す。
+enum class ExecutionMode : int {
+	CpuNaive = 0,
+	CpuAvx2 = 1,
+	GpuDx11 = 2
+};
+
+// AVX2 命令が利用可能かを判定する。
+bool is_avx2_available()
+{
+	int cpuInfo[4] = {};
+	__cpuid(cpuInfo, 0);
+	if (cpuInfo[0] < 7) {
+		return false;
+	}
+
+	__cpuid(cpuInfo, 1);
+	const bool osxsave = (cpuInfo[2] & (1 << 27)) != 0;
+	const bool avx = (cpuInfo[2] & (1 << 28)) != 0;
+	if (!osxsave || !avx) {
+		return false;
+	}
+
+	const unsigned __int64 xcr0 = _xgetbv(0);
+	if ((xcr0 & 0x6) != 0x6) {
+		return false;
+	}
+
+	__cpuidex(cpuInfo, 7, 0);
+	return (cpuInfo[1] & (1 << 5)) != 0;
+}
+
+// 少なくとも 1 つのハードウェア GPU が列挙できるかを返す。
+bool has_hardware_gpu_adapter()
+{
+	// 先頭は Auto、末尾は終端nullのため 3 要素以上で実アダプタあり。
+	return g_gpu_adapter_items.size() >= 3;
+}
+
+// 要求モードと環境能力から、実際に実行するモードを決定する。
+ExecutionMode resolve_execution_mode(int requested_mode)
+{
+	if (requested_mode >= static_cast<int>(ExecutionMode::GpuDx11) && has_hardware_gpu_adapter()) {
+		return ExecutionMode::GpuDx11;
+	}
+	if (requested_mode >= static_cast<int>(ExecutionMode::CpuAvx2) && is_avx2_available()) {
+		return ExecutionMode::CpuAvx2;
+	}
+	return ExecutionMode::CpuNaive;
+}
 
 // TODO: 既存の ProcessorCpu / ProcessorAvx2 / GpuBackendDx11 を
 // ExEdit2 の FILTER_PROC_VIDEO へ接続する。
 bool func_proc_video(FILTER_PROC_VIDEO* video)
 {
+	(void)resolve_execution_mode(item_mode.value);
 	(void)video;
 	return true;
 }
