@@ -57,6 +57,13 @@ $cmd='"C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Buil
 cmd.exe /c $cmd
 ```
 
+GPU 協調ベンチ履歴を CSV 更新する例:
+
+```powershell
+$cmd='"C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat" && .\scripts\update_gpu_coop_history.cmd'
+cmd.exe /c $cmd
+```
+
 ## オプション解説
 
 ### 空間範囲
