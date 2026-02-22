@@ -25,11 +25,9 @@
     <ClInclude Include="PixelShaderCached.h"><Filter>Header Files</Filter></ClInclude>
     <ClInclude Include="PixelShaderRaw.h"><Filter>Header Files</Filter></ClInclude>
     <ClInclude Include="Processor.h"><Filter>Header Files</Filter></ClInclude>
+    <ClInclude Include="ProcessorAvx2.h"><Filter>Header Files</Filter></ClInclude>
     <ClInclude Include="ProcessorCpu.h"><Filter>Header Files</Filter></ClInclude>
-    <ClInclude Include="ProcessorCuda.h"><Filter>Header Files</Filter></ClInclude>
     <ClInclude Include="ProcessorGpu.h"><Filter>Header Files</Filter></ClInclude>
-    <ClInclude Include="ProcessorSse2Aroo.h"><Filter>Header Files</Filter></ClInclude>
-    <ClInclude Include="ProcessorSse2N099.h"><Filter>Header Files</Filter></ClInclude>
     <ClInclude Include="stdafx.h"><Filter>Header Files</Filter></ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -38,14 +36,12 @@
     <ClCompile Include="InputTextureCached.cpp"><Filter>Source Files</Filter></ClCompile>
     <ClCompile Include="InputTextureRaw.cpp"><Filter>Source Files</Filter></ClCompile>
     <ClCompile Include="nlmeans_filter.cpp"><Filter>Source Files</Filter></ClCompile>
-    <ClCompile Include="nlmSse2N099.c"><Filter>Source Files</Filter></ClCompile>
     <ClCompile Include="PixelShader.cpp"><Filter>Source Files</Filter></ClCompile>
     <ClCompile Include="PixelShaderCached.cpp"><Filter>Source Files</Filter></ClCompile>
     <ClCompile Include="PixelShaderRaw.cpp"><Filter>Source Files</Filter></ClCompile>
+    <ClCompile Include="ProcessorAvx2.cpp"><Filter>Source Files</Filter></ClCompile>
     <ClCompile Include="ProcessorCpu.cpp"><Filter>Source Files</Filter></ClCompile>
     <ClCompile Include="ProcessorGpu.cpp"><Filter>Source Files</Filter></ClCompile>
-    <ClCompile Include="ProcessorSse2Aroo.cpp"><Filter>Source Files</Filter></ClCompile>
-    <ClCompile Include="ProcessorSse2N099.cpp"><Filter>Source Files</Filter></ClCompile>
     <ClCompile Include="stdafx.cpp"><Filter>Source Files</Filter></ClCompile>
   </ItemGroup>
   <ItemGroup>

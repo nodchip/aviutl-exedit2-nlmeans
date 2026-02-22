@@ -102,11 +102,9 @@
     <ClInclude Include="PixelShaderCached.h" />
     <ClInclude Include="PixelShaderRaw.h" />
     <ClInclude Include="Processor.h" />
+    <ClInclude Include="ProcessorAvx2.h" />
     <ClInclude Include="ProcessorCpu.h" />
-    <ClInclude Include="ProcessorCuda.h" />
     <ClInclude Include="ProcessorGpu.h" />
-    <ClInclude Include="ProcessorSse2Aroo.h" />
-    <ClInclude Include="ProcessorSse2N099.h" />
     <ClInclude Include="stdafx.h" />
   </ItemGroup>
   <ItemGroup>
@@ -115,14 +113,12 @@
     <ClCompile Include="InputTextureCached.cpp" />
     <ClCompile Include="InputTextureRaw.cpp" />
     <ClCompile Include="nlmeans_filter.cpp" />
-    <ClCompile Include="nlmSse2N099.c" />
     <ClCompile Include="PixelShader.cpp" />
     <ClCompile Include="PixelShaderCached.cpp" />
     <ClCompile Include="PixelShaderRaw.cpp" />
+    <ClCompile Include="ProcessorAvx2.cpp" />
     <ClCompile Include="ProcessorCpu.cpp" />
     <ClCompile Include="ProcessorGpu.cpp" />
-    <ClCompile Include="ProcessorSse2Aroo.cpp" />
-    <ClCompile Include="ProcessorSse2N099.cpp" />
     <ClCompile Include="stdafx.cpp">
       <PrecompiledHeader>Create</PrecompiledHeader>
     </ClCompile>
