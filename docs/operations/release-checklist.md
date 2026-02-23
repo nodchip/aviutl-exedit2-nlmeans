@@ -19,13 +19,14 @@
 5. GPU 環境では `scripts/update_dx11_dx12_quality_history.cmd` を実行し、履歴 CSV を更新する。
 6. GPU 環境では `scripts/update_dx12_poc_benchmark_history.cmd` を実行し、DX12 PoC ベンチ履歴 CSV を更新する。
 7. GPU 環境では `scripts/check_dx12_poc_regression.cmd` を実行し、DX12 PoC compute path の回帰を確認する。
+8. 採用判断時は `scripts/generate_dx11_dx12_decision_report.cmd` を実行し、`dx11-dx12-decision.md` を更新する。
 
 ## 成果物確認
 
 1. 配布対象に `*.auf2` と必要な設定/ドキュメントが含まれることを確認する。
 2. `aviutl2_sdk` が成果物に含まれていないことを確認する。
 3. シェーダー配布方針（外部 HLSL 同梱 + 実行時コンパイル）に沿っていることを確認する。
-4. 主要レポート（`gpu-coop-benchmark.md`, `dx12-poc-readiness.md`, `dx12-poc-benchmark.md`, `dx11-dx12-quality.md`）が最新であることを確認する。
+4. 主要レポート（`gpu-coop-benchmark.md`, `dx12-poc-readiness.md`, `dx12-poc-benchmark.md`, `dx11-dx12-quality.md`, `dx11-dx12-decision.md`）が最新であることを確認する。
 
 ## DX11/DX12 判断基準
 
