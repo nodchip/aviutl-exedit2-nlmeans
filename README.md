@@ -177,6 +177,13 @@ $cmd='"C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Buil
 cmd.exe /c $cmd
 ```
 
+DX12 PoC ベンチ回帰チェック例:
+
+```powershell
+$cmd='"C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat" && .\scripts\check_dx12_poc_regression.cmd'
+cmd.exe /c $cmd
+```
+
 DX11 vs DX12 品質比較レポート生成例:
 
 ```powershell

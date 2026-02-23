@@ -71,6 +71,17 @@ cmd.exe /c $cmd
 
 - `docs/reports/dx12-poc-benchmark-history.csv` が更新される
 
+DX12 PoC compute path の回帰しきい値を確認する。
+
+```powershell
+$cmd='"C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat" && .\scripts\check_dx12_poc_regression.cmd'
+cmd.exe /c $cmd
+```
+
+期待結果:
+
+- `[check_dx12_poc_regression] ok` が表示される
+
 DX11 vs DX12 品質比較レポートを生成する。
 
 ```powershell

@@ -72,6 +72,7 @@ cmd.exe /c $cmd
 - `scripts/generate_dx12_poc_report.cmd` で `docs/reports/dx12-poc-readiness.md` を生成できます。
 - `scripts/generate_dx12_poc_benchmark.cmd` で `docs/reports/dx12-poc-benchmark.md` を生成できます。
 - `scripts/update_dx12_poc_benchmark_history.cmd` で `docs/reports/dx12-poc-benchmark-history.csv` を更新できます。
+- `scripts/check_dx12_poc_regression.cmd` で DX12 PoC compute path の直近回帰を確認できます。
 - `scripts/generate_dx11_dx12_quality_report.cmd` で `docs/reports/dx11-dx12-quality.md` を生成できます。
 - `scripts/check_dx11_dx12_quality_threshold.cmd` で DX11 vs DX12 比較のしきい値判定ができます。
 - `scripts/update_dx11_dx12_quality_history.cmd` で `docs/reports/dx11-dx12-quality-history.csv` を更新できます。
@@ -95,6 +96,7 @@ cmd.exe /c $cmd
 - 同ワークフローでは `scripts/generate_dx12_poc_report.cmd` で DX12 PoC 可否レポートを生成します。
 - 同ワークフローでは `scripts/generate_dx12_poc_benchmark.cmd` で DX12 PoC ベンチレポートを生成します。
 - 同ワークフローでは `scripts/update_dx12_poc_benchmark_history.cmd` で DX12 PoC ベンチ履歴 CSV を更新します。
+- 同ワークフローでは `scripts/check_dx12_poc_regression.cmd` で DX12 PoC compute path の回帰監視を行います。
 - 同ワークフローでは `scripts/generate_dx11_dx12_quality_report.cmd` で DX11 vs DX12 の品質比較レポートを生成します。
 - 同ワークフローでは `scripts/check_dx11_dx12_quality_threshold.cmd` で品質しきい値を判定します。
 - 同ワークフローでは `scripts/update_dx11_dx12_quality_history.cmd` で品質履歴 CSV を更新します。

@@ -43,6 +43,10 @@ jobs:
         shell: cmd
         run: scripts\update_dx12_poc_benchmark_history.cmd
 
+      - name: Check DX12 PoC Regression Threshold
+        shell: cmd
+        run: scripts\check_dx12_poc_regression.cmd
+
       - name: Generate DX11 vs DX12 Quality Report
         shell: cmd
         run: scripts\generate_dx11_dx12_quality_report.cmd
