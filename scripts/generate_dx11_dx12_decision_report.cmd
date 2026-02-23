@@ -18,6 +18,9 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command ^
   "$qualityPath='docs/reports/dx11-dx12-quality-history.csv';" ^
   "$outPath='docs/reports/dx11-dx12-decision.md';" ^
   "$gateResult='%GATE_RESULT%';" ^
+  "$fixedStart='2026-02-23';" ^
+  "$fixedEnd='2026-03-31';" ^
+  "$reevalDate='2026-03-31';" ^
   "$benchRows=@();" ^
   "if(Test-Path $benchPath){ $benchRows=@(Get-Content $benchPath | Where-Object { $_ -and -not $_.StartsWith('timestamp,') }) }" ^
   "$qualityRows=@();" ^
@@ -34,10 +37,19 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command ^
   "  $q=$qualityRows[$qualityRows.Count-1].Split(',');" ^
   "  if($q.Count -ge 5){ $qualitySummary=('copy(max=' + $q[1] + ', mean=' + $q[2] + '), compute(max=' + $q[3] + ', mean=' + $q[4] + ')') }" ^
   "}" ^
+  "$today=(Get-Date).Date;" ^
+  "$reeval=[datetime]::ParseExact($reevalDate,'yyyy-MM-dd',$null);" ^
+  "$days=[int]($reeval - $today).TotalDays;" ^
+  "$reevalStatus='due today';" ^
+  "if($days -gt 0){ $reevalStatus=('in ' + $days + ' days') }" ^
+  "if($days -lt 0){ $reevalStatus=('overdue by ' + (-1*$days) + ' days') }" ^
   "$lines=@();" ^
   "$lines += '# DX11/DX12 Adoption Decision Report';" ^
   "$lines += '';" ^
   "$lines += '- adoption_gate: ' + $gateResult;" ^
+  "$lines += '- dx11_fixed_window: ' + $fixedStart + ' to ' + $fixedEnd;" ^
+  "$lines += '- next_dx12_reevaluation: ' + $reevalDate + ' (' + $reevalStatus + ')';" ^
+  "$lines += '- dx12_reevaluation_triggers: adoption_gate PASS x3 on different days, ExEdit2 E2E stable, no fallback anomalies';" ^
   "$lines += '- recent_benchmark(3): ' + $benchSummary;" ^
   "$lines += '- latest_quality: ' + $qualitySummary;" ^
   "$lines | Set-Content -Encoding utf8 $outPath;"

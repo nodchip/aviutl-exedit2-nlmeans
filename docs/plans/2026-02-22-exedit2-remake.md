@@ -34,6 +34,8 @@
 - 現在判定（2026-02-23）:
   - `scripts/check_dx11_dx12_adoption_gate.cmd` は FAIL（直近3件の `dx12_compute_ms / dx11_ms` が 1.0 を大幅超過）。
   - 当面の既定実装は DX11 継続とする。
+- DX11 固定運用期間:
+  - 2026-02-23 から 2026-03-31 までは DX11 を既定実装として固定し、DX12 は検証用途に限定する。
 - DX11 継続条件:
   - `scripts/check_dx11_dx12_benchmark_threshold.cmd` が継続 PASS。
   - `scripts/run_gtests.cmd` が継続 PASS。
@@ -42,8 +44,13 @@
   - `scripts/check_dx11_dx12_adoption_gate.cmd` が PASS に到達。
   - 連続3回（別日時）で PASS を再現。
   - ExEdit2 実ホスト E2E でクラッシュ/フォールバック異常がないことを確認。
+- DX12 再評価トリガー（2026-03-31 以前でも再評価可能）:
+  - `dx12_compute_ms / dx11_ms <= 1.0` を直近3件で満たしたとき。
+  - `scripts/check_dx11_dx12_quality_threshold.cmd` が継続 PASS のとき。
+  - GPU フォールバック関連テストで不安定挙動が観測されないとき。
 - 判定運用:
   - `scripts/run_dx11_dx12_decision_workflow.cmd` を実行し、`docs/reports/dx11-dx12-decision.md` を判断記録として更新する。
+  - `scripts/check_dx11_dx12_reevaluation_due.cmd` で次回再評価日の到来状況を確認する。
 
 ---
 

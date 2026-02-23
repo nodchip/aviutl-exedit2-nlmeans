@@ -28,5 +28,8 @@ if errorlevel 1 (
 call "%~dp0generate_dx11_dx12_decision_report.cmd"
 if errorlevel 1 exit /b 1
 
+call "%~dp0check_dx11_dx12_reevaluation_due.cmd"
+if errorlevel 1 exit /b 1
+
 echo [run_dx11_dx12_decision_workflow] done.
 exit /b 0
