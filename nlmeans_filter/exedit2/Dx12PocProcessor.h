@@ -10,6 +10,12 @@
 #include <d3dcompiler.h>
 #include "Dx12PocBackend.h"
 
+// 既定経路の DLL キャッシュ時に FreeLibrary を抑止するための no-op 関数。
+inline BOOL WINAPI dx12_poc_noop_free_library(HMODULE)
+{
+	return TRUE;
+}
+
 // DX12 PoC の最小経路として 1 フレーム分を転送する。
 // 現段階では計算処理を持たず、実行経路の成立確認を目的とする。
 inline bool process_dx12_poc_single_frame(
@@ -221,8 +227,23 @@ inline bool try_create_dx12_compute_pipeline_for_poc(
 		return false;
 	}
 
-	HMODULE d3d12Module = loadLibraryFn(L"d3d12.dll");
-	HMODULE compilerModule = loadLibraryFn(L"d3dcompiler_47.dll");
+	const bool useCachedModules =
+		(loadLibraryFn == ::LoadLibraryW) &&
+		(getProcAddressFn == ::GetProcAddress) &&
+		(freeLibraryFn == ::FreeLibrary);
+	HMODULE d3d12Module = nullptr;
+	HMODULE compilerModule = nullptr;
+	if (useCachedModules) {
+		static HMODULE s_d3d12Module = ::LoadLibraryW(L"d3d12.dll");
+		static HMODULE s_compilerModule = ::LoadLibraryW(L"d3dcompiler_47.dll");
+		d3d12Module = s_d3d12Module;
+		compilerModule = s_compilerModule;
+		// キャッシュ経路ではモジュールを解放しない。
+		freeLibraryFn = dx12_poc_noop_free_library;
+	} else {
+		d3d12Module = loadLibraryFn(L"d3d12.dll");
+		compilerModule = loadLibraryFn(L"d3dcompiler_47.dll");
+	}
 	if (d3d12Module == nullptr || compilerModule == nullptr) {
 		if (compilerModule != nullptr) {
 			freeLibraryFn(compilerModule);
