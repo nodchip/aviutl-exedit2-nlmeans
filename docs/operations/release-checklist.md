@@ -26,7 +26,7 @@
 
 1. 配布対象に `*.auf2` と必要な設定/ドキュメントが含まれることを確認する。
 2. `aviutl2_sdk` が成果物に含まれていないことを確認する。
-3. シェーダー配布方針（外部 HLSL 同梱 + 実行時コンパイル）に沿っていることを確認する。
+3. シェーダー配布方針（プリコンパイルCSO優先、外部 HLSL + 実行時コンパイル、埋め込みフォールバック）に沿っていることを確認する。
 4. 主要レポート（`gpu-coop-benchmark.md`, `gpu-coop-decision.md`, `dx12-poc-readiness.md`, `dx12-poc-benchmark.md`, `dx11-dx12-quality.md`, `dx11-dx12-decision.md`）が最新であることを確認する。
 
 ## DX11/DX12 判断基準

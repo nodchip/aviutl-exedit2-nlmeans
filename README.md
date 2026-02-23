@@ -144,12 +144,23 @@ cmd.exe /c $cmd
 
 ## シェーダー配布方式（確定）
 
-- 方式: `外部 HLSL 同梱 + 実行時コンパイル`
-- フォールバック: 外部 HLSL 読み込み失敗時は埋め込みシェーダーを実行時コンパイル
+- 方式: `プリコンパイルCSO優先 + 外部 HLSL 同梱 + 実行時コンパイル`
+- フォールバック:
+  - `nlmeans_exedit2_cs.cso` が存在すれば優先使用
+  - `CSO` がない場合は外部 `HLSL` を実行時コンパイル
+  - 外部 `HLSL` 読み込み失敗時は埋め込みシェーダーを実行時コンパイル
 - 対象ファイル:
+  - `nlmeans_filter/exedit2/nlmeans_exedit2_cs.cso`（任意）
   - `nlmeans_filter/exedit2/nlmeans_exedit2_cs.hlsl`
 
 この方式により、配布後のシェーダー調整（差し替え）と、単体配布時の自己完結性を両立します。
+
+CSO 生成例:
+
+```powershell
+$cmd='"C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat" && .\scripts\generate_exedit2_shader_cso.cmd'
+cmd.exe /c $cmd
+```
 
 ## DirectX 12 PoC
 

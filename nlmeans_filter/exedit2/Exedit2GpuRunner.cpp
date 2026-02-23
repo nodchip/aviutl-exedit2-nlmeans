@@ -241,8 +241,9 @@ bool Exedit2GpuRunner::ensurePipeline()
 
 	CComPtr<ID3DBlob> shaderBlob;
 	CComPtr<ID3DBlob> errorBlob;
-	if (!compile_compute_shader_from_file_or_embedded(
+	if (!compile_compute_shader_from_cso_or_file_or_embedded(
 		reinterpret_cast<HMODULE>(&::__ImageBase),
+		L"nlmeans_exedit2_cs.cso",
 		L"nlmeans_exedit2_cs.hlsl",
 		shaderSource,
 		"Exedit2NlmEmbedded.hlsl",
