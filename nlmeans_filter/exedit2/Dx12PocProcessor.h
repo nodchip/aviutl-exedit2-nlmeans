@@ -134,6 +134,82 @@ inline bool try_compile_dx12_poc_shader_for_poc(
 	return compiled;
 }
 
+// DX12 PoC の前段としてコマンドキュー/リスト生成可否を確認する。
+// 実 dispatch 前に実行基盤の生成可否を検証する。
+inline bool try_create_dx12_command_objects_for_poc(
+	Dx12LoadLibraryFn loadLibraryFn = ::LoadLibraryW,
+	Dx12GetProcAddressFn getProcAddressFn = ::GetProcAddress,
+	Dx12FreeLibraryFn freeLibraryFn = ::FreeLibrary)
+{
+	if (loadLibraryFn == nullptr || getProcAddressFn == nullptr || freeLibraryFn == nullptr) {
+		return false;
+	}
+
+	HMODULE d3d12Module = loadLibraryFn(L"d3d12.dll");
+	if (d3d12Module == nullptr) {
+		return false;
+	}
+
+	using Dx12CreateDeviceFn = HRESULT(WINAPI*)(IUnknown*, D3D_FEATURE_LEVEL, REFIID, void**);
+	const FARPROC createDeviceProcRaw = getProcAddressFn(d3d12Module, "D3D12CreateDevice");
+	const Dx12CreateDeviceFn createDeviceFn = reinterpret_cast<Dx12CreateDeviceFn>(createDeviceProcRaw);
+	if (createDeviceFn == nullptr) {
+		freeLibraryFn(d3d12Module);
+		return false;
+	}
+
+	ID3D12Device* device = nullptr;
+	const HRESULT createDeviceHr = createDeviceFn(
+		nullptr,
+		D3D_FEATURE_LEVEL_11_0,
+		__uuidof(ID3D12Device),
+		reinterpret_cast<void**>(&device));
+	if (FAILED(createDeviceHr) || device == nullptr) {
+		if (device != nullptr) {
+			device->Release();
+		}
+		freeLibraryFn(d3d12Module);
+		return false;
+	}
+
+	D3D12_COMMAND_QUEUE_DESC queueDesc = {};
+	queueDesc.Type = D3D12_COMMAND_LIST_TYPE_COMPUTE;
+	queueDesc.Priority = D3D12_COMMAND_QUEUE_PRIORITY_NORMAL;
+	queueDesc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
+	queueDesc.NodeMask = 0;
+
+	ID3D12CommandQueue* queue = nullptr;
+	ID3D12CommandAllocator* allocator = nullptr;
+	ID3D12GraphicsCommandList* commandList = nullptr;
+	const HRESULT queueHr = device->CreateCommandQueue(&queueDesc, __uuidof(ID3D12CommandQueue), reinterpret_cast<void**>(&queue));
+	const HRESULT allocatorHr = device->CreateCommandAllocator(
+		D3D12_COMMAND_LIST_TYPE_COMPUTE,
+		__uuidof(ID3D12CommandAllocator),
+		reinterpret_cast<void**>(&allocator));
+	const HRESULT listHr = device->CreateCommandList(
+		0,
+		D3D12_COMMAND_LIST_TYPE_COMPUTE,
+		allocator,
+		nullptr,
+		__uuidof(ID3D12GraphicsCommandList),
+		reinterpret_cast<void**>(&commandList));
+	const bool ok = SUCCEEDED(queueHr) && SUCCEEDED(allocatorHr) && SUCCEEDED(listHr) &&
+		queue != nullptr && allocator != nullptr && commandList != nullptr;
+	if (commandList != nullptr) {
+		commandList->Close();
+		commandList->Release();
+	}
+	if (allocator != nullptr) {
+		allocator->Release();
+	}
+	if (queue != nullptr) {
+		queue->Release();
+	}
+	device->Release();
+	freeLibraryFn(d3d12Module);
+	return ok;
+}
+
 // DX12 PoC の最小コンピュート相当処理。
 // 3x3 の近傍平均を取り、copy path よりも計算経路に近い出力を作る。
 inline bool process_dx12_poc_compute_path(
@@ -152,9 +228,10 @@ inline bool process_dx12_poc_compute_path(
 	}
 
 	// TODO: D3D12 compute 実行本体は次段で実装する。
-	// 先にデバイス初期化とシェーダーコンパイル可否を実測し、失敗時は既存の CPU 経路へフォールバックする。
+	// 先にデバイス初期化/シェーダーコンパイル/コマンド生成可否を実測し、失敗時は既存の CPU 経路へフォールバックする。
 	(void)try_create_dx12_device_for_poc();
 	(void)try_compile_dx12_poc_shader_for_poc();
+	(void)try_create_dx12_command_objects_for_poc();
 
 	const auto idx = [width](int x, int y) -> size_t {
 		return static_cast<size_t>(y * width + x);
