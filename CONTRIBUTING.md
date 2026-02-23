@@ -78,6 +78,9 @@ cmd.exe /c $cmd
 ## GPU 実機 CI
 
 - `.github/workflows/gpu-selfhosted-ci.yml` は `self-hosted, windows, gpu` ラベルのランナー向けです。
+- 前提チェックは `scripts/check_gpu_runner_prereq.cmd` で行います。
+- GPU 非搭載環境でスクリプト文法確認のみ行う場合は `ALLOW_NO_GPU=1` を利用できます（CI では未設定）。
 - GPU 品質比較と協調ベンチを含む結果を artifact (`gpu-selfhosted-reports`) に保存します。
 - 同ワークフローでは `scripts/update_gpu_coop_history.cmd` を実行し、`gpu-coop-history.csv` も artifact に含めます。
 - 同ワークフローでは `scripts/check_gpu_coop_regression.cmd` で悪化監視を行います。
+- 運用手順は `docs/operations/gpu-selfhosted-runner.md` を参照してください。

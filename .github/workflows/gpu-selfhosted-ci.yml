@@ -23,6 +23,10 @@ jobs:
         with:
           arch: x86
 
+      - name: Check GPU Runner Prerequisites
+        shell: cmd
+        run: scripts\check_gpu_runner_prereq.cmd
+
       - name: Build Release Win32
         shell: cmd
         run: >

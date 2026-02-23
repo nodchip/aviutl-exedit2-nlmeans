@@ -71,6 +71,20 @@ $cmd='"C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Buil
 cmd.exe /c $cmd
 ```
 
+GPU self-hosted ランナー前提チェック例:
+
+```powershell
+$cmd='"C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat" && .\scripts\check_gpu_runner_prereq.cmd'
+cmd.exe /c $cmd
+```
+
+GPU 非搭載環境で前提チェックの文法確認のみ行う例:
+
+```powershell
+$cmd='"C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat" && set ALLOW_NO_GPU=1 && .\scripts\check_gpu_runner_prereq.cmd'
+cmd.exe /c $cmd
+```
+
 ## オプション解説
 
 ### 空間範囲
@@ -130,6 +144,7 @@ cmd.exe /c $cmd
 - 複数GPU協調実行で一部タイルが失敗した場合は、失敗タイルのみ単一GPU実行で再試行します。
 - 協調再試行でも回復できない場合は、単一GPU実行へ再試行してから CPU フォールバックします。
 - `aviutl2_sdk` はローカル配置前提で `.gitignore` されています。
+- GPU self-hosted ランナー運用手順は `docs/operations/gpu-selfhosted-runner.md` を参照してください。
 
 ## 既知の不具合
 
