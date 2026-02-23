@@ -1,6 +1,9 @@
 @echo off
 setlocal
 
+call scripts\setup_msvc_env.cmd
+if errorlevel 1 exit /b 1
+
 if not exist docs\reports (
   mkdir docs\reports
 )
