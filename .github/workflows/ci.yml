@@ -35,11 +35,25 @@ jobs:
         shell: cmd
         run: scripts\generate_nlm_variants_report.cmd
 
+      - name: Generate DX11 DX12 Benchmark Report
+        shell: cmd
+        run: scripts\generate_dx11_dx12_benchmark.cmd
+
+      - name: Check DX11 DX12 Benchmark Threshold
+        shell: cmd
+        run: scripts\check_dx11_dx12_benchmark_threshold.cmd
+
       - name: Upload Benchmark Report Artifact
         uses: actions/upload-artifact@v4
         with:
           name: nlm-variants-benchmark
           path: docs/reports/nlm-variants-benchmark.md
+
+      - name: Upload DX11 DX12 Benchmark Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dx11-dx12-benchmark
+          path: docs/reports/dx11-dx12-benchmark.md
 
       - name: Generate GPU Coop Benchmark Report
         shell: cmd
