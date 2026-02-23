@@ -2,8 +2,10 @@
 #include <chrono>
 #include <iomanip>
 #include <iostream>
+#include <memory>
 #include <vector>
 #include "../exedit2/Exedit2GpuRunner.h"
+#include "../exedit2/GpuCoopExecution.h"
 #include "../exedit2/MultiGpuCompose.h"
 #include "../exedit2/MultiGpuTiling.h"
 
@@ -90,25 +92,60 @@ int main()
 		tile_outputs[i].resize(static_cast<size_t>(width) * static_cast<size_t>(height));
 	}
 
-	const double tiled_ms = benchmark_ms([&]() {
-		for (size_t i = 0; i < 2; ++i) {
-			if (!tile_runners[i]->process(
-				frame.data(),
-				tile_outputs[i].data(),
-				width,
-				height,
-				search_radius,
-				time_radius,
-				sigma,
-				spatial_step,
-				temporal_decay,
-				tiles[i].yBegin,
-				tiles[i].yEnd)) {
-				return false;
-			}
+	auto run_coop = [&](bool enableAsync, bool forceSingleFallback) {
+		Exedit2GpuRunner single_fallback_runner;
+		if (forceSingleFallback && !single_fallback_runner.initialize(-1)) {
+			return -1.0;
 		}
-		return compose_row_tiled_output(width, height, tiles, tile_outputs, &composed);
-	}, iterations);
+		return benchmark_ms([&]() {
+			bool usedSingleGpu = false;
+			return execute_gpu_coop_with_recovery(
+				tiles,
+				true,
+				2,
+				[&](size_t tileIndex, const GpuRowTile& tile) {
+					if (forceSingleFallback && tileIndex == 1) {
+						return false;
+					}
+					return tile_runners[tile.adapterIndex]->process(
+						frame.data(),
+						tile_outputs[tile.adapterIndex].data(),
+						width,
+						height,
+						search_radius,
+						time_radius,
+						sigma,
+						spatial_step,
+						temporal_decay,
+						tile.yBegin,
+						tile.yEnd);
+				},
+				[&](size_t, const GpuRowTile&) {
+					return false;
+				},
+				[&]() {
+					return single_fallback_runner.process(
+						frame.data(),
+						full_out.data(),
+						width,
+						height,
+						search_radius,
+						time_radius,
+						sigma,
+						spatial_step,
+						temporal_decay);
+				},
+				[&]() {
+					return compose_row_tiled_output(width, height, tiles, tile_outputs, &composed);
+				},
+				&usedSingleGpu,
+				enableAsync);
+		}, iterations);
+	};
+
+	const double tiled_seq_ms = run_coop(false, false);
+	const double tiled_async_ms = run_coop(true, false);
+	const double tiled_async_fallback_ms = run_coop(true, true);
 
 	std::cout << "# GPU Coop PoC Benchmark\n\n";
 	std::cout << "- Frame: " << width << "x" << height << "\n";
@@ -118,9 +155,17 @@ int main()
 	std::cout << "|---|---:|\n";
 	std::cout << std::fixed << std::setprecision(3);
 	std::cout << "| Single GPU Full Frame | " << full_ms << " |\n";
-	std::cout << "| Coop PoC (2 tiles, sequential dispatch) | " << tiled_ms << " |\n";
-	if (full_ms > 0.0 && tiled_ms > 0.0) {
-		std::cout << "\n- Relative (Coop/Single): " << (tiled_ms / full_ms) << "x\n";
+	std::cout << "| Coop PoC (2 tiles, sequential dispatch) | " << tiled_seq_ms << " |\n";
+	std::cout << "| Coop PoC (2 tiles, async dispatch) | " << tiled_async_ms << " |\n";
+	std::cout << "| Coop PoC (2 tiles, async + single fallback) | " << tiled_async_fallback_ms << " |\n";
+	if (full_ms > 0.0 && tiled_seq_ms > 0.0) {
+		std::cout << "\n- Relative (CoopSeq/Single): " << (tiled_seq_ms / full_ms) << "x\n";
+	}
+	if (full_ms > 0.0 && tiled_async_ms > 0.0) {
+		std::cout << "- Relative (CoopAsync/Single): " << (tiled_async_ms / full_ms) << "x\n";
+	}
+	if (full_ms > 0.0 && tiled_async_fallback_ms > 0.0) {
+		std::cout << "- Relative (CoopAsyncFallback/Single): " << (tiled_async_fallback_ms / full_ms) << "x\n";
 	}
 	return 0;
 }
