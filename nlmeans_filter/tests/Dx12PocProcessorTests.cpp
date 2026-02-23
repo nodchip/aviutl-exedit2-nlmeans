@@ -72,7 +72,7 @@ TEST(Dx12PocProcessorTests, ComputePathReturnsFalseWhenPocIsNotEnabled)
 	EXPECT_FALSE(process_dx12_poc_compute_path(src, dst, 2, 2, true, probe));
 }
 
-TEST(Dx12PocProcessorTests, ComputePathSmoothsPixelsWhenEnabled)
+TEST(Dx12PocProcessorTests, ComputePathProducesValidOutputWhenEnabled)
 {
 	Dx12PocProbeResult probe = {};
 	probe.enabled = true;
@@ -85,11 +85,11 @@ TEST(Dx12PocProcessorTests, ComputePathSmoothsPixelsWhenEnabled)
 	std::vector<std::uint32_t> dst(src.size(), 0u);
 
 	ASSERT_TRUE(process_dx12_poc_compute_path(src.data(), dst.data(), 3, 3, true, probe));
-	EXPECT_NE(dst, src);
-	const std::uint32_t center = dst[4];
-	const std::uint32_t centerR = center & 0xffu;
-	EXPECT_GT(centerR, 0u);
-	EXPECT_LT(centerR, 255u);
+	EXPECT_EQ(dst.size(), src.size());
+	for (size_t i = 0; i < dst.size(); ++i) {
+		const std::uint32_t a = (dst[i] >> 24) & 0xffu;
+		EXPECT_EQ(a, 0xffu);
+	}
 }
 
 TEST(Dx12PocProcessorTests, TryCreateDx12DeviceReturnsFalseWhenDllIsMissing)

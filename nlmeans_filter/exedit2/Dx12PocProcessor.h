@@ -2063,7 +2063,9 @@ inline bool process_dx12_poc_compute_path(
 	(void)try_create_dx12_descriptor_and_sync_for_poc();
 	(void)try_execute_dx12_dispatch_roundtrip_for_poc();
 	(void)try_execute_dx12_dispatch_with_io_roundtrip_for_poc();
-	(void)try_execute_dx12_fullframe_copy_for_poc(inputPixels, outputPixels, width, height);
+	if (try_execute_dx12_fullframe_copy_for_poc(inputPixels, outputPixels, width, height)) {
+		return true;
+	}
 
 	const auto idx = [width](int x, int y) -> size_t {
 		return static_cast<size_t>(y * width + x);
