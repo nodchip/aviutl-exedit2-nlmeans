@@ -148,10 +148,17 @@ int main()
 	std::cout << "\n## DX12 Breakdown\n\n";
 	std::cout << "| Step | Mean Time (ms/call) |\n";
 	std::cout << "|---|---:|\n";
-	std::cout << "| D3D12CreateDevice | " << dx12DeviceMs << " |\n";
-	std::cout << "| D3DCompile (cs_5_0) | " << dx12ShaderCompileMs << " |\n";
-	std::cout << "| CreateComputePipelineState | " << dx12PipelineMs << " |\n";
-	std::cout << "| Dispatch IO Roundtrip | " << dx12DispatchRoundtripMs << " |\n";
-	std::cout << "| Fullframe 3x3 Compute | " << dx12FullframeComputeMs << " |\n";
+	auto print_breakdown = [](const char* label, double value) {
+		if (value < 0.0) {
+			std::cout << "| " << label << " | N/A |\n";
+		} else {
+			std::cout << "| " << label << " | " << value << " |\n";
+		}
+	};
+	print_breakdown("D3D12CreateDevice", dx12DeviceMs);
+	print_breakdown("D3DCompile (cs_5_0)", dx12ShaderCompileMs);
+	print_breakdown("CreateComputePipelineState", dx12PipelineMs);
+	print_breakdown("Dispatch IO Roundtrip", dx12DispatchRoundtripMs);
+	print_breakdown("Fullframe 3x3 Compute", dx12FullframeComputeMs);
 	return 0;
 }
