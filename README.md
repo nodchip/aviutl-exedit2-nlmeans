@@ -172,6 +172,7 @@ cmd.exe /c $cmd
 - `aviutl2_sdk` はローカル配置前提で `.gitignore` されています。
 - GPU self-hosted ランナー運用手順は `docs/operations/gpu-selfhosted-runner.md` を参照してください。
 - リリース時の確認手順は `docs/operations/release-checklist.md` を参照してください。
+- ExEdit2 実ホストでの E2E 検証手順は `docs/operations/exedit2-e2e-validation.md` を参照してください。
 
 ## 既知の不具合
 
