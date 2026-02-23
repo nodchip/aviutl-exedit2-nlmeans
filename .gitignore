@@ -15,6 +15,7 @@ vcomp90.dll
 *.obj
 /GoogleTests.exe
 /GpuCoopBenchmark.exe
+/docs/reports/gpu-runner-health.md
 x64/
 Win32/
 Debug/

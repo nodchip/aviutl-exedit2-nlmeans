@@ -27,6 +27,10 @@ jobs:
         shell: cmd
         run: scripts\check_gpu_runner_prereq.cmd
 
+      - name: Generate GPU Runner Health Report
+        shell: cmd
+        run: scripts\generate_gpu_runner_health_report.cmd
+
       - name: Build Release Win32
         shell: cmd
         run: >
@@ -63,3 +67,4 @@ jobs:
             docs/reports/nlm-variants-benchmark.md
             docs/reports/gpu-coop-benchmark.md
             docs/reports/gpu-coop-history.csv
+            docs/reports/gpu-runner-health.md

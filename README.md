@@ -78,6 +78,13 @@ $cmd='"C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Buil
 cmd.exe /c $cmd
 ```
 
+GPU self-hosted ランナー情報レポート生成例:
+
+```powershell
+$cmd='"C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat" && .\scripts\generate_gpu_runner_health_report.cmd'
+cmd.exe /c $cmd
+```
+
 GPU 非搭載環境で前提チェックの文法確認のみ行う例:
 
 ```powershell
