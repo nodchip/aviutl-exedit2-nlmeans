@@ -62,6 +62,7 @@ int main()
 	const int width = 1280;
 	const int height = 720;
 	const int iterations = 20;
+	const int breakdownIterations = 10;
 	const int searchRadius = 2;
 	const int timeRadius = 0;
 	const double sigma = 55.0;
@@ -109,10 +110,30 @@ int main()
 			true,
 			probe);
 	}, iterations);
+	const double dx12DeviceMs = benchmark_ms([&]() {
+		return try_create_dx12_device_for_poc();
+	}, breakdownIterations);
+	const double dx12ShaderCompileMs = benchmark_ms([&]() {
+		return try_compile_dx12_poc_shader_for_poc();
+	}, breakdownIterations);
+	const double dx12PipelineMs = benchmark_ms([&]() {
+		return try_create_dx12_compute_pipeline_for_poc();
+	}, breakdownIterations);
+	const double dx12DispatchRoundtripMs = benchmark_ms([&]() {
+		return try_execute_dx12_dispatch_with_io_roundtrip_for_poc();
+	}, breakdownIterations);
+	const double dx12FullframeComputeMs = benchmark_ms([&]() {
+		return try_execute_dx12_fullframe_compute_for_poc(
+			inputPacked.data(),
+			dx12ComputeOut.data(),
+			width,
+			height);
+	}, breakdownIterations);
 
 	std::cout << "# DX11 vs DX12 Benchmark\n\n";
 	std::cout << "- Frame: " << width << "x" << height << "\n";
 	std::cout << "- Iterations: " << iterations << "\n";
+	std::cout << "- DX12 breakdown iterations: " << breakdownIterations << "\n";
 	std::cout << "- DX11 params: search=" << searchRadius << ", time=" << timeRadius << ", sigma=" << sigma << "\n\n";
 	std::cout << "| Mode | Mean Time (ms/frame) |\n";
 	std::cout << "|---|---:|\n";
@@ -124,6 +145,13 @@ int main()
 	}
 	std::cout << "| DX12 PoC Single Frame (copy path) | " << dx12CopyMs << " |\n";
 	std::cout << "| DX12 PoC Single Frame (compute path) | " << dx12ComputeMs << " |\n";
+	std::cout << "\n## DX12 Breakdown\n\n";
+	std::cout << "| Step | Mean Time (ms/call) |\n";
+	std::cout << "|---|---:|\n";
+	std::cout << "| D3D12CreateDevice | " << dx12DeviceMs << " |\n";
+	std::cout << "| D3DCompile (cs_5_0) | " << dx12ShaderCompileMs << " |\n";
+	std::cout << "| CreateComputePipelineState | " << dx12PipelineMs << " |\n";
+	std::cout << "| Dispatch IO Roundtrip | " << dx12DispatchRoundtripMs << " |\n";
+	std::cout << "| Fullframe 3x3 Compute | " << dx12FullframeComputeMs << " |\n";
 	return 0;
 }
-
