@@ -101,3 +101,13 @@ TEST(Dx12PocProcessorTests, TryCreateDx12DeviceReturnsFalseWhenEntryIsMissing)
 {
 	EXPECT_FALSE(try_create_dx12_device_for_poc(load_library_fake, get_proc_missing, free_library_dummy));
 }
+
+TEST(Dx12PocProcessorTests, TryCompileDx12ShaderReturnsFalseWhenDllIsMissing)
+{
+	EXPECT_FALSE(try_compile_dx12_poc_shader_for_poc(load_library_missing, get_proc_missing, free_library_dummy));
+}
+
+TEST(Dx12PocProcessorTests, TryCompileDx12ShaderReturnsFalseWhenEntryIsMissing)
+{
+	EXPECT_FALSE(try_compile_dx12_poc_shader_for_poc(load_library_fake, get_proc_missing, free_library_dummy));
+}

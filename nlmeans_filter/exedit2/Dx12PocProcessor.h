@@ -7,6 +7,7 @@
 #include <cstring>
 #include <algorithm>
 #include <d3d12.h>
+#include <d3dcompiler.h>
 #include "Dx12PocBackend.h"
 
 // DX12 PoC の最小経路として 1 フレーム分を転送する。
@@ -65,6 +66,74 @@ inline bool try_create_dx12_device_for_poc(
 	return available;
 }
 
+// DX12 PoC の前段として HLSL コンパイル可否を確認する。
+// d3dcompiler_47.dll を遅延ロードし、最小 compute shader をコンパイルする。
+inline bool try_compile_dx12_poc_shader_for_poc(
+	Dx12LoadLibraryFn loadLibraryFn = ::LoadLibraryW,
+	Dx12GetProcAddressFn getProcAddressFn = ::GetProcAddress,
+	Dx12FreeLibraryFn freeLibraryFn = ::FreeLibrary)
+{
+	if (loadLibraryFn == nullptr || getProcAddressFn == nullptr || freeLibraryFn == nullptr) {
+		return false;
+	}
+
+	HMODULE compilerModule = loadLibraryFn(L"d3dcompiler_47.dll");
+	if (compilerModule == nullptr) {
+		return false;
+	}
+
+	using D3DCompileFn = HRESULT(WINAPI*)(
+		LPCVOID,
+		SIZE_T,
+		LPCSTR,
+		const D3D_SHADER_MACRO*,
+		ID3DInclude*,
+		LPCSTR,
+		LPCSTR,
+		UINT,
+		UINT,
+		ID3DBlob**,
+		ID3DBlob**);
+	const FARPROC compileProcRaw = getProcAddressFn(compilerModule, "D3DCompile");
+	const D3DCompileFn compileFn = reinterpret_cast<D3DCompileFn>(compileProcRaw);
+	if (compileFn == nullptr) {
+		freeLibraryFn(compilerModule);
+		return false;
+	}
+
+	static const char* shaderSource =
+		"RWStructuredBuffer<uint> outputData : register(u0);\n"
+		"[numthreads(1,1,1)]\n"
+		"void main(uint3 tid : SV_DispatchThreadID)\n"
+		"{\n"
+		"	outputData[0] = tid.x;\n"
+		"}\n";
+
+	ID3DBlob* shaderBlob = nullptr;
+	ID3DBlob* errorBlob = nullptr;
+	const HRESULT hr = compileFn(
+		shaderSource,
+		std::strlen(shaderSource),
+		"Dx12PocEmbedded.hlsl",
+		nullptr,
+		nullptr,
+		"main",
+		"cs_5_0",
+		0,
+		0,
+		&shaderBlob,
+		&errorBlob);
+	const bool compiled = SUCCEEDED(hr) && shaderBlob != nullptr;
+	if (shaderBlob != nullptr) {
+		shaderBlob->Release();
+	}
+	if (errorBlob != nullptr) {
+		errorBlob->Release();
+	}
+	freeLibraryFn(compilerModule);
+	return compiled;
+}
+
 // DX12 PoC の最小コンピュート相当処理。
 // 3x3 の近傍平均を取り、copy path よりも計算経路に近い出力を作る。
 inline bool process_dx12_poc_compute_path(
@@ -83,8 +152,9 @@ inline bool process_dx12_poc_compute_path(
 	}
 
 	// TODO: D3D12 compute 実行本体は次段で実装する。
-	// 先にデバイス初期化可否を実測し、失敗時は既存の CPU 経路へフォールバックする。
+	// 先にデバイス初期化とシェーダーコンパイル可否を実測し、失敗時は既存の CPU 経路へフォールバックする。
 	(void)try_create_dx12_device_for_poc();
+	(void)try_compile_dx12_poc_shader_for_poc();
 
 	const auto idx = [width](int x, int y) -> size_t {
 		return static_cast<size_t>(y * width + x);
