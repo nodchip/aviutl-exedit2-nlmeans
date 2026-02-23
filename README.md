@@ -164,6 +164,7 @@ cmd.exe /c $cmd
 - 協調再試行でも回復できない場合は、単一GPU実行へ再試行してから CPU フォールバックします。
 - `aviutl2_sdk` はローカル配置前提で `.gitignore` されています。
 - GPU self-hosted ランナー運用手順は `docs/operations/gpu-selfhosted-runner.md` を参照してください。
+- リリース時の確認手順は `docs/operations/release-checklist.md` を参照してください。
 
 ## 既知の不具合
 
