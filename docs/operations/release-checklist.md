@@ -44,6 +44,7 @@
 2. 回帰: `check_gpu_coop_regression.cmd` が PASS（直近比較で ratio/coop_ms が既定悪化率以内）であること。
 3. 採用判定: `check_gpu_coop_adoption_gate.cmd` が PASS（直近3件の ratio と async/single 比が閾値以内）であること。
 4. 総合判定: `run_gpu_coop_decision_workflow.cmd` 実行後の `gpu-coop-decision.md` を判定記録として残すこと。
+5. 期限管理: `check_gpu_coop_reevaluation_due.cmd` の結果を判定記録へ残すこと。
 
 ## タグと記録
 

@@ -18,6 +18,9 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command ^
   "$benchPath='docs/reports/gpu-coop-benchmark.md';" ^
   "$outPath='docs/reports/gpu-coop-decision.md';" ^
   "$gate='%GATE_RESULT%';" ^
+  "$fixedStart='2026-02-23';" ^
+  "$fixedEnd='2026-03-31';" ^
+  "$reevalDate='2026-03-31';" ^
   "$rows=@();" ^
   "if(Test-Path $historyPath){ $rows=@(Get-Content $historyPath | Where-Object { $_ -and -not $_.StartsWith('timestamp,') }) }" ^
   "$recent=$rows | Select-Object -Last 3;" ^
@@ -41,10 +44,18 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command ^
   "if($single -gt 0 -and $seq -gt 0 -and $async -gt 0){" ^
   "  $benchSummary=('single=' + $single.ToString('F3') + ', seq=' + $seq.ToString('F3') + ', async=' + $async.ToString('F3') + ', async_fallback=' + $fallback.ToString('F3'))" ^
   "}" ^
+  "$today=(Get-Date).Date;" ^
+  "$reeval=[datetime]::ParseExact($reevalDate,'yyyy-MM-dd',$null);" ^
+  "$days=[int]($reeval - $today).TotalDays;" ^
+  "$reevalStatus='due today';" ^
+  "if($days -gt 0){ $reevalStatus=('in ' + $days + ' days') }" ^
+  "if($days -lt 0){ $reevalStatus=('overdue by ' + (-1*$days) + ' days') }" ^
   "$lines=@();" ^
   "$lines += '# GPU Coop Adoption Decision Report';" ^
   "$lines += '';" ^
   "$lines += '- adoption_gate: ' + $gate;" ^
+  "$lines += '- single_gpu_fixed_window: ' + $fixedStart + ' to ' + $fixedEnd;" ^
+  "$lines += '- next_gpu_coop_reevaluation: ' + $reevalDate + ' (' + $reevalStatus + ')';" ^
   "$lines += '- policy: keep single-GPU default until adoption_gate becomes PASS.';" ^
   "$lines += '- adoption_triggers: last 3 history ratios <= 1.500, async/single <= 1.200, no regression check failure.';" ^
   "$lines += '- recent_ratio(3): ' + $recentSummary;" ^

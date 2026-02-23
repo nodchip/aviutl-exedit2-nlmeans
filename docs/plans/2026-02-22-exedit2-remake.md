@@ -57,12 +57,15 @@
 - 現在判定（2026-02-23）:
   - `scripts/check_gpu_coop_adoption_gate.cmd` は FAIL（single 比で coop ratio が高止まり）。
   - 既定動作は単体GPU（Single GPU Full Frame）継続とする。
+- 単体GPU 固定運用期間:
+  - 2026-02-23 から 2026-03-31 までは単体GPUを既定動作として固定し、GPU協調は検証用途に限定する。
 - GPU協調 採用条件:
   - `scripts/check_gpu_coop_async_efficiency.cmd` が PASS。
   - `scripts/check_gpu_coop_regression.cmd` が PASS。
   - `scripts/check_gpu_coop_adoption_gate.cmd` が PASS（直近3件 ratio と async/single 比が閾値以内）。
 - 判定運用:
   - `scripts/run_gpu_coop_decision_workflow.cmd` を実行し、`docs/reports/gpu-coop-decision.md` を更新する。
+  - `scripts/check_gpu_coop_reevaluation_due.cmd` で次回再評価日の到来状況を確認する。
   - 採用判定を満たすまでは UI の既定は単体GPU優先を維持する。
 
 ---
