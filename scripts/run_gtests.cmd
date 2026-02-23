@@ -1,6 +1,20 @@
 @echo off
 setlocal
 
+where cl >nul 2>&1
+if not errorlevel 1 goto :cl_ready
+set "VSVCVARS=C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat"
+if not exist "%VSVCVARS%" (
+  echo [ERROR] cl.exe not found and vcvars64.bat not found: "%VSVCVARS%"
+  exit /b 1
+)
+call "%VSVCVARS%"
+if errorlevel 1 (
+  echo [ERROR] Failed to run vcvars64.bat.
+  exit /b 1
+)
+:cl_ready
+
 if exist nlmeans_filter\aviutl2_sdk\filter2.h (
   cl /nologo /utf-8 /EHsc ^
     /std:c++17 ^
