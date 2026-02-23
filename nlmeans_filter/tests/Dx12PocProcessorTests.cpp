@@ -87,8 +87,7 @@ TEST(Dx12PocProcessorTests, ComputePathProducesValidOutputWhenEnabled)
 	ASSERT_TRUE(process_dx12_poc_compute_path(src.data(), dst.data(), 3, 3, true, probe));
 	EXPECT_EQ(dst.size(), src.size());
 	for (size_t i = 0; i < dst.size(); ++i) {
-		const std::uint32_t a = (dst[i] >> 24) & 0xffu;
-		EXPECT_EQ(a, 0xffu);
+		EXPECT_EQ(dst[i], 0xFF717171u);
 	}
 }
 
