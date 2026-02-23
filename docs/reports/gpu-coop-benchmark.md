@@ -6,7 +6,7 @@
 
 | Mode | Mean Time (ms/frame) |
 |---|---:|
-| Single GPU Full Frame | 0.125 |
-| Coop PoC (2 tiles, sequential dispatch) | 0.491 |
+| Single GPU Full Frame | 0.126 |
+| Coop PoC (2 tiles, sequential dispatch) | 0.515 |
 
-- Relative (Coop/Single): 3.942x
+- Relative (Coop/Single): 4.074x

@@ -47,6 +47,10 @@ jobs:
         shell: cmd
         run: scripts\update_gpu_coop_history.cmd
 
+      - name: Check GPU Coop Regression Threshold
+        shell: cmd
+        run: scripts\check_gpu_coop_regression.cmd
+
       - name: Upload GPU Reports
         uses: actions/upload-artifact@v4
         with:

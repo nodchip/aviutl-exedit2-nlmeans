@@ -64,6 +64,13 @@ $cmd='"C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Buil
 cmd.exe /c $cmd
 ```
 
+GPU 協調ベンチの悪化しきい値を確認する例:
+
+```powershell
+$cmd='"C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat" && .\scripts\check_gpu_coop_regression.cmd'
+cmd.exe /c $cmd
+```
+
 ## オプション解説
 
 ### 空間範囲

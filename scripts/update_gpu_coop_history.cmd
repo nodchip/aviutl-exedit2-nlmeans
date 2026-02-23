@@ -13,6 +13,15 @@ if not exist docs\reports\gpu-coop-history.csv (
 )
 
 powershell -NoProfile -ExecutionPolicy Bypass -Command ^
+  "$history='docs/reports/gpu-coop-history.csv';" ^
+  "$all=Get-Content $history;" ^
+  "if($all.Count -gt 0 -and $all[0] -ne 'timestamp,single_ms,coop_ms,ratio'){" ^
+  "  $all[0]='timestamp,single_ms,coop_ms,ratio';" ^
+  "  Set-Content -Path $history -Value $all -Encoding utf8;" ^
+  "}"
+if errorlevel 1 exit /b 1
+
+powershell -NoProfile -ExecutionPolicy Bypass -Command ^
   "$path='docs/reports/gpu-coop-benchmark.md';" ^
   "$single=0.0; $coop=0.0;" ^
   "$lines=Get-Content $path;" ^
