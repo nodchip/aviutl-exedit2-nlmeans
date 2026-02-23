@@ -40,8 +40,8 @@
 #include "Exedit2GpuRunner.h"
 #include "FastModeConfig.h"
 #include "GpuCoopPolicy.h"
+#include "GpuCoopExecution.h"
 #include "GpuCoopRecoveryPolicy.h"
-#include "GpuCoopTaskDispatch.h"
 #include "GpuRunnerDispatch.h"
 #include "MultiGpuCompose.h"
 #include "MultiGpuTiling.h"
@@ -573,10 +573,12 @@ bool apply_nlm_gpu_dx11(FILTER_PROC_VIDEO* video, int adapterOrdinal, ExecutionM
 				temp_outputs[i].resize(static_cast<size_t>(pixel_count));
 			}
 
-			const std::vector<bool> tile_success = execute_gpu_coop_tasks(
-				tiles.size(),
-				[&](size_t tileIndex) {
-					const GpuRowTile& tile = tiles[tileIndex];
+			bool used_single_gpu_result = false;
+			const bool coop_ok = execute_gpu_coop_with_recovery(
+				tiles,
+				enable_multi_gpu,
+				2,
+				[&](size_t, const GpuRowTile& tile) {
 					Exedit2GpuRunner* runner = g_gpu_coop_runners[tile.adapterIndex].get();
 					if (runner == nullptr) {
 						return false;
@@ -597,29 +599,9 @@ bool apply_nlm_gpu_dx11(FILTER_PROC_VIDEO* video, int adapterOrdinal, ExecutionM
 						tile.yBegin,
 						tile.yEnd);
 				},
-				true);
-			int failed_tile_count = 0;
-			for (size_t i = 0; i < tile_success.size(); ++i) {
-				if (!tile_success[i]) {
-					++failed_tile_count;
-				}
-			}
-
-			const GpuCoopRecoveryAction action = resolve_gpu_coop_recovery_action(
-				enable_multi_gpu,
-				failed_tile_count,
-				2,
-				false);
-			if (action == GpuCoopRecoveryAction::RetryFailedTiles) {
-				std::vector<bool> recovered_success = tile_success;
-				for (size_t tileIndex = 0; tileIndex < tiles.size(); ++tileIndex) {
-					const GpuRowTile& tile = tiles[tileIndex];
-					if (recovered_success[tileIndex]) {
-						continue;
-					}
-					const bool retried = run_single_gpu();
-					if (!retried) {
-						break;
+				[&](size_t, const GpuRowTile& tile) {
+					if (!run_single_gpu()) {
+						return false;
 					}
 					for (int y = tile.yBegin; y < tile.yEnd; ++y) {
 						const size_t rowBegin = static_cast<size_t>(y * width);
@@ -628,35 +610,17 @@ bool apply_nlm_gpu_dx11(FILTER_PROC_VIDEO* video, int adapterOrdinal, ExecutionM
 							g_output_pixels.data() + rowBegin,
 							static_cast<size_t>(width) * sizeof(PIXEL_RGBA));
 					}
-					recovered_success[tileIndex] = true;
-				}
-				failed_tile_count = 0;
-				for (size_t i = 0; i < recovered_success.size(); ++i) {
-					if (!recovered_success[i]) {
-						++failed_tile_count;
-					}
-				}
-			}
-
-			bool coop_failed = failed_tile_count > 0;
-			bool used_single_gpu_result = false;
-			if (coop_failed && resolve_gpu_coop_recovery_action(enable_multi_gpu, failed_tile_count, 2, true) ==
-				GpuCoopRecoveryAction::RetrySingleGpu) {
-				if (!run_single_gpu()) {
-					return false;
-				}
-				coop_failed = false;
-				used_single_gpu_result = true;
-			}
-			if (!coop_failed && !used_single_gpu_result && !compose_row_tiled_output(
-				width,
-				height,
-				tiles,
-				temp_outputs,
-				&g_output_pixels)) {
-				coop_failed = true;
-			}
-			if (coop_failed) {
+					return true;
+				},
+				[&]() {
+					return run_single_gpu();
+				},
+				[&]() {
+					return compose_row_tiled_output(width, height, tiles, temp_outputs, &g_output_pixels);
+				},
+				&used_single_gpu_result,
+				true);
+			if (!coop_ok) {
 				return false;
 			}
 
