@@ -36,6 +36,7 @@ cmd.exe /c $cmd
 期待結果:
 
 - `docs/reports/gpu-runner-health.md` が生成される
+- レポートに `d3d12.dll` の検出結果が含まれる
 
 補足:
 
