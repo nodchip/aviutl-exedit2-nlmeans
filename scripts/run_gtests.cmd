@@ -48,6 +48,7 @@ if exist nlmeans_filter\aviutl2_sdk\filter2.h (
     nlmeans_filter\tests\NlmFrameReferenceTests.cpp ^
     nlmeans_filter\tests\NlmKernelTests.cpp ^
     nlmeans_filter\tests\ProcessingRoutePolicyTests.cpp ^
+    nlmeans_filter\tests\ShaderCompileUtilTests.cpp ^
     nlmeans_filter\tests\UiSelectionRouteTests.cpp ^
     nlmeans_filter\tests\UiToDispatcherIntegrationTests.cpp ^
     nlmeans_filter\tests\TemporalNlmTests.cpp ^
@@ -88,6 +89,7 @@ if exist nlmeans_filter\aviutl2_sdk\filter2.h (
     nlmeans_filter\tests\NlmFrameReferenceTests.cpp ^
     nlmeans_filter\tests\NlmKernelTests.cpp ^
     nlmeans_filter\tests\ProcessingRoutePolicyTests.cpp ^
+    nlmeans_filter\tests\ShaderCompileUtilTests.cpp ^
     nlmeans_filter\tests\UiSelectionRouteTests.cpp ^
     nlmeans_filter\tests\UiToDispatcherIntegrationTests.cpp ^
     nlmeans_filter\tests\TemporalNlmTests.cpp ^
