@@ -29,6 +29,22 @@
   - 複数 GPU 協調の性能しきい値と運用判定基準の確定
   - ExEdit2 実ホストでの E2E 検証結果を継続蓄積し、リリース判定を固定化
 
+## DX11/DX12 最終判断ルール（2026-02-23 固定）
+
+- 現在判定（2026-02-23）:
+  - `scripts/check_dx11_dx12_adoption_gate.cmd` は FAIL（直近3件の `dx12_compute_ms / dx11_ms` が 1.0 を大幅超過）。
+  - 当面の既定実装は DX11 継続とする。
+- DX11 継続条件:
+  - `scripts/check_dx11_dx12_benchmark_threshold.cmd` が継続 PASS。
+  - `scripts/run_gtests.cmd` が継続 PASS。
+  - `scripts/generate_dx11_dx12_decision_report.cmd` の `adoption_gate` が FAIL のまま。
+- DX12 再判定条件:
+  - `scripts/check_dx11_dx12_adoption_gate.cmd` が PASS に到達。
+  - 連続3回（別日時）で PASS を再現。
+  - ExEdit2 実ホスト E2E でクラッシュ/フォールバック異常がないことを確認。
+- 判定運用:
+  - `scripts/run_dx11_dx12_decision_workflow.cmd` を実行し、`docs/reports/dx11-dx12-decision.md` を判断記録として更新する。
+
 ---
 
 ### Task 1: リポジトリ基盤整理
