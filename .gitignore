@@ -17,9 +17,11 @@ vcomp90.dll
 /GpuCoopBenchmark.exe
 /Dx12PocProbe.exe
 /Dx12PocBenchmark.exe
+/Dx11Dx12QualityReport.exe
 /docs/reports/gpu-runner-health.md
 /docs/reports/dx12-poc-readiness.md
 /docs/reports/dx12-poc-benchmark.md
+/docs/reports/dx11-dx12-quality.md
 x64/
 Win32/
 Debug/

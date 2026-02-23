@@ -39,6 +39,10 @@ jobs:
         shell: cmd
         run: scripts\generate_dx12_poc_benchmark.cmd
 
+      - name: Generate DX11 vs DX12 Quality Report
+        shell: cmd
+        run: scripts\generate_dx11_dx12_quality_report.cmd
+
       - name: Build Release Win32
         shell: cmd
         run: >
@@ -82,3 +86,4 @@ jobs:
             docs/reports/gpu-runner-health.md
             docs/reports/dx12-poc-readiness.md
             docs/reports/dx12-poc-benchmark.md
+            docs/reports/dx11-dx12-quality.md

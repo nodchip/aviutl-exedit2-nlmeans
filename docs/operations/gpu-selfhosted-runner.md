@@ -60,6 +60,17 @@ cmd.exe /c $cmd
 
 - `docs/reports/dx12-poc-benchmark.md` が生成される
 
+DX11 vs DX12 品質比較レポートを生成する。
+
+```powershell
+$cmd='"C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat" && .\scripts\generate_dx11_dx12_quality_report.cmd'
+cmd.exe /c $cmd
+```
+
+期待結果:
+
+- `docs/reports/dx11-dx12-quality.md` が生成される
+
 補足:
 
 - 開発端末など GPU 非搭載環境で文法確認だけ行う場合は `ALLOW_NO_GPU=1` を付けて実行できる。
