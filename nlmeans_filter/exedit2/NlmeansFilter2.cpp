@@ -751,7 +751,7 @@ FILTER_PLUGIN_TABLE filter_plugin_table = {
 	FILTER_PLUGIN_TABLE::FLAG_VIDEO,
 	L"NL-Means Filter (ExEdit2)",
 	L"NL-Means",
-	L"NL-Means Filter for AviUtl ExEdit2 (WIP: CPU/GPU backend migration)",
+	L"NL-Means Filter for AviUtl ExEdit2",
 	items,
 	func_proc_video,
 	nullptr
