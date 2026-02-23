@@ -78,3 +78,4 @@ cmd.exe /c $cmd
 
 - `.github/workflows/gpu-selfhosted-ci.yml` は `self-hosted, windows, gpu` ラベルのランナー向けです。
 - GPU 品質比較と協調ベンチを含む結果を artifact (`gpu-selfhosted-reports`) に保存します。
+- 同ワークフローでは `scripts/update_gpu_coop_history.cmd` を実行し、`gpu-coop-history.csv` も artifact に含めます。

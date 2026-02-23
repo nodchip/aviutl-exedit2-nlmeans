@@ -43,6 +43,10 @@ jobs:
         shell: cmd
         run: scripts\generate_gpu_coop_report.cmd
 
+      - name: Update GPU Coop History CSV
+        shell: cmd
+        run: scripts\update_gpu_coop_history.cmd
+
       - name: Upload GPU Reports
         uses: actions/upload-artifact@v4
         with:
@@ -50,3 +54,4 @@ jobs:
           path: |
             docs/reports/nlm-variants-benchmark.md
             docs/reports/gpu-coop-benchmark.md
+            docs/reports/gpu-coop-history.csv
