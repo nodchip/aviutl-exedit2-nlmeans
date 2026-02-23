@@ -12,6 +12,9 @@ vcomp90.dll
 *.opensdf
 *.sdf
 *.ipch
+*.obj
+/GoogleTests.exe
+/GpuCoopBenchmark.exe
 x64/
 Win32/
 Debug/
