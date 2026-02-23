@@ -18,7 +18,6 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command ^
   "$qualityPath='docs/reports/dx11-dx12-quality-history.csv';" ^
   "$outPath='docs/reports/dx11-dx12-decision.md';" ^
   "$gateResult='%GATE_RESULT%';" ^
-  "$now=(Get-Date).ToString('yyyy-MM-ddTHH:mm:ssK');" ^
   "$benchRows=@();" ^
   "if(Test-Path $benchPath){ $benchRows=@(Get-Content $benchPath | Where-Object { $_ -and -not $_.StartsWith('timestamp,') }) }" ^
   "$qualityRows=@();" ^
@@ -38,7 +37,6 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command ^
   "$lines=@();" ^
   "$lines += '# DX11/DX12 Adoption Decision Report';" ^
   "$lines += '';" ^
-  "$lines += '- generated_at: ' + $now;" ^
   "$lines += '- adoption_gate: ' + $gateResult;" ^
   "$lines += '- recent_benchmark(3): ' + $benchSummary;" ^
   "$lines += '- latest_quality: ' + $qualitySummary;" ^
