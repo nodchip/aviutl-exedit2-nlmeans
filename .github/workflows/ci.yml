@@ -57,12 +57,18 @@ jobs:
           name: dx11-dx12-decision
           path: docs/reports/dx11-dx12-decision.md
 
-      - name: Generate GPU Coop Benchmark Report
+      - name: Run GPU Coop Decision Workflow
         shell: cmd
-        run: scripts\generate_gpu_coop_report.cmd
+        run: scripts\run_gpu_coop_decision_workflow.cmd
 
       - name: Upload GPU Coop Benchmark Artifact
         uses: actions/upload-artifact@v4
         with:
           name: gpu-coop-benchmark
           path: docs/reports/gpu-coop-benchmark.md
+
+      - name: Upload GPU Coop Decision Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: gpu-coop-decision
+          path: docs/reports/gpu-coop-decision.md

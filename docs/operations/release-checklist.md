@@ -15,8 +15,8 @@
 1. `vcvars64.bat` 初期化後に `scripts/run_gtests.cmd` を実行し、全件 PASS を確認する。
 2. DX11/DX12 判定時は `scripts/run_dx11_dx12_decision_workflow.cmd` を実行し、判定レポートを更新する。
 3. DX11/DX12 判定時は `scripts/check_dx11_dx12_reevaluation_due.cmd` で再評価日の到来状況を確認する。
-4. GPU 環境では `scripts/generate_gpu_coop_report.cmd` を実行する。
-5. GPU 環境では `scripts/check_gpu_coop_regression.cmd` と `scripts/check_gpu_coop_async_efficiency.cmd` を実行する。
+4. GPU 環境では `scripts/run_gpu_coop_decision_workflow.cmd` を実行し、協調判定レポートを更新する。
+5. GPU 環境では `scripts/check_gpu_coop_regression.cmd` と `scripts/check_gpu_coop_async_efficiency.cmd` の結果を確認する。
 6. GPU 環境では `scripts/generate_dx11_dx12_quality_report.cmd` と `scripts/check_dx11_dx12_quality_threshold.cmd` を実行する。
 7. GPU 環境では `scripts/update_dx11_dx12_quality_history.cmd` を実行し、履歴 CSV を更新する。
 8. GPU 環境では `scripts/update_dx12_poc_benchmark_history.cmd` を実行し、DX12 PoC ベンチ履歴 CSV を更新する。
@@ -27,7 +27,7 @@
 1. 配布対象に `*.auf2` と必要な設定/ドキュメントが含まれることを確認する。
 2. `aviutl2_sdk` が成果物に含まれていないことを確認する。
 3. シェーダー配布方針（外部 HLSL 同梱 + 実行時コンパイル）に沿っていることを確認する。
-4. 主要レポート（`gpu-coop-benchmark.md`, `dx12-poc-readiness.md`, `dx12-poc-benchmark.md`, `dx11-dx12-quality.md`, `dx11-dx12-decision.md`）が最新であることを確認する。
+4. 主要レポート（`gpu-coop-benchmark.md`, `gpu-coop-decision.md`, `dx12-poc-readiness.md`, `dx12-poc-benchmark.md`, `dx11-dx12-quality.md`, `dx11-dx12-decision.md`）が最新であることを確認する。
 
 ## DX11/DX12 判断基準
 
@@ -37,6 +37,13 @@
 4. 運用: `dx11-dx12-quality-history.csv` に判断対象期間の履歴が残り、回帰傾向がないこと。
 5. 総合判定: `scripts/check_dx11_dx12_adoption_gate.cmd` が PASS すること。
 6. 期限管理: `scripts/check_dx11_dx12_reevaluation_due.cmd` の結果を判定記録へ残すこと。
+
+## GPU協調 判断基準
+
+1. 効率: `check_gpu_coop_async_efficiency.cmd` が PASS（async dispatch が sequential dispatch 比で既定閾値以内）であること。
+2. 回帰: `check_gpu_coop_regression.cmd` が PASS（直近比較で ratio/coop_ms が既定悪化率以内）であること。
+3. 採用判定: `check_gpu_coop_adoption_gate.cmd` が PASS（直近3件の ratio と async/single 比が閾値以内）であること。
+4. 総合判定: `run_gpu_coop_decision_workflow.cmd` 実行後の `gpu-coop-decision.md` を判定記録として残すこと。
 
 ## タグと記録
 

@@ -21,7 +21,7 @@
   - Task 3 CPU 再編（Naive/AVX2 のみ、GoogleTest 整備）
   - Task 7 GitHub 公開準備（CI、公開、運用ドキュメント）
 - 進行中:
-  - Task 4 GPU バックエンド再設計（DX11 実装 + DX12 PoC 比較/ベンチ拡張 + 履歴CSV/回帰チェック自動化 + compute経路GPU優先化 + fullframe 3x3 compute 実装 + DX11/DX12ベンチ履歴収集 + DX12内訳計測 + HRESULT診断で無効HLSL修正 + preflight一回化 + DLLロードキャッシュ + D3D12Device再利用 + DX11/DX12採用判定ゲート追加）
+  - Task 4 GPU バックエンド再設計（DX11 実装 + DX12 PoC 比較/ベンチ拡張 + 履歴CSV/回帰チェック自動化 + compute経路GPU優先化 + fullframe 3x3 compute 実装 + DX11/DX12ベンチ履歴収集 + DX12内訳計測 + HRESULT診断で無効HLSL修正 + preflight一回化 + DLLロードキャッシュ + D3D12Device再利用 + DX11/DX12採用判定ゲート追加 + GPU協調採用判定ゲート追加）
   - Task 5 ExEdit2 UI 統合（モード選択とルーティングは実装済み、実機E2Eの継続検証が必要）
   - Task 6 亜種アルゴリズム実装（Fast/Temporal はCPU中心で実装、GPU 側最適化は継続）
 - 未完了の主要項目:
@@ -51,6 +51,19 @@
 - 判定運用:
   - `scripts/run_dx11_dx12_decision_workflow.cmd` を実行し、`docs/reports/dx11-dx12-decision.md` を判断記録として更新する。
   - `scripts/check_dx11_dx12_reevaluation_due.cmd` で次回再評価日の到来状況を確認する。
+
+## GPU協調 判定ルール（2026-02-23 追加）
+
+- 現在判定（2026-02-23）:
+  - `scripts/check_gpu_coop_adoption_gate.cmd` は FAIL（single 比で coop ratio が高止まり）。
+  - 既定動作は単体GPU（Single GPU Full Frame）継続とする。
+- GPU協調 採用条件:
+  - `scripts/check_gpu_coop_async_efficiency.cmd` が PASS。
+  - `scripts/check_gpu_coop_regression.cmd` が PASS。
+  - `scripts/check_gpu_coop_adoption_gate.cmd` が PASS（直近3件 ratio と async/single 比が閾値以内）。
+- 判定運用:
+  - `scripts/run_gpu_coop_decision_workflow.cmd` を実行し、`docs/reports/gpu-coop-decision.md` を更新する。
+  - 採用判定を満たすまでは UI の既定は単体GPU優先を維持する。
 
 ---
 
