@@ -16,3 +16,22 @@ TEST(GpuCoopRecoveryPolicyTests, RetryCountIsLimitedByThreshold)
 	EXPECT_FALSE(should_retry_failed_tile_on_single_gpu(true, true, 3, 2));
 	EXPECT_FALSE(should_retry_failed_tile_on_single_gpu(true, true, 0, 2));
 }
+
+TEST(GpuCoopRecoveryPolicyTests, ResolveRecoveryActionCoversFailureInjectionScenarios)
+{
+	EXPECT_EQ(
+		resolve_gpu_coop_recovery_action(false, 2, 2, false),
+		GpuCoopRecoveryAction::None);
+	EXPECT_EQ(
+		resolve_gpu_coop_recovery_action(true, 0, 2, false),
+		GpuCoopRecoveryAction::None);
+	EXPECT_EQ(
+		resolve_gpu_coop_recovery_action(true, 1, 2, false),
+		GpuCoopRecoveryAction::RetryFailedTiles);
+	EXPECT_EQ(
+		resolve_gpu_coop_recovery_action(true, 3, 2, false),
+		GpuCoopRecoveryAction::RetrySingleGpu);
+	EXPECT_EQ(
+		resolve_gpu_coop_recovery_action(true, 1, 2, true),
+		GpuCoopRecoveryAction::RetrySingleGpu);
+}

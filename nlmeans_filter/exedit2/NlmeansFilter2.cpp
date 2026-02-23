@@ -602,7 +602,12 @@ bool apply_nlm_gpu_dx11(FILTER_PROC_VIDEO* video, int adapterOrdinal, ExecutionM
 				tile_success[tile.adapterIndex] = ok;
 			}
 
-			if (should_retry_failed_tile_on_single_gpu(enable_multi_gpu, failed_tile_count > 0, failed_tile_count, 2)) {
+			const GpuCoopRecoveryAction action = resolve_gpu_coop_recovery_action(
+				enable_multi_gpu,
+				failed_tile_count,
+				2,
+				false);
+			if (action == GpuCoopRecoveryAction::RetryFailedTiles) {
 				for (const auto& tile : tiles) {
 					if (tile_success[tile.adapterIndex]) {
 						continue;
@@ -629,7 +634,16 @@ bool apply_nlm_gpu_dx11(FILTER_PROC_VIDEO* video, int adapterOrdinal, ExecutionM
 			}
 
 			bool coop_failed = failed_tile_count > 0;
-			if (!coop_failed && !compose_row_tiled_output(
+			bool used_single_gpu_result = false;
+			if (coop_failed && resolve_gpu_coop_recovery_action(enable_multi_gpu, failed_tile_count, 2, true) ==
+				GpuCoopRecoveryAction::RetrySingleGpu) {
+				if (!run_single_gpu()) {
+					return false;
+				}
+				coop_failed = false;
+				used_single_gpu_result = true;
+			}
+			if (!coop_failed && !used_single_gpu_result && !compose_row_tiled_output(
 				width,
 				height,
 				tiles,
@@ -638,9 +652,7 @@ bool apply_nlm_gpu_dx11(FILTER_PROC_VIDEO* video, int adapterOrdinal, ExecutionM
 				coop_failed = true;
 			}
 			if (coop_failed) {
-				if (!run_single_gpu()) {
-					return false;
-				}
+				return false;
 			}
 
 			video->set_image_data(g_output_pixels.data(), width, height);
