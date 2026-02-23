@@ -44,3 +44,21 @@ ExEdit2 実ホスト上で CPU/GPU の動作とフォールバック経路を確
   - GPU協調:
   - フォールバック:
 - 備考:
+
+## 記録の蓄積方法
+
+1. 検証結果を `docs/reports/exedit2-e2e-history.csv` に追記する。
+2. 追記は `scripts/append_exedit2_e2e_result.cmd` を使い、判定値は `PASS|FAIL|SKIP` のいずれかを使う。
+
+実行例:
+
+```cmd
+scripts\append_exedit2_e2e_result.cmd ^
+  nodchip ^
+  nlmeans_filter_exedit2.auf2 ^
+  "NVIDIA GeForce RTX 3060" ^
+  PASS PASS PASS PASS PASS ^
+  "AviUtl ExEdit2 実機検証"
+```
+
+3. リリース前は `scripts/check_exedit2_e2e_gate.cmd` を実行し、最新記録が有効か確認する。

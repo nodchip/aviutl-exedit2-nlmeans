@@ -1,0 +1,1 @@
+timestamp,operator,build,gpu,cpu_naive,cpu_avx2,gpu_dx11,gpu_coop,fallback,notes

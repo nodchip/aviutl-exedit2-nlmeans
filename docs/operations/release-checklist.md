@@ -21,6 +21,7 @@
 7. GPU 環境では `scripts/update_dx11_dx12_quality_history.cmd` を実行し、履歴 CSV を更新する。
 8. GPU 環境では `scripts/update_dx12_poc_benchmark_history.cmd` を実行し、DX12 PoC ベンチ履歴 CSV を更新する。
 9. GPU 環境では `scripts/check_dx12_poc_regression.cmd` を実行し、DX12 PoC compute path の回帰を確認する。
+10. 実ホスト検証結果として `scripts/check_exedit2_e2e_gate.cmd` を実行し、E2E 記録の最新性と必須項目 PASS を確認する。
 
 ## 成果物確認
 
@@ -37,6 +38,7 @@
 4. 運用: `dx11-dx12-quality-history.csv` に判断対象期間の履歴が残り、回帰傾向がないこと。
 5. 総合判定: `scripts/check_dx11_dx12_adoption_gate.cmd` が PASS すること。
 6. 期限管理: `scripts/check_dx11_dx12_reevaluation_due.cmd` の結果を判定記録へ残すこと。
+7. 実ホスト確認: `scripts/check_exedit2_e2e_gate.cmd` が PASS し、E2E 記録が有効期間内であること。
 
 ## GPU協調 判断基準
 
@@ -45,6 +47,7 @@
 3. 採用判定: `check_gpu_coop_adoption_gate.cmd` が PASS（直近3件の ratio と async/single 比が閾値以内）であること。
 4. 総合判定: `run_gpu_coop_decision_workflow.cmd` 実行後の `gpu-coop-decision.md` を判定記録として残すこと。
 5. 期限管理: `check_gpu_coop_reevaluation_due.cmd` の結果を判定記録へ残すこと。
+6. 実ホスト確認: `scripts/check_exedit2_e2e_gate.cmd` が PASS し、`gpu_coop` が `PASS` もしくは `SKIP` として記録されていること。
 
 ## タグと記録
 

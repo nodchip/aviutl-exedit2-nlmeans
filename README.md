@@ -99,6 +99,20 @@ $cmd='"C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Buil
 cmd.exe /c $cmd
 ```
 
+ExEdit2 実ホスト E2E 結果を履歴へ追記する例:
+
+```powershell
+$cmd='"C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat" && .\scripts\append_exedit2_e2e_result.cmd nodchip nlmeans_filter_exedit2.auf2 "GPU-NAME" PASS PASS PASS PASS PASS "manual validation"'
+cmd.exe /c $cmd
+```
+
+ExEdit2 実ホスト E2E 判定ゲートを確認する例:
+
+```powershell
+$cmd='"C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat" && .\scripts\check_exedit2_e2e_gate.cmd 30'
+cmd.exe /c $cmd
+```
+
 ## オプション解説
 
 ### 空間範囲
