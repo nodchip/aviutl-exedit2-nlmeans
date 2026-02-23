@@ -210,6 +210,174 @@ inline bool try_create_dx12_command_objects_for_poc(
 	return ok;
 }
 
+// DX12 PoC の前段として compute pipeline（RootSignature + PSO）生成可否を確認する。
+// 実 dispatch 実装へ進む前に、最小パイプライン構築の成立を検証する。
+inline bool try_create_dx12_compute_pipeline_for_poc(
+	Dx12LoadLibraryFn loadLibraryFn = ::LoadLibraryW,
+	Dx12GetProcAddressFn getProcAddressFn = ::GetProcAddress,
+	Dx12FreeLibraryFn freeLibraryFn = ::FreeLibrary)
+{
+	if (loadLibraryFn == nullptr || getProcAddressFn == nullptr || freeLibraryFn == nullptr) {
+		return false;
+	}
+
+	HMODULE d3d12Module = loadLibraryFn(L"d3d12.dll");
+	HMODULE compilerModule = loadLibraryFn(L"d3dcompiler_47.dll");
+	if (d3d12Module == nullptr || compilerModule == nullptr) {
+		if (compilerModule != nullptr) {
+			freeLibraryFn(compilerModule);
+		}
+		if (d3d12Module != nullptr) {
+			freeLibraryFn(d3d12Module);
+		}
+		return false;
+	}
+
+	using Dx12CreateDeviceFn = HRESULT(WINAPI*)(IUnknown*, D3D_FEATURE_LEVEL, REFIID, void**);
+	using Dx12SerializeRootSignatureFn = HRESULT(WINAPI*)(const D3D12_ROOT_SIGNATURE_DESC*, D3D_ROOT_SIGNATURE_VERSION, ID3DBlob**, ID3DBlob**);
+	using D3DCompileFn = HRESULT(WINAPI*)(
+		LPCVOID,
+		SIZE_T,
+		LPCSTR,
+		const D3D_SHADER_MACRO*,
+		ID3DInclude*,
+		LPCSTR,
+		LPCSTR,
+		UINT,
+		UINT,
+		ID3DBlob**,
+		ID3DBlob**);
+
+	const Dx12CreateDeviceFn createDeviceFn = reinterpret_cast<Dx12CreateDeviceFn>(getProcAddressFn(d3d12Module, "D3D12CreateDevice"));
+	const Dx12SerializeRootSignatureFn serializeRootSignatureFn = reinterpret_cast<Dx12SerializeRootSignatureFn>(getProcAddressFn(d3d12Module, "D3D12SerializeRootSignature"));
+	const D3DCompileFn compileFn = reinterpret_cast<D3DCompileFn>(getProcAddressFn(compilerModule, "D3DCompile"));
+	if (createDeviceFn == nullptr || serializeRootSignatureFn == nullptr || compileFn == nullptr) {
+		freeLibraryFn(compilerModule);
+		freeLibraryFn(d3d12Module);
+		return false;
+	}
+
+	ID3D12Device* device = nullptr;
+	const HRESULT createDeviceHr = createDeviceFn(
+		nullptr,
+		D3D_FEATURE_LEVEL_11_0,
+		__uuidof(ID3D12Device),
+		reinterpret_cast<void**>(&device));
+	if (FAILED(createDeviceHr) || device == nullptr) {
+		if (device != nullptr) {
+			device->Release();
+		}
+		freeLibraryFn(compilerModule);
+		freeLibraryFn(d3d12Module);
+		return false;
+	}
+
+	D3D12_ROOT_SIGNATURE_DESC rootDesc = {};
+	rootDesc.NumParameters = 0;
+	rootDesc.pParameters = nullptr;
+	rootDesc.NumStaticSamplers = 0;
+	rootDesc.pStaticSamplers = nullptr;
+	rootDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_NONE;
+
+	ID3DBlob* rootSigBlob = nullptr;
+	ID3DBlob* rootSigErrorBlob = nullptr;
+	const HRESULT serializeHr = serializeRootSignatureFn(
+		&rootDesc,
+		D3D_ROOT_SIGNATURE_VERSION_1,
+		&rootSigBlob,
+		&rootSigErrorBlob);
+	if (rootSigErrorBlob != nullptr) {
+		rootSigErrorBlob->Release();
+	}
+	if (FAILED(serializeHr) || rootSigBlob == nullptr) {
+		if (rootSigBlob != nullptr) {
+			rootSigBlob->Release();
+		}
+		device->Release();
+		freeLibraryFn(compilerModule);
+		freeLibraryFn(d3d12Module);
+		return false;
+	}
+
+	ID3D12RootSignature* rootSignature = nullptr;
+	const HRESULT createRootSigHr = device->CreateRootSignature(
+		0,
+		rootSigBlob->GetBufferPointer(),
+		rootSigBlob->GetBufferSize(),
+		__uuidof(ID3D12RootSignature),
+		reinterpret_cast<void**>(&rootSignature));
+	rootSigBlob->Release();
+	if (FAILED(createRootSigHr) || rootSignature == nullptr) {
+		if (rootSignature != nullptr) {
+			rootSignature->Release();
+		}
+		device->Release();
+		freeLibraryFn(compilerModule);
+		freeLibraryFn(d3d12Module);
+		return false;
+	}
+
+	static const char* shaderSource =
+		"[numthreads(1,1,1)]\n"
+		"void main(uint3 tid : SV_DispatchThreadID)\n"
+		"{\n"
+		"	(void)tid;\n"
+		"}\n";
+
+	ID3DBlob* shaderBlob = nullptr;
+	ID3DBlob* shaderErrorBlob = nullptr;
+	const HRESULT compileHr = compileFn(
+		shaderSource,
+		std::strlen(shaderSource),
+		"Dx12PocPipeline.hlsl",
+		nullptr,
+		nullptr,
+		"main",
+		"cs_5_0",
+		0,
+		0,
+		&shaderBlob,
+		&shaderErrorBlob);
+	if (shaderErrorBlob != nullptr) {
+		shaderErrorBlob->Release();
+	}
+	if (FAILED(compileHr) || shaderBlob == nullptr) {
+		if (shaderBlob != nullptr) {
+			shaderBlob->Release();
+		}
+		rootSignature->Release();
+		device->Release();
+		freeLibraryFn(compilerModule);
+		freeLibraryFn(d3d12Module);
+		return false;
+	}
+
+	D3D12_COMPUTE_PIPELINE_STATE_DESC psoDesc = {};
+	psoDesc.pRootSignature = rootSignature;
+	psoDesc.CS.pShaderBytecode = shaderBlob->GetBufferPointer();
+	psoDesc.CS.BytecodeLength = shaderBlob->GetBufferSize();
+	psoDesc.NodeMask = 0;
+	psoDesc.CachedPSO.pCachedBlob = nullptr;
+	psoDesc.CachedPSO.CachedBlobSizeInBytes = 0;
+	psoDesc.Flags = D3D12_PIPELINE_STATE_FLAG_NONE;
+
+	ID3D12PipelineState* pipelineState = nullptr;
+	const HRESULT createPsoHr = device->CreateComputePipelineState(
+		&psoDesc,
+		__uuidof(ID3D12PipelineState),
+		reinterpret_cast<void**>(&pipelineState));
+	const bool ok = SUCCEEDED(createPsoHr) && pipelineState != nullptr;
+	if (pipelineState != nullptr) {
+		pipelineState->Release();
+	}
+	shaderBlob->Release();
+	rootSignature->Release();
+	device->Release();
+	freeLibraryFn(compilerModule);
+	freeLibraryFn(d3d12Module);
+	return ok;
+}
+
 // DX12 PoC の最小コンピュート相当処理。
 // 3x3 の近傍平均を取り、copy path よりも計算経路に近い出力を作る。
 inline bool process_dx12_poc_compute_path(
@@ -228,10 +396,11 @@ inline bool process_dx12_poc_compute_path(
 	}
 
 	// TODO: D3D12 compute 実行本体は次段で実装する。
-	// 先にデバイス初期化/シェーダーコンパイル/コマンド生成可否を実測し、失敗時は既存の CPU 経路へフォールバックする。
+	// 先にデバイス初期化/シェーダーコンパイル/コマンド生成/パイプライン生成可否を実測し、失敗時は既存の CPU 経路へフォールバックする。
 	(void)try_create_dx12_device_for_poc();
 	(void)try_compile_dx12_poc_shader_for_poc();
 	(void)try_create_dx12_command_objects_for_poc();
+	(void)try_create_dx12_compute_pipeline_for_poc();
 
 	const auto idx = [width](int x, int y) -> size_t {
 		return static_cast<size_t>(y * width + x);
