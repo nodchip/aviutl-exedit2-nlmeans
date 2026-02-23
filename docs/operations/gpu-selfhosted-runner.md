@@ -38,6 +38,17 @@ cmd.exe /c $cmd
 - `docs/reports/gpu-runner-health.md` が生成される
 - レポートに `d3d12.dll` の検出結果が含まれる
 
+DX12 PoC 可否レポートを生成する。
+
+```powershell
+$cmd='"C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat" && .\scripts\generate_dx12_poc_report.cmd'
+cmd.exe /c $cmd
+```
+
+期待結果:
+
+- `docs/reports/dx12-poc-readiness.md` が生成される
+
 補足:
 
 - 開発端末など GPU 非搭載環境で文法確認だけ行う場合は `ALLOW_NO_GPU=1` を付けて実行できる。

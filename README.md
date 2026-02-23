@@ -156,6 +156,13 @@ cmd.exe /c $cmd
 - DX12 PoC の検討メモ: `docs/notes/dx12-poc-2026-02-23.md`
 - 現時点ではランタイム検出の最小実装まで導入し、本番経路は DX11.3 を継続しています。
 
+DX12 PoC 可否レポート生成例:
+
+```powershell
+$cmd='"C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat" && .\scripts\generate_dx12_poc_report.cmd'
+cmd.exe /c $cmd
+```
+
 ## 注意
 
 - 現在の GPU 実装は最適化途上です。

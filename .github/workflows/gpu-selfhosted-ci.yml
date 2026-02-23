@@ -31,6 +31,10 @@ jobs:
         shell: cmd
         run: scripts\generate_gpu_runner_health_report.cmd
 
+      - name: Generate DX12 PoC Readiness Report
+        shell: cmd
+        run: scripts\generate_dx12_poc_report.cmd
+
       - name: Build Release Win32
         shell: cmd
         run: >
@@ -72,3 +76,4 @@ jobs:
             docs/reports/gpu-coop-benchmark.md
             docs/reports/gpu-coop-history.csv
             docs/reports/gpu-runner-health.md
+            docs/reports/dx12-poc-readiness.md
