@@ -48,7 +48,8 @@ cmd.exe /c $cmd
 2. `Build Release Win32` の失敗時は `MSBuild.exe` と `filter2.h` の存在を再確認する。
 3. `Run GoogleTest Suite` の失敗時はローカルで `scripts/run_gtests.cmd` を再実行する。
 4. `Check GPU Coop Regression Threshold` の失敗時は `docs/reports/gpu-coop-history.csv` の直近2行を確認する。
-5. ランナー依存の問題が疑われる場合は `docs/reports/gpu-runner-health.md` を確認する。
+5. `Check GPU Coop Async Efficiency` の失敗時は `docs/reports/gpu-coop-benchmark.md` の `sequential/async` 行を確認する。
+6. ランナー依存の問題が疑われる場合は `docs/reports/gpu-runner-health.md` を確認する。
 
 ## 保守メモ
 
