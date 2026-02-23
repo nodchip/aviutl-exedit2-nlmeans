@@ -3,6 +3,30 @@
 #include <vector>
 #include "../exedit2/Dx12PocProcessor.h"
 
+namespace {
+
+HMODULE WINAPI load_library_missing(LPCWSTR)
+{
+	return nullptr;
+}
+
+HMODULE WINAPI load_library_fake(LPCWSTR)
+{
+	return reinterpret_cast<HMODULE>(0x1);
+}
+
+FARPROC WINAPI get_proc_missing(HMODULE, LPCSTR)
+{
+	return nullptr;
+}
+
+BOOL WINAPI free_library_dummy(HMODULE)
+{
+	return TRUE;
+}
+
+}
+
 TEST(Dx12PocProcessorTests, ReturnsFalseWhenPocIsNotEnabled)
 {
 	Dx12PocProbeResult probe = {};
@@ -66,4 +90,14 @@ TEST(Dx12PocProcessorTests, ComputePathSmoothsPixelsWhenEnabled)
 	const std::uint32_t centerR = center & 0xffu;
 	EXPECT_GT(centerR, 0u);
 	EXPECT_LT(centerR, 255u);
+}
+
+TEST(Dx12PocProcessorTests, TryCreateDx12DeviceReturnsFalseWhenDllIsMissing)
+{
+	EXPECT_FALSE(try_create_dx12_device_for_poc(load_library_missing, get_proc_missing, free_library_dummy));
+}
+
+TEST(Dx12PocProcessorTests, TryCreateDx12DeviceReturnsFalseWhenEntryIsMissing)
+{
+	EXPECT_FALSE(try_create_dx12_device_for_poc(load_library_fake, get_proc_missing, free_library_dummy));
 }
