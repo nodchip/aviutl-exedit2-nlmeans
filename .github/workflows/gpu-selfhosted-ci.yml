@@ -43,6 +43,10 @@ jobs:
         shell: cmd
         run: scripts\generate_dx11_dx12_quality_report.cmd
 
+      - name: Check DX11 vs DX12 Quality Threshold
+        shell: cmd
+        run: scripts\check_dx11_dx12_quality_threshold.cmd
+
       - name: Build Release Win32
         shell: cmd
         run: >
