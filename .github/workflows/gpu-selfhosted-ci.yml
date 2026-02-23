@@ -35,6 +35,10 @@ jobs:
         shell: cmd
         run: scripts\generate_dx12_poc_report.cmd
 
+      - name: Generate DX12 PoC Benchmark Report
+        shell: cmd
+        run: scripts\generate_dx12_poc_benchmark.cmd
+
       - name: Build Release Win32
         shell: cmd
         run: >
@@ -77,3 +81,4 @@ jobs:
             docs/reports/gpu-coop-history.csv
             docs/reports/gpu-runner-health.md
             docs/reports/dx12-poc-readiness.md
+            docs/reports/dx12-poc-benchmark.md

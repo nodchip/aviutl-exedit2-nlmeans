@@ -70,6 +70,7 @@ cmd.exe /c $cmd
 - `scripts/check_gpu_coop_regression.cmd` で直近2件の履歴を比較し、しきい値悪化を検出できます。
 - `scripts/check_gpu_coop_async_efficiency.cmd` で `async dispatch` の性能が `sequential dispatch` 比で劣化していないか確認できます。
 - `scripts/generate_dx12_poc_report.cmd` で `docs/reports/dx12-poc-readiness.md` を生成できます。
+- `scripts/generate_dx12_poc_benchmark.cmd` で `docs/reports/dx12-poc-benchmark.md` を生成できます。
 
 ## Pull Request
 
@@ -88,4 +89,5 @@ cmd.exe /c $cmd
 - 同ワークフローでは `scripts/check_gpu_coop_regression.cmd` で悪化監視を行います。
 - 同ワークフローでは `scripts/check_gpu_coop_async_efficiency.cmd` で async 効率も監視します。
 - 同ワークフローでは `scripts/generate_dx12_poc_report.cmd` で DX12 PoC 可否レポートを生成します。
+- 同ワークフローでは `scripts/generate_dx12_poc_benchmark.cmd` で DX12 PoC ベンチレポートを生成します。
 - 運用手順は `docs/operations/gpu-selfhosted-runner.md` を参照してください。
