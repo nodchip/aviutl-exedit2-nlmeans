@@ -115,29 +115,46 @@ int main()
 	Dx12PocProbeResult probe = {};
 	probe.enabled = true;
 	const std::vector<std::uint32_t> inputPacked = to_u32(input);
-	std::vector<std::uint32_t> dx12Packed(inputPacked.size(), 0u);
+	std::vector<std::uint32_t> dx12CopyPacked(inputPacked.size(), 0u);
+	std::vector<std::uint32_t> dx12ComputePacked(inputPacked.size(), 0u);
 	if (!process_dx12_poc_single_frame(
 		inputPacked.data(),
-		dx12Packed.data(),
+		dx12CopyPacked.data(),
 		width,
 		height,
 		true,
 		probe)) {
 		std::cout << "# DX11 vs DX12 PoC Quality Comparison\n\n";
-		std::cout << "- SKIPPED: DX12 PoC path failed.\n";
+		std::cout << "- SKIPPED: DX12 PoC copy path failed.\n";
 		return 0;
 	}
-	const std::vector<PIXEL_RGBA> dx12Out = from_u32(dx12Packed);
+	if (!process_dx12_poc_compute_path(
+		inputPacked.data(),
+		dx12ComputePacked.data(),
+		width,
+		height,
+		true,
+		probe)) {
+		std::cout << "# DX11 vs DX12 PoC Quality Comparison\n\n";
+		std::cout << "- SKIPPED: DX12 PoC compute path failed.\n";
+		return 0;
+	}
+	const std::vector<PIXEL_RGBA> dx12CopyOut = from_u32(dx12CopyPacked);
+	const std::vector<PIXEL_RGBA> dx12ComputeOut = from_u32(dx12ComputePacked);
 
-	const QualityStats dx11VsDx12 = evaluate_quality(dx11Out, dx12Out);
-	const QualityStats dx12VsInput = evaluate_quality(dx12Out, input);
+	const QualityStats dx11VsDx12Copy = evaluate_quality(dx11Out, dx12CopyOut);
+	const QualityStats dx11VsDx12Compute = evaluate_quality(dx11Out, dx12ComputeOut);
+	const QualityStats dx12CopyVsInput = evaluate_quality(dx12CopyOut, input);
+	const QualityStats dx12ComputeVsInput = evaluate_quality(dx12ComputeOut, input);
 
 	std::cout << "# DX11 vs DX12 PoC Quality Comparison\n\n";
 	std::cout << "- Frame: " << width << "x" << height << "\n";
 	std::cout << "- DX11 params: search=" << searchRadius << ", time=" << timeRadius << ", sigma=" << sigma << "\n\n";
 	std::cout << "| Pair | Max Abs Diff | Mean Abs Diff |\n";
 	std::cout << "|---|---:|---:|\n";
-	std::cout << "| DX11 vs DX12 PoC | " << dx11VsDx12.maxAbsDiff << " | " << dx11VsDx12.meanAbsDiff << " |\n";
-	std::cout << "| DX12 PoC vs Input | " << dx12VsInput.maxAbsDiff << " | " << dx12VsInput.meanAbsDiff << " |\n";
+	std::cout << "| DX11 vs DX12 PoC (copy path) | " << dx11VsDx12Copy.maxAbsDiff << " | " << dx11VsDx12Copy.meanAbsDiff << " |\n";
+	std::cout << "| DX11 vs DX12 PoC (compute path) | " << dx11VsDx12Compute.maxAbsDiff << " | " << dx11VsDx12Compute.meanAbsDiff << " |\n";
+	std::cout << "| DX12 PoC copy path vs Input | " << dx12CopyVsInput.maxAbsDiff << " | " << dx12CopyVsInput.meanAbsDiff << " |\n";
+	std::cout << "| DX12 PoC compute path vs Input | " << dx12ComputeVsInput.maxAbsDiff << " | " << dx12ComputeVsInput.meanAbsDiff << " |\n";
 	return 0;
 }
