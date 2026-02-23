@@ -35,22 +35,9 @@ jobs:
         shell: cmd
         run: scripts\generate_nlm_variants_report.cmd
 
-      - name: Generate DX11 DX12 Benchmark Report
+      - name: Run DX11 DX12 Decision Workflow
         shell: cmd
-        run: scripts\generate_dx11_dx12_benchmark.cmd
-
-      - name: Check DX11 DX12 Benchmark Threshold
-        shell: cmd
-        run: scripts\check_dx11_dx12_benchmark_threshold.cmd
-
-      - name: Check DX11 DX12 Adoption Gate (Informational)
-        shell: cmd
-        continue-on-error: true
-        run: scripts\check_dx11_dx12_adoption_gate.cmd
-
-      - name: Generate DX11 DX12 Decision Report
-        shell: cmd
-        run: scripts\generate_dx11_dx12_decision_report.cmd
+        run: scripts\run_dx11_dx12_decision_workflow.cmd
 
       - name: Upload Benchmark Report Artifact
         uses: actions/upload-artifact@v4
