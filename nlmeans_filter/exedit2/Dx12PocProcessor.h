@@ -497,6 +497,76 @@ inline bool try_create_dx12_buffer_resources_for_poc(
 	return ok;
 }
 
+// DX12 PoC の前段として descriptor heap（CBV/SRV/UAV）と fence 生成可否を確認する。
+// dispatch/同期実装前に、GPU 可視ディスクリプタと同期オブジェクトの作成可否を検証する。
+inline bool try_create_dx12_descriptor_and_sync_for_poc(
+	Dx12LoadLibraryFn loadLibraryFn = ::LoadLibraryW,
+	Dx12GetProcAddressFn getProcAddressFn = ::GetProcAddress,
+	Dx12FreeLibraryFn freeLibraryFn = ::FreeLibrary)
+{
+	if (loadLibraryFn == nullptr || getProcAddressFn == nullptr || freeLibraryFn == nullptr) {
+		return false;
+	}
+
+	HMODULE d3d12Module = loadLibraryFn(L"d3d12.dll");
+	if (d3d12Module == nullptr) {
+		return false;
+	}
+
+	using Dx12CreateDeviceFn = HRESULT(WINAPI*)(IUnknown*, D3D_FEATURE_LEVEL, REFIID, void**);
+	const Dx12CreateDeviceFn createDeviceFn =
+		reinterpret_cast<Dx12CreateDeviceFn>(getProcAddressFn(d3d12Module, "D3D12CreateDevice"));
+	if (createDeviceFn == nullptr) {
+		freeLibraryFn(d3d12Module);
+		return false;
+	}
+
+	ID3D12Device* device = nullptr;
+	const HRESULT createDeviceHr = createDeviceFn(
+		nullptr,
+		D3D_FEATURE_LEVEL_11_0,
+		__uuidof(ID3D12Device),
+		reinterpret_cast<void**>(&device));
+	if (FAILED(createDeviceHr) || device == nullptr) {
+		if (device != nullptr) {
+			device->Release();
+		}
+		freeLibraryFn(d3d12Module);
+		return false;
+	}
+
+	D3D12_DESCRIPTOR_HEAP_DESC heapDesc = {};
+	heapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+	heapDesc.NumDescriptors = 2;
+	heapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+	heapDesc.NodeMask = 0;
+
+	ID3D12DescriptorHeap* descriptorHeap = nullptr;
+	const HRESULT heapHr = device->CreateDescriptorHeap(
+		&heapDesc,
+		__uuidof(ID3D12DescriptorHeap),
+		reinterpret_cast<void**>(&descriptorHeap));
+
+	ID3D12Fence* fence = nullptr;
+	const HRESULT fenceHr = device->CreateFence(
+		0,
+		D3D12_FENCE_FLAG_NONE,
+		__uuidof(ID3D12Fence),
+		reinterpret_cast<void**>(&fence));
+
+	const bool ok = SUCCEEDED(heapHr) && SUCCEEDED(fenceHr) &&
+		descriptorHeap != nullptr && fence != nullptr;
+	if (fence != nullptr) {
+		fence->Release();
+	}
+	if (descriptorHeap != nullptr) {
+		descriptorHeap->Release();
+	}
+	device->Release();
+	freeLibraryFn(d3d12Module);
+	return ok;
+}
+
 // DX12 PoC の最小コンピュート相当処理。
 // 3x3 の近傍平均を取り、copy path よりも計算経路に近い出力を作る。
 inline bool process_dx12_poc_compute_path(
@@ -515,12 +585,13 @@ inline bool process_dx12_poc_compute_path(
 	}
 
 	// TODO: D3D12 compute 実行本体は次段で実装する。
-	// 先にデバイス初期化/シェーダーコンパイル/コマンド生成/パイプライン生成/バッファ生成可否を実測し、失敗時は既存の CPU 経路へフォールバックする。
+	// 先にデバイス初期化/シェーダーコンパイル/コマンド生成/パイプライン生成/バッファ生成/descriptor+同期可否を実測し、失敗時は既存の CPU 経路へフォールバックする。
 	(void)try_create_dx12_device_for_poc();
 	(void)try_compile_dx12_poc_shader_for_poc();
 	(void)try_create_dx12_command_objects_for_poc();
 	(void)try_create_dx12_compute_pipeline_for_poc();
 	(void)try_create_dx12_buffer_resources_for_poc();
+	(void)try_create_dx12_descriptor_and_sync_for_poc();
 
 	const auto idx = [width](int x, int y) -> size_t {
 		return static_cast<size_t>(y * width + x);
