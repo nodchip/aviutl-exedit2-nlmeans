@@ -16,6 +16,7 @@
 2. GPU 環境では `scripts/generate_gpu_coop_report.cmd` を実行する。
 3. GPU 環境では `scripts/check_gpu_coop_regression.cmd` と `scripts/check_gpu_coop_async_efficiency.cmd` を実行する。
 4. GPU 環境では `scripts/generate_dx11_dx12_quality_report.cmd` と `scripts/check_dx11_dx12_quality_threshold.cmd` を実行する。
+5. GPU 環境では `scripts/update_dx11_dx12_quality_history.cmd` を実行し、履歴 CSV を更新する。
 
 ## 成果物確認
 
@@ -23,6 +24,13 @@
 2. `aviutl2_sdk` が成果物に含まれていないことを確認する。
 3. シェーダー配布方針（外部 HLSL 同梱 + 実行時コンパイル）に沿っていることを確認する。
 4. 主要レポート（`gpu-coop-benchmark.md`, `dx12-poc-readiness.md`, `dx12-poc-benchmark.md`, `dx11-dx12-quality.md`）が最新であることを確認する。
+
+## DX11/DX12 判断基準
+
+1. 品質: `check_dx11_dx12_quality_threshold.cmd` が PASS（最大差分・平均差分が既定閾値以内）であること。
+2. 速度: `dx12-poc-benchmark.md` の compute path が DX11 実装比で 1.0 倍以上を継続して満たすこと（最低 3 回の計測履歴）。
+3. 安定性: `run_gtests.cmd` が連続 3 回 PASS し、GPU フォールバック関連テストに不安定要素がないこと。
+4. 運用: `dx11-dx12-quality-history.csv` に判断対象期間の履歴が残り、回帰傾向がないこと。
 
 ## タグと記録
 
