@@ -21,7 +21,7 @@
   - Task 3 CPU 再編（Naive/AVX2 のみ、GoogleTest 整備）
   - Task 7 GitHub 公開準備（CI、公開、運用ドキュメント）
 - 進行中:
-  - Task 4 GPU バックエンド再設計（DX11 実装 + DX12 PoC 比較/ベンチ拡張）
+  - Task 4 GPU バックエンド再設計（DX11 実装 + DX12 PoC 比較/ベンチ拡張 + 履歴CSV自動化）
   - Task 5 ExEdit2 UI 統合（モード選択とルーティングは実装済み、実機E2Eの継続検証が必要）
   - Task 6 亜種アルゴリズム実装（Fast/Temporal はCPU中心で実装、GPU 側最適化は継続）
 - 未完了の主要項目:
