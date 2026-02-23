@@ -171,3 +171,15 @@ TEST(Dx12PocProcessorTests, TryExecuteDx12DispatchIoRoundtripReturnsFalseWhenEnt
 {
 	EXPECT_FALSE(try_execute_dx12_dispatch_with_io_roundtrip_for_poc(load_library_fake, get_proc_missing, free_library_dummy));
 }
+
+TEST(Dx12PocProcessorTests, TryExecuteDx12FullFrameCopyReturnsFalseOnInvalidArguments)
+{
+	EXPECT_FALSE(try_execute_dx12_fullframe_copy_for_poc(nullptr, nullptr, 0, 0, load_library_fake, get_proc_missing, free_library_dummy));
+}
+
+TEST(Dx12PocProcessorTests, TryExecuteDx12FullFrameCopyReturnsFalseWhenDllIsMissing)
+{
+	std::uint32_t src[1] = { 1u };
+	std::uint32_t dst[1] = { 0u };
+	EXPECT_FALSE(try_execute_dx12_fullframe_copy_for_poc(src, dst, 1, 1, load_library_missing, get_proc_missing, free_library_dummy));
+}
