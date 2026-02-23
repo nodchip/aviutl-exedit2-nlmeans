@@ -37,3 +37,33 @@ TEST(Dx12PocProcessorTests, CopiesPixelsWhenEnabled)
 	EXPECT_TRUE(process_dx12_poc_single_frame(src.data(), dst.data(), 2, 2, true, probe));
 	EXPECT_EQ(dst, src);
 }
+
+TEST(Dx12PocProcessorTests, ComputePathReturnsFalseWhenPocIsNotEnabled)
+{
+	Dx12PocProbeResult probe = {};
+	probe.enabled = false;
+
+	std::uint32_t src[4] = { 1, 2, 3, 4 };
+	std::uint32_t dst[4] = {};
+	EXPECT_FALSE(process_dx12_poc_compute_path(src, dst, 2, 2, true, probe));
+}
+
+TEST(Dx12PocProcessorTests, ComputePathSmoothsPixelsWhenEnabled)
+{
+	Dx12PocProbeResult probe = {};
+	probe.enabled = true;
+
+	std::vector<std::uint32_t> src = {
+		0xFF000000u, 0xFFFFFFFFu, 0xFF000000u,
+		0xFFFFFFFFu, 0xFF000000u, 0xFFFFFFFFu,
+		0xFF000000u, 0xFFFFFFFFu, 0xFF000000u
+	};
+	std::vector<std::uint32_t> dst(src.size(), 0u);
+
+	ASSERT_TRUE(process_dx12_poc_compute_path(src.data(), dst.data(), 3, 3, true, probe));
+	EXPECT_NE(dst, src);
+	const std::uint32_t center = dst[4];
+	const std::uint32_t centerR = center & 0xffu;
+	EXPECT_GT(centerR, 0u);
+	EXPECT_LT(centerR, 255u);
+}
