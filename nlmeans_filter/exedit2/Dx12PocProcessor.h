@@ -1464,9 +1464,9 @@ inline bool try_execute_dx12_dispatch_with_io_roundtrip_for_poc(
 	return ok;
 }
 
-// DX12 PoC の前段としてフレーム全体の SRV/UAV 入出力 dispatch 可否を確認する。
-// 入力ピクセルをそのまま出力へコピーし、readback で回収できるかを検証する。
-inline bool try_execute_dx12_fullframe_copy_for_poc(
+// DX12 PoC の前段としてフレーム全体の SRV/UAV compute dispatch 可否を確認する。
+// 3x3 近傍平均の最小 compute を実行し、readback で期待値一致を検証する。
+inline bool try_execute_dx12_fullframe_compute_for_poc(
 	const std::uint32_t* inputPixels,
 	std::uint32_t* outputPixels,
 	int width,
@@ -1715,10 +1715,12 @@ inline bool try_execute_dx12_fullframe_copy_for_poc(
 		freeLibraryFn(d3d12Module);
 		return false;
 	}
-	reinterpret_cast<UINT*>(constantPtr)[0] = pixelCount;
+	reinterpret_cast<UINT*>(constantPtr)[0] = static_cast<UINT>(width);
+	reinterpret_cast<UINT*>(constantPtr)[1] = static_cast<UINT>(height);
+	reinterpret_cast<UINT*>(constantPtr)[2] = pixelCount;
 	D3D12_RANGE constantWritten = {};
 	constantWritten.Begin = 0;
-	constantWritten.End = sizeof(UINT);
+	constantWritten.End = sizeof(UINT) * 3u;
 	constantUpload->Unmap(0, &constantWritten);
 
 	const UINT descriptorSize = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
@@ -1819,13 +1821,37 @@ inline bool try_execute_dx12_fullframe_copy_for_poc(
 	static const char* shaderSource =
 		"StructuredBuffer<uint> inputData : register(t0);\n"
 		"RWStructuredBuffer<uint> outputData : register(u0);\n"
-		"cbuffer Constants : register(b0) { uint PixelCount; };\n"
+		"cbuffer Constants : register(b0) { uint Width; uint Height; uint PixelCount; uint Reserved; };\n"
+		"uint clamp_coord(int value, uint limit)\n"
+		"{\n"
+		"	return (uint)clamp(value, 0, (int)limit);\n"
+		"}\n"
 		"[numthreads(64,1,1)]\n"
 		"void main(uint3 tid : SV_DispatchThreadID)\n"
 		"{\n"
 		"	uint index = tid.x;\n"
 		"	if(index >= PixelCount) return;\n"
-		"	outputData[index] = inputData[index];\n"
+		"	uint x = index % Width;\n"
+		"	uint y = index / Width;\n"
+		"	uint sumR = 0;\n"
+		"	uint sumG = 0;\n"
+		"	uint sumB = 0;\n"
+		"	for(int dy = -1; dy <= 1; ++dy) {\n"
+		"		uint sy = clamp_coord((int)y + dy, Height - 1);\n"
+		"		for(int dx = -1; dx <= 1; ++dx) {\n"
+		"			uint sx = clamp_coord((int)x + dx, Width - 1);\n"
+		"			uint sample = inputData[sy * Width + sx];\n"
+		"			sumR += sample & 255u;\n"
+		"			sumG += (sample >> 8) & 255u;\n"
+		"			sumB += (sample >> 16) & 255u;\n"
+		"		}\n"
+		"	}\n"
+		"	uint center = inputData[index];\n"
+		"	uint a = (center >> 24) & 255u;\n"
+		"	uint r = (sumR / 9u) & 255u;\n"
+		"	uint g = (sumG / 9u) & 255u;\n"
+		"	uint b = (sumB / 9u) & 255u;\n"
+		"	outputData[index] = (a << 24) | (b << 16) | (g << 8) | r;\n"
 		"}\n";
 
 	ID3DBlob* shaderBlob = nullptr;
@@ -2011,7 +2037,40 @@ inline bool try_execute_dx12_fullframe_copy_for_poc(
 		void* mapped = nullptr;
 		if (SUCCEEDED(outputReadback->Map(0, &readRange, &mapped)) && mapped != nullptr) {
 			std::memcpy(outputPixels, mapped, static_cast<size_t>(byteSize));
-			ok = (std::memcmp(outputPixels, inputPixels, static_cast<size_t>(byteSize)) == 0);
+			ok = true;
+			const auto idx = [width](int x, int y) -> size_t {
+				return static_cast<size_t>(y * width + x);
+			};
+			const auto unpack = [](std::uint32_t p, int shift) -> int {
+				return static_cast<int>((p >> shift) & 0xffu);
+			};
+			for (int y = 0; ok && y < height; ++y) {
+				for (int x = 0; x < width; ++x) {
+					int sumR = 0;
+					int sumG = 0;
+					int sumB = 0;
+					for (int dy = -1; dy <= 1; ++dy) {
+						const int sy = std::clamp(y + dy, 0, height - 1);
+						for (int dx = -1; dx <= 1; ++dx) {
+							const int sx = std::clamp(x + dx, 0, width - 1);
+							const std::uint32_t sp = inputPixels[idx(sx, sy)];
+							sumR += unpack(sp, 0);
+							sumG += unpack(sp, 8);
+							sumB += unpack(sp, 16);
+						}
+					}
+					const std::uint32_t center = inputPixels[idx(x, y)];
+					const std::uint32_t a = (center >> 24) & 0xffu;
+					const std::uint32_t r = static_cast<std::uint32_t>(sumR / 9) & 0xffu;
+					const std::uint32_t g = static_cast<std::uint32_t>(sumG / 9) & 0xffu;
+					const std::uint32_t b = static_cast<std::uint32_t>(sumB / 9) & 0xffu;
+					const std::uint32_t expected = (a << 24) | (b << 16) | (g << 8) | r;
+					ok = (outputPixels[idx(x, y)] == expected);
+					if (!ok) {
+						break;
+					}
+				}
+			}
 			const D3D12_RANGE writeRange = {};
 			outputReadback->Unmap(0, &writeRange);
 		}
@@ -2037,7 +2096,7 @@ inline bool try_execute_dx12_fullframe_copy_for_poc(
 }
 
 // DX12 PoC の最小コンピュート相当処理。
-// 3x3 の近傍平均を取り、copy path よりも計算経路に近い出力を作る。
+// 3x3 の近傍平均を取り、GPU compute を優先し失敗時のみ CPU へフォールバックする。
 inline bool process_dx12_poc_compute_path(
 	const std::uint32_t* inputPixels,
 	std::uint32_t* outputPixels,
@@ -2063,7 +2122,7 @@ inline bool process_dx12_poc_compute_path(
 	(void)try_create_dx12_descriptor_and_sync_for_poc();
 	(void)try_execute_dx12_dispatch_roundtrip_for_poc();
 	(void)try_execute_dx12_dispatch_with_io_roundtrip_for_poc();
-	if (try_execute_dx12_fullframe_copy_for_poc(inputPixels, outputPixels, width, height)) {
+	if (try_execute_dx12_fullframe_compute_for_poc(inputPixels, outputPixels, width, height)) {
 		return true;
 	}
 
