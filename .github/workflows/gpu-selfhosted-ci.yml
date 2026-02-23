@@ -47,6 +47,10 @@ jobs:
         shell: cmd
         run: scripts\check_dx11_dx12_quality_threshold.cmd
 
+      - name: Update DX11 vs DX12 Quality History CSV
+        shell: cmd
+        run: scripts\update_dx11_dx12_quality_history.cmd
+
       - name: Build Release Win32
         shell: cmd
         run: >
@@ -91,3 +95,4 @@ jobs:
             docs/reports/dx12-poc-readiness.md
             docs/reports/dx12-poc-benchmark.md
             docs/reports/dx11-dx12-quality.md
+            docs/reports/dx11-dx12-quality-history.csv

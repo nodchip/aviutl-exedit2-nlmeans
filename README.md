@@ -184,6 +184,13 @@ $cmd='"C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Buil
 cmd.exe /c $cmd
 ```
 
+DX11 vs DX12 品質履歴 CSV 更新例:
+
+```powershell
+$cmd='"C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat" && .\scripts\update_dx11_dx12_quality_history.cmd'
+cmd.exe /c $cmd
+```
+
 ## 注意
 
 - 現在の GPU 実装は最適化途上です。

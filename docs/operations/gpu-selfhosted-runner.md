@@ -82,6 +82,17 @@ cmd.exe /c $cmd
 
 - `[check_dx11_dx12_quality_threshold] ok` が表示される
 
+DX11 vs DX12 品質履歴 CSV を更新する。
+
+```powershell
+$cmd='"C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat" && .\scripts\update_dx11_dx12_quality_history.cmd'
+cmd.exe /c $cmd
+```
+
+期待結果:
+
+- `docs/reports/dx11-dx12-quality-history.csv` が更新される
+
 補足:
 
 - 開発端末など GPU 非搭載環境で文法確認だけ行う場合は `ALLOW_NO_GPU=1` を付けて実行できる。

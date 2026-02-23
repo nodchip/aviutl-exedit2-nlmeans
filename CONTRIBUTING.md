@@ -73,6 +73,7 @@ cmd.exe /c $cmd
 - `scripts/generate_dx12_poc_benchmark.cmd` で `docs/reports/dx12-poc-benchmark.md` を生成できます。
 - `scripts/generate_dx11_dx12_quality_report.cmd` で `docs/reports/dx11-dx12-quality.md` を生成できます。
 - `scripts/check_dx11_dx12_quality_threshold.cmd` で DX11 vs DX12 比較のしきい値判定ができます。
+- `scripts/update_dx11_dx12_quality_history.cmd` で `docs/reports/dx11-dx12-quality-history.csv` を更新できます。
 
 ## Pull Request
 
@@ -94,4 +95,5 @@ cmd.exe /c $cmd
 - 同ワークフローでは `scripts/generate_dx12_poc_benchmark.cmd` で DX12 PoC ベンチレポートを生成します。
 - 同ワークフローでは `scripts/generate_dx11_dx12_quality_report.cmd` で DX11 vs DX12 の品質比較レポートを生成します。
 - 同ワークフローでは `scripts/check_dx11_dx12_quality_threshold.cmd` で品質しきい値を判定します。
+- 同ワークフローでは `scripts/update_dx11_dx12_quality_history.cmd` で品質履歴 CSV を更新します。
 - 運用手順は `docs/operations/gpu-selfhosted-runner.md` を参照してください。
