@@ -6,11 +6,11 @@
 
 | Mode | Mean Time (ms/frame) |
 |---|---:|
-| Single GPU Full Frame | 0.216 |
-| Coop PoC (2 tiles, sequential dispatch) | 0.604 |
-| Coop PoC (2 tiles, async dispatch) | 0.355 |
-| Coop PoC (2 tiles, async + single fallback) | 0.524 |
+| Single GPU Full Frame | 0.215 |
+| Coop PoC (2 tiles, sequential dispatch) | 0.555 |
+| Coop PoC (2 tiles, async dispatch) | 0.274 |
+| Coop PoC (2 tiles, async + single fallback) | 0.501 |
 
-- Relative (CoopSeq/Single): 2.798x
-- Relative (CoopAsync/Single): 1.645x
-- Relative (CoopAsyncFallback/Single): 2.428x
+- Relative (CoopSeq/Single): 2.579x
+- Relative (CoopAsync/Single): 1.272x
+- Relative (CoopAsyncFallback/Single): 2.326x
