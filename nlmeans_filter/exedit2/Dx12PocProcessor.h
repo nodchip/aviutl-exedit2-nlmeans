@@ -602,8 +602,23 @@ inline bool try_execute_dx12_dispatch_roundtrip_for_poc(
 		return false;
 	}
 
-	HMODULE d3d12Module = loadLibraryFn(L"d3d12.dll");
-	HMODULE compilerModule = loadLibraryFn(L"d3dcompiler_47.dll");
+	const bool useCachedModules =
+		(loadLibraryFn == ::LoadLibraryW) &&
+		(getProcAddressFn == ::GetProcAddress) &&
+		(freeLibraryFn == ::FreeLibrary);
+	HMODULE d3d12Module = nullptr;
+	HMODULE compilerModule = nullptr;
+	if (useCachedModules) {
+		static HMODULE s_d3d12Module = ::LoadLibraryW(L"d3d12.dll");
+		static HMODULE s_compilerModule = ::LoadLibraryW(L"d3dcompiler_47.dll");
+		d3d12Module = s_d3d12Module;
+		compilerModule = s_compilerModule;
+		// 既定経路では DLL を保持し、毎フレームのロード/解放を避ける。
+		freeLibraryFn = dx12_poc_noop_free_library;
+	} else {
+		d3d12Module = loadLibraryFn(L"d3d12.dll");
+		compilerModule = loadLibraryFn(L"d3dcompiler_47.dll");
+	}
 	if (d3d12Module == nullptr || compilerModule == nullptr) {
 		if (compilerModule != nullptr) {
 			freeLibraryFn(compilerModule);
@@ -642,14 +657,39 @@ inline bool try_execute_dx12_dispatch_roundtrip_for_poc(
 	}
 
 	ID3D12Device* device = nullptr;
-	if (FAILED(createDeviceFn(nullptr, D3D_FEATURE_LEVEL_11_0, __uuidof(ID3D12Device), reinterpret_cast<void**>(&device))) ||
-		device == nullptr) {
-		if (device != nullptr) {
-			device->Release();
+	if (useCachedModules) {
+		static ID3D12Device* s_cachedDevice = nullptr;
+		if (s_cachedDevice != nullptr) {
+			device = s_cachedDevice;
+			device->AddRef();
+		} else {
+			ID3D12Device* created = nullptr;
+			if (FAILED(createDeviceFn(
+					nullptr,
+					D3D_FEATURE_LEVEL_11_0,
+					__uuidof(ID3D12Device),
+					reinterpret_cast<void**>(&created))) || created == nullptr) {
+				if (created != nullptr) {
+					created->Release();
+				}
+				freeLibraryFn(compilerModule);
+				freeLibraryFn(d3d12Module);
+				return false;
+			}
+			s_cachedDevice = created;
+			s_cachedDevice->AddRef();
+			device = created;
 		}
-		freeLibraryFn(compilerModule);
-		freeLibraryFn(d3d12Module);
-		return false;
+	} else {
+		if (FAILED(createDeviceFn(nullptr, D3D_FEATURE_LEVEL_11_0, __uuidof(ID3D12Device), reinterpret_cast<void**>(&device))) ||
+			device == nullptr) {
+			if (device != nullptr) {
+				device->Release();
+			}
+			freeLibraryFn(compilerModule);
+			freeLibraryFn(d3d12Module);
+			return false;
+		}
 	}
 
 	D3D12_COMMAND_QUEUE_DESC queueDesc = {};
