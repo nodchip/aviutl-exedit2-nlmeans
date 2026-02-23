@@ -39,8 +39,11 @@ int main()
 
 	Dx12PocProbeResult probe = {};
 	probe.enabled = true;
-	const double ms = benchmark_ms([&]() {
+	const double copyMs = benchmark_ms([&]() {
 		return process_dx12_poc_single_frame(src.data(), dst.data(), width, height, true, probe);
+	}, iterations);
+	const double computeMs = benchmark_ms([&]() {
+		return process_dx12_poc_compute_path(src.data(), dst.data(), width, height, true, probe);
 	}, iterations);
 
 	std::cout << "# DX12 PoC Benchmark\n\n";
@@ -49,6 +52,7 @@ int main()
 	std::cout << "| Mode | Mean Time (ms/frame) |\n";
 	std::cout << "|---|---:|\n";
 	std::cout << std::fixed << std::setprecision(3);
-	std::cout << "| DX12 PoC Single Frame (copy path) | " << ms << " |\n";
+	std::cout << "| DX12 PoC Single Frame (copy path) | " << copyMs << " |\n";
+	std::cout << "| DX12 PoC Single Frame (compute path) | " << computeMs << " |\n";
 	return 0;
 }
