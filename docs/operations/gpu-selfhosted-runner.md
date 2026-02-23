@@ -60,6 +60,17 @@ cmd.exe /c $cmd
 
 - `docs/reports/dx12-poc-benchmark.md` が生成される
 
+DX12 PoC ベンチ履歴 CSV を更新する。
+
+```powershell
+$cmd='"C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat" && .\scripts\update_dx12_poc_benchmark_history.cmd'
+cmd.exe /c $cmd
+```
+
+期待結果:
+
+- `docs/reports/dx12-poc-benchmark-history.csv` が更新される
+
 DX11 vs DX12 品質比較レポートを生成する。
 
 ```powershell

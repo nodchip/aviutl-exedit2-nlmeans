@@ -170,6 +170,13 @@ $cmd='"C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Buil
 cmd.exe /c $cmd
 ```
 
+DX12 PoC ベンチ履歴 CSV 更新例:
+
+```powershell
+$cmd='"C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat" && .\scripts\update_dx12_poc_benchmark_history.cmd'
+cmd.exe /c $cmd
+```
+
 DX11 vs DX12 品質比較レポート生成例:
 
 ```powershell

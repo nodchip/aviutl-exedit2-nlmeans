@@ -17,6 +17,7 @@
 3. GPU 環境では `scripts/check_gpu_coop_regression.cmd` と `scripts/check_gpu_coop_async_efficiency.cmd` を実行する。
 4. GPU 環境では `scripts/generate_dx11_dx12_quality_report.cmd` と `scripts/check_dx11_dx12_quality_threshold.cmd` を実行する。
 5. GPU 環境では `scripts/update_dx11_dx12_quality_history.cmd` を実行し、履歴 CSV を更新する。
+6. GPU 環境では `scripts/update_dx12_poc_benchmark_history.cmd` を実行し、DX12 PoC ベンチ履歴 CSV を更新する。
 
 ## 成果物確認
 
@@ -28,7 +29,7 @@
 ## DX11/DX12 判断基準
 
 1. 品質: `check_dx11_dx12_quality_threshold.cmd` が PASS（最大差分・平均差分が既定閾値以内）であること。
-2. 速度: `dx12-poc-benchmark.md` の compute path が DX11 実装比で 1.0 倍以上を継続して満たすこと（最低 3 回の計測履歴）。
+2. 速度: `dx12-poc-benchmark-history.csv` で compute path の計測を最低 3 回蓄積し、DX11 実装比で 1.0 倍以上を継続して満たすこと。
 3. 安定性: `run_gtests.cmd` が連続 3 回 PASS し、GPU フォールバック関連テストに不安定要素がないこと。
 4. 運用: `dx11-dx12-quality-history.csv` に判断対象期間の履歴が残り、回帰傾向がないこと。
 
