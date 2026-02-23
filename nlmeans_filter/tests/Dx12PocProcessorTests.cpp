@@ -151,3 +151,13 @@ TEST(Dx12PocProcessorTests, TryCreateDx12DescriptorAndSyncReturnsFalseWhenEntryI
 {
 	EXPECT_FALSE(try_create_dx12_descriptor_and_sync_for_poc(load_library_fake, get_proc_missing, free_library_dummy));
 }
+
+TEST(Dx12PocProcessorTests, TryExecuteDx12DispatchRoundtripReturnsFalseWhenDllIsMissing)
+{
+	EXPECT_FALSE(try_execute_dx12_dispatch_roundtrip_for_poc(load_library_missing, get_proc_missing, free_library_dummy));
+}
+
+TEST(Dx12PocProcessorTests, TryExecuteDx12DispatchRoundtripReturnsFalseWhenEntryIsMissing)
+{
+	EXPECT_FALSE(try_execute_dx12_dispatch_roundtrip_for_poc(load_library_fake, get_proc_missing, free_library_dummy));
+}

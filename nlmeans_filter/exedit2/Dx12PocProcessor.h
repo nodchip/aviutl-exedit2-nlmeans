@@ -567,6 +567,413 @@ inline bool try_create_dx12_descriptor_and_sync_for_poc(
 	return ok;
 }
 
+// DX12 PoC の最小 dispatch + readback 実行を確認する。
+// compute shader で 1 要素を書き込み、readback で値を検証する。
+inline bool try_execute_dx12_dispatch_roundtrip_for_poc(
+	Dx12LoadLibraryFn loadLibraryFn = ::LoadLibraryW,
+	Dx12GetProcAddressFn getProcAddressFn = ::GetProcAddress,
+	Dx12FreeLibraryFn freeLibraryFn = ::FreeLibrary)
+{
+	if (loadLibraryFn == nullptr || getProcAddressFn == nullptr || freeLibraryFn == nullptr) {
+		return false;
+	}
+
+	HMODULE d3d12Module = loadLibraryFn(L"d3d12.dll");
+	HMODULE compilerModule = loadLibraryFn(L"d3dcompiler_47.dll");
+	if (d3d12Module == nullptr || compilerModule == nullptr) {
+		if (compilerModule != nullptr) {
+			freeLibraryFn(compilerModule);
+		}
+		if (d3d12Module != nullptr) {
+			freeLibraryFn(d3d12Module);
+		}
+		return false;
+	}
+
+	using Dx12CreateDeviceFn = HRESULT(WINAPI*)(IUnknown*, D3D_FEATURE_LEVEL, REFIID, void**);
+	using Dx12SerializeRootSignatureFn = HRESULT(WINAPI*)(const D3D12_ROOT_SIGNATURE_DESC*, D3D_ROOT_SIGNATURE_VERSION, ID3DBlob**, ID3DBlob**);
+	using D3DCompileFn = HRESULT(WINAPI*)(
+		LPCVOID,
+		SIZE_T,
+		LPCSTR,
+		const D3D_SHADER_MACRO*,
+		ID3DInclude*,
+		LPCSTR,
+		LPCSTR,
+		UINT,
+		UINT,
+		ID3DBlob**,
+		ID3DBlob**);
+
+	const Dx12CreateDeviceFn createDeviceFn =
+		reinterpret_cast<Dx12CreateDeviceFn>(getProcAddressFn(d3d12Module, "D3D12CreateDevice"));
+	const Dx12SerializeRootSignatureFn serializeRootSignatureFn =
+		reinterpret_cast<Dx12SerializeRootSignatureFn>(getProcAddressFn(d3d12Module, "D3D12SerializeRootSignature"));
+	const D3DCompileFn compileFn =
+		reinterpret_cast<D3DCompileFn>(getProcAddressFn(compilerModule, "D3DCompile"));
+	if (createDeviceFn == nullptr || serializeRootSignatureFn == nullptr || compileFn == nullptr) {
+		freeLibraryFn(compilerModule);
+		freeLibraryFn(d3d12Module);
+		return false;
+	}
+
+	ID3D12Device* device = nullptr;
+	if (FAILED(createDeviceFn(nullptr, D3D_FEATURE_LEVEL_11_0, __uuidof(ID3D12Device), reinterpret_cast<void**>(&device))) ||
+		device == nullptr) {
+		if (device != nullptr) {
+			device->Release();
+		}
+		freeLibraryFn(compilerModule);
+		freeLibraryFn(d3d12Module);
+		return false;
+	}
+
+	D3D12_COMMAND_QUEUE_DESC queueDesc = {};
+	queueDesc.Type = D3D12_COMMAND_LIST_TYPE_COMPUTE;
+	ID3D12CommandQueue* queue = nullptr;
+	ID3D12CommandAllocator* allocator = nullptr;
+	ID3D12GraphicsCommandList* commandList = nullptr;
+	if (FAILED(device->CreateCommandQueue(&queueDesc, __uuidof(ID3D12CommandQueue), reinterpret_cast<void**>(&queue))) ||
+		FAILED(device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_COMPUTE, __uuidof(ID3D12CommandAllocator), reinterpret_cast<void**>(&allocator))) ||
+		FAILED(device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_COMPUTE, allocator, nullptr, __uuidof(ID3D12GraphicsCommandList), reinterpret_cast<void**>(&commandList))) ||
+		queue == nullptr || allocator == nullptr || commandList == nullptr) {
+		if (commandList != nullptr) {
+			commandList->Release();
+		}
+		if (allocator != nullptr) {
+			allocator->Release();
+		}
+		if (queue != nullptr) {
+			queue->Release();
+		}
+		device->Release();
+		freeLibraryFn(compilerModule);
+		freeLibraryFn(d3d12Module);
+		return false;
+	}
+
+	D3D12_DESCRIPTOR_HEAP_DESC heapDesc = {};
+	heapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+	heapDesc.NumDescriptors = 1;
+	heapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+	ID3D12DescriptorHeap* descriptorHeap = nullptr;
+	if (FAILED(device->CreateDescriptorHeap(&heapDesc, __uuidof(ID3D12DescriptorHeap), reinterpret_cast<void**>(&descriptorHeap))) ||
+		descriptorHeap == nullptr) {
+		commandList->Release();
+		allocator->Release();
+		queue->Release();
+		device->Release();
+		freeLibraryFn(compilerModule);
+		freeLibraryFn(d3d12Module);
+		return false;
+	}
+
+	const UINT64 byteSize = sizeof(std::uint32_t);
+	D3D12_RESOURCE_DESC defaultDesc = {};
+	defaultDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+	defaultDesc.Width = byteSize;
+	defaultDesc.Height = 1;
+	defaultDesc.DepthOrArraySize = 1;
+	defaultDesc.MipLevels = 1;
+	defaultDesc.Format = DXGI_FORMAT_UNKNOWN;
+	defaultDesc.SampleDesc.Count = 1;
+	defaultDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+	defaultDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
+
+	D3D12_RESOURCE_DESC readbackDesc = defaultDesc;
+	readbackDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
+
+	D3D12_HEAP_PROPERTIES defaultHeap = {};
+	defaultHeap.Type = D3D12_HEAP_TYPE_DEFAULT;
+	defaultHeap.CreationNodeMask = 1;
+	defaultHeap.VisibleNodeMask = 1;
+
+	D3D12_HEAP_PROPERTIES readbackHeap = {};
+	readbackHeap.Type = D3D12_HEAP_TYPE_READBACK;
+	readbackHeap.CreationNodeMask = 1;
+	readbackHeap.VisibleNodeMask = 1;
+
+	ID3D12Resource* outputBuffer = nullptr;
+	ID3D12Resource* readbackBuffer = nullptr;
+	if (FAILED(device->CreateCommittedResource(
+			&defaultHeap,
+			D3D12_HEAP_FLAG_NONE,
+			&defaultDesc,
+			D3D12_RESOURCE_STATE_COMMON,
+			nullptr,
+			__uuidof(ID3D12Resource),
+			reinterpret_cast<void**>(&outputBuffer))) ||
+		FAILED(device->CreateCommittedResource(
+			&readbackHeap,
+			D3D12_HEAP_FLAG_NONE,
+			&readbackDesc,
+			D3D12_RESOURCE_STATE_COPY_DEST,
+			nullptr,
+			__uuidof(ID3D12Resource),
+			reinterpret_cast<void**>(&readbackBuffer))) ||
+		outputBuffer == nullptr || readbackBuffer == nullptr) {
+		if (readbackBuffer != nullptr) {
+			readbackBuffer->Release();
+		}
+		if (outputBuffer != nullptr) {
+			outputBuffer->Release();
+		}
+		descriptorHeap->Release();
+		commandList->Release();
+		allocator->Release();
+		queue->Release();
+		device->Release();
+		freeLibraryFn(compilerModule);
+		freeLibraryFn(d3d12Module);
+		return false;
+	}
+
+	D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
+	uavDesc.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
+	uavDesc.Format = DXGI_FORMAT_UNKNOWN;
+	uavDesc.Buffer.FirstElement = 0;
+	uavDesc.Buffer.NumElements = 1;
+	uavDesc.Buffer.StructureByteStride = sizeof(std::uint32_t);
+	uavDesc.Buffer.CounterOffsetInBytes = 0;
+	uavDesc.Buffer.Flags = D3D12_BUFFER_UAV_FLAG_NONE;
+	device->CreateUnorderedAccessView(outputBuffer, nullptr, &uavDesc, descriptorHeap->GetCPUDescriptorHandleForHeapStart());
+
+	D3D12_DESCRIPTOR_RANGE range = {};
+	range.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_UAV;
+	range.NumDescriptors = 1;
+	range.BaseShaderRegister = 0;
+	range.RegisterSpace = 0;
+	range.OffsetInDescriptorsFromTableStart = 0;
+
+	D3D12_ROOT_PARAMETER rootParam = {};
+	rootParam.ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+	rootParam.DescriptorTable.NumDescriptorRanges = 1;
+	rootParam.DescriptorTable.pDescriptorRanges = &range;
+	rootParam.ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+
+	D3D12_ROOT_SIGNATURE_DESC rootDesc = {};
+	rootDesc.NumParameters = 1;
+	rootDesc.pParameters = &rootParam;
+	rootDesc.NumStaticSamplers = 0;
+	rootDesc.pStaticSamplers = nullptr;
+	rootDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_NONE;
+
+	ID3DBlob* rootSigBlob = nullptr;
+	ID3DBlob* rootSigErr = nullptr;
+	ID3D12RootSignature* rootSignature = nullptr;
+	if (FAILED(serializeRootSignatureFn(&rootDesc, D3D_ROOT_SIGNATURE_VERSION_1, &rootSigBlob, &rootSigErr)) ||
+		rootSigBlob == nullptr ||
+		FAILED(device->CreateRootSignature(
+			0,
+			rootSigBlob->GetBufferPointer(),
+			rootSigBlob->GetBufferSize(),
+			__uuidof(ID3D12RootSignature),
+			reinterpret_cast<void**>(&rootSignature))) ||
+		rootSignature == nullptr) {
+		if (rootSigErr != nullptr) {
+			rootSigErr->Release();
+		}
+		if (rootSigBlob != nullptr) {
+			rootSigBlob->Release();
+		}
+		if (rootSignature != nullptr) {
+			rootSignature->Release();
+		}
+		readbackBuffer->Release();
+		outputBuffer->Release();
+		descriptorHeap->Release();
+		commandList->Release();
+		allocator->Release();
+		queue->Release();
+		device->Release();
+		freeLibraryFn(compilerModule);
+		freeLibraryFn(d3d12Module);
+		return false;
+	}
+	if (rootSigErr != nullptr) {
+		rootSigErr->Release();
+	}
+	rootSigBlob->Release();
+
+	static const char* shaderSource =
+		"RWStructuredBuffer<uint> outputData : register(u0);\n"
+		"[numthreads(1,1,1)]\n"
+		"void main(uint3 tid : SV_DispatchThreadID)\n"
+		"{\n"
+		"	(void)tid;\n"
+		"	outputData[0] = 123u;\n"
+		"}\n";
+
+	ID3DBlob* shaderBlob = nullptr;
+	ID3DBlob* shaderErr = nullptr;
+	if (FAILED(compileFn(
+			shaderSource,
+			std::strlen(shaderSource),
+			"Dx12PocRoundtrip.hlsl",
+			nullptr,
+			nullptr,
+			"main",
+			"cs_5_0",
+			0,
+			0,
+			&shaderBlob,
+			&shaderErr)) || shaderBlob == nullptr) {
+		if (shaderErr != nullptr) {
+			shaderErr->Release();
+		}
+		if (shaderBlob != nullptr) {
+			shaderBlob->Release();
+		}
+		rootSignature->Release();
+		readbackBuffer->Release();
+		outputBuffer->Release();
+		descriptorHeap->Release();
+		commandList->Release();
+		allocator->Release();
+		queue->Release();
+		device->Release();
+		freeLibraryFn(compilerModule);
+		freeLibraryFn(d3d12Module);
+		return false;
+	}
+	if (shaderErr != nullptr) {
+		shaderErr->Release();
+	}
+
+	D3D12_COMPUTE_PIPELINE_STATE_DESC psoDesc = {};
+	psoDesc.pRootSignature = rootSignature;
+	psoDesc.CS.pShaderBytecode = shaderBlob->GetBufferPointer();
+	psoDesc.CS.BytecodeLength = shaderBlob->GetBufferSize();
+	ID3D12PipelineState* pipelineState = nullptr;
+	if (FAILED(device->CreateComputePipelineState(
+			&psoDesc,
+			__uuidof(ID3D12PipelineState),
+			reinterpret_cast<void**>(&pipelineState))) || pipelineState == nullptr) {
+		shaderBlob->Release();
+		rootSignature->Release();
+		readbackBuffer->Release();
+		outputBuffer->Release();
+		descriptorHeap->Release();
+		commandList->Release();
+		allocator->Release();
+		queue->Release();
+		device->Release();
+		freeLibraryFn(compilerModule);
+		freeLibraryFn(d3d12Module);
+		return false;
+	}
+
+	D3D12_RESOURCE_BARRIER toUav = {};
+	toUav.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+	toUav.Transition.pResource = outputBuffer;
+	toUav.Transition.StateBefore = D3D12_RESOURCE_STATE_COMMON;
+	toUav.Transition.StateAfter = D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
+	toUav.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+	commandList->ResourceBarrier(1, &toUav);
+
+	ID3D12DescriptorHeap* heaps[] = { descriptorHeap };
+	commandList->SetDescriptorHeaps(1, heaps);
+	commandList->SetComputeRootSignature(rootSignature);
+	commandList->SetPipelineState(pipelineState);
+	commandList->SetComputeRootDescriptorTable(0, descriptorHeap->GetGPUDescriptorHandleForHeapStart());
+	commandList->Dispatch(1, 1, 1);
+
+	D3D12_RESOURCE_BARRIER toCopy = {};
+	toCopy.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+	toCopy.Transition.pResource = outputBuffer;
+	toCopy.Transition.StateBefore = D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
+	toCopy.Transition.StateAfter = D3D12_RESOURCE_STATE_COPY_SOURCE;
+	toCopy.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+	commandList->ResourceBarrier(1, &toCopy);
+	commandList->CopyBufferRegion(readbackBuffer, 0, outputBuffer, 0, sizeof(std::uint32_t));
+
+	if (FAILED(commandList->Close())) {
+		pipelineState->Release();
+		shaderBlob->Release();
+		rootSignature->Release();
+		readbackBuffer->Release();
+		outputBuffer->Release();
+		descriptorHeap->Release();
+		commandList->Release();
+		allocator->Release();
+		queue->Release();
+		device->Release();
+		freeLibraryFn(compilerModule);
+		freeLibraryFn(d3d12Module);
+		return false;
+	}
+
+	ID3D12CommandList* lists[] = { commandList };
+	queue->ExecuteCommandLists(1, lists);
+
+	ID3D12Fence* fence = nullptr;
+	if (FAILED(device->CreateFence(0, D3D12_FENCE_FLAG_NONE, __uuidof(ID3D12Fence), reinterpret_cast<void**>(&fence))) ||
+		fence == nullptr ||
+		FAILED(queue->Signal(fence, 1))) {
+		if (fence != nullptr) {
+			fence->Release();
+		}
+		pipelineState->Release();
+		shaderBlob->Release();
+		rootSignature->Release();
+		readbackBuffer->Release();
+		outputBuffer->Release();
+		descriptorHeap->Release();
+		commandList->Release();
+		allocator->Release();
+		queue->Release();
+		device->Release();
+		freeLibraryFn(compilerModule);
+		freeLibraryFn(d3d12Module);
+		return false;
+	}
+
+	bool waited = true;
+	HANDLE eventHandle = nullptr;
+	if (fence->GetCompletedValue() < 1) {
+		eventHandle = ::CreateEventW(nullptr, FALSE, FALSE, nullptr);
+		if (eventHandle == nullptr) {
+			waited = false;
+		} else if (FAILED(fence->SetEventOnCompletion(1, eventHandle))) {
+			waited = false;
+		} else if (::WaitForSingleObject(eventHandle, 3000) != WAIT_OBJECT_0) {
+			waited = false;
+		}
+	}
+	if (eventHandle != nullptr) {
+		::CloseHandle(eventHandle);
+	}
+
+	bool ok = false;
+	if (waited) {
+		D3D12_RANGE readRange = {};
+		readRange.Begin = 0;
+		readRange.End = sizeof(std::uint32_t);
+		void* mapped = nullptr;
+		if (SUCCEEDED(readbackBuffer->Map(0, &readRange, &mapped)) && mapped != nullptr) {
+			const std::uint32_t value = *reinterpret_cast<const std::uint32_t*>(mapped);
+			ok = (value == 123u);
+			const D3D12_RANGE writeRange = {};
+			readbackBuffer->Unmap(0, &writeRange);
+		}
+	}
+
+	fence->Release();
+	pipelineState->Release();
+	shaderBlob->Release();
+	rootSignature->Release();
+	readbackBuffer->Release();
+	outputBuffer->Release();
+	descriptorHeap->Release();
+	commandList->Release();
+	allocator->Release();
+	queue->Release();
+	device->Release();
+	freeLibraryFn(compilerModule);
+	freeLibraryFn(d3d12Module);
+	return ok;
+}
+
 // DX12 PoC の最小コンピュート相当処理。
 // 3x3 の近傍平均を取り、copy path よりも計算経路に近い出力を作る。
 inline bool process_dx12_poc_compute_path(
@@ -585,13 +992,14 @@ inline bool process_dx12_poc_compute_path(
 	}
 
 	// TODO: D3D12 compute 実行本体は次段で実装する。
-	// 先にデバイス初期化/シェーダーコンパイル/コマンド生成/パイプライン生成/バッファ生成/descriptor+同期可否を実測し、失敗時は既存の CPU 経路へフォールバックする。
+	// 先にデバイス初期化/シェーダーコンパイル/コマンド生成/パイプライン生成/バッファ生成/descriptor+同期/最小dispatch往復可否を実測し、失敗時は既存の CPU 経路へフォールバックする。
 	(void)try_create_dx12_device_for_poc();
 	(void)try_compile_dx12_poc_shader_for_poc();
 	(void)try_create_dx12_command_objects_for_poc();
 	(void)try_create_dx12_compute_pipeline_for_poc();
 	(void)try_create_dx12_buffer_resources_for_poc();
 	(void)try_create_dx12_descriptor_and_sync_for_poc();
+	(void)try_execute_dx12_dispatch_roundtrip_for_poc();
 
 	const auto idx = [width](int x, int y) -> size_t {
 		return static_cast<size_t>(y * width + x);
