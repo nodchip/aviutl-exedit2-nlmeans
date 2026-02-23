@@ -15,6 +15,7 @@
 1. `vcvars64.bat` 初期化後に `scripts/run_gtests.cmd` を実行し、全件 PASS を確認する。
 2. GPU 環境では `scripts/generate_gpu_coop_report.cmd` を実行する。
 3. GPU 環境では `scripts/check_gpu_coop_regression.cmd` と `scripts/check_gpu_coop_async_efficiency.cmd` を実行する。
+4. GPU 環境では `scripts/generate_dx11_dx12_quality_report.cmd` と `scripts/check_dx11_dx12_quality_threshold.cmd` を実行する。
 
 ## 成果物確認
 
