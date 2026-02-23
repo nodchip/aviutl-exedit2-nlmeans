@@ -131,3 +131,13 @@ TEST(Dx12PocProcessorTests, TryCreateDx12ComputePipelineReturnsFalseWhenEntryIsM
 {
 	EXPECT_FALSE(try_create_dx12_compute_pipeline_for_poc(load_library_fake, get_proc_missing, free_library_dummy));
 }
+
+TEST(Dx12PocProcessorTests, TryCreateDx12BufferResourcesReturnsFalseWhenDllIsMissing)
+{
+	EXPECT_FALSE(try_create_dx12_buffer_resources_for_poc(load_library_missing, get_proc_missing, free_library_dummy));
+}
+
+TEST(Dx12PocProcessorTests, TryCreateDx12BufferResourcesReturnsFalseWhenEntryIsMissing)
+{
+	EXPECT_FALSE(try_create_dx12_buffer_resources_for_poc(load_library_fake, get_proc_missing, free_library_dummy));
+}

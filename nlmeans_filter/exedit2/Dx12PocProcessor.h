@@ -378,6 +378,125 @@ inline bool try_create_dx12_compute_pipeline_for_poc(
 	return ok;
 }
 
+// DX12 PoC の前段として入出力バッファ（default/upload/readback）生成可否を確認する。
+// dispatch 前に必要となる最低限のリソース確保可否を検証する。
+inline bool try_create_dx12_buffer_resources_for_poc(
+	Dx12LoadLibraryFn loadLibraryFn = ::LoadLibraryW,
+	Dx12GetProcAddressFn getProcAddressFn = ::GetProcAddress,
+	Dx12FreeLibraryFn freeLibraryFn = ::FreeLibrary)
+{
+	if (loadLibraryFn == nullptr || getProcAddressFn == nullptr || freeLibraryFn == nullptr) {
+		return false;
+	}
+
+	HMODULE d3d12Module = loadLibraryFn(L"d3d12.dll");
+	if (d3d12Module == nullptr) {
+		return false;
+	}
+
+	using Dx12CreateDeviceFn = HRESULT(WINAPI*)(IUnknown*, D3D_FEATURE_LEVEL, REFIID, void**);
+	const Dx12CreateDeviceFn createDeviceFn =
+		reinterpret_cast<Dx12CreateDeviceFn>(getProcAddressFn(d3d12Module, "D3D12CreateDevice"));
+	if (createDeviceFn == nullptr) {
+		freeLibraryFn(d3d12Module);
+		return false;
+	}
+
+	ID3D12Device* device = nullptr;
+	const HRESULT createDeviceHr = createDeviceFn(
+		nullptr,
+		D3D_FEATURE_LEVEL_11_0,
+		__uuidof(ID3D12Device),
+		reinterpret_cast<void**>(&device));
+	if (FAILED(createDeviceHr) || device == nullptr) {
+		if (device != nullptr) {
+			device->Release();
+		}
+		freeLibraryFn(d3d12Module);
+		return false;
+	}
+
+	const UINT64 byteSize = 256;
+	D3D12_RESOURCE_DESC desc = {};
+	desc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+	desc.Alignment = 0;
+	desc.Width = byteSize;
+	desc.Height = 1;
+	desc.DepthOrArraySize = 1;
+	desc.MipLevels = 1;
+	desc.Format = DXGI_FORMAT_UNKNOWN;
+	desc.SampleDesc.Count = 1;
+	desc.SampleDesc.Quality = 0;
+	desc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+	desc.Flags = D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
+
+	D3D12_HEAP_PROPERTIES defaultHeap = {};
+	defaultHeap.Type = D3D12_HEAP_TYPE_DEFAULT;
+	defaultHeap.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+	defaultHeap.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+	defaultHeap.CreationNodeMask = 1;
+	defaultHeap.VisibleNodeMask = 1;
+
+	D3D12_HEAP_PROPERTIES uploadHeap = {};
+	uploadHeap.Type = D3D12_HEAP_TYPE_UPLOAD;
+	uploadHeap.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+	uploadHeap.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+	uploadHeap.CreationNodeMask = 1;
+	uploadHeap.VisibleNodeMask = 1;
+
+	D3D12_HEAP_PROPERTIES readbackHeap = {};
+	readbackHeap.Type = D3D12_HEAP_TYPE_READBACK;
+	readbackHeap.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+	readbackHeap.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+	readbackHeap.CreationNodeMask = 1;
+	readbackHeap.VisibleNodeMask = 1;
+
+	ID3D12Resource* defaultBuffer = nullptr;
+	ID3D12Resource* uploadBuffer = nullptr;
+	ID3D12Resource* readbackBuffer = nullptr;
+	const HRESULT defaultHr = device->CreateCommittedResource(
+		&defaultHeap,
+		D3D12_HEAP_FLAG_NONE,
+		&desc,
+		D3D12_RESOURCE_STATE_COMMON,
+		nullptr,
+		__uuidof(ID3D12Resource),
+		reinterpret_cast<void**>(&defaultBuffer));
+
+	desc.Flags = D3D12_RESOURCE_FLAG_NONE;
+	const HRESULT uploadHr = device->CreateCommittedResource(
+		&uploadHeap,
+		D3D12_HEAP_FLAG_NONE,
+		&desc,
+		D3D12_RESOURCE_STATE_GENERIC_READ,
+		nullptr,
+		__uuidof(ID3D12Resource),
+		reinterpret_cast<void**>(&uploadBuffer));
+	const HRESULT readbackHr = device->CreateCommittedResource(
+		&readbackHeap,
+		D3D12_HEAP_FLAG_NONE,
+		&desc,
+		D3D12_RESOURCE_STATE_COPY_DEST,
+		nullptr,
+		__uuidof(ID3D12Resource),
+		reinterpret_cast<void**>(&readbackBuffer));
+
+	const bool ok = SUCCEEDED(defaultHr) && SUCCEEDED(uploadHr) && SUCCEEDED(readbackHr) &&
+		defaultBuffer != nullptr && uploadBuffer != nullptr && readbackBuffer != nullptr;
+	if (readbackBuffer != nullptr) {
+		readbackBuffer->Release();
+	}
+	if (uploadBuffer != nullptr) {
+		uploadBuffer->Release();
+	}
+	if (defaultBuffer != nullptr) {
+		defaultBuffer->Release();
+	}
+	device->Release();
+	freeLibraryFn(d3d12Module);
+	return ok;
+}
+
 // DX12 PoC の最小コンピュート相当処理。
 // 3x3 の近傍平均を取り、copy path よりも計算経路に近い出力を作る。
 inline bool process_dx12_poc_compute_path(
@@ -396,11 +515,12 @@ inline bool process_dx12_poc_compute_path(
 	}
 
 	// TODO: D3D12 compute 実行本体は次段で実装する。
-	// 先にデバイス初期化/シェーダーコンパイル/コマンド生成/パイプライン生成可否を実測し、失敗時は既存の CPU 経路へフォールバックする。
+	// 先にデバイス初期化/シェーダーコンパイル/コマンド生成/パイプライン生成/バッファ生成可否を実測し、失敗時は既存の CPU 経路へフォールバックする。
 	(void)try_create_dx12_device_for_poc();
 	(void)try_compile_dx12_poc_shader_for_poc();
 	(void)try_create_dx12_command_objects_for_poc();
 	(void)try_create_dx12_compute_pipeline_for_poc();
+	(void)try_create_dx12_buffer_resources_for_poc();
 
 	const auto idx = [width](int x, int y) -> size_t {
 		return static_cast<size_t>(y * width + x);
