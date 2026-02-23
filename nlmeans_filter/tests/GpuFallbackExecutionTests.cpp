@@ -59,3 +59,23 @@ TEST(GpuFallbackExecutionTests, MissingGpuHandlerReturnsFalse)
 		ExecutionMode::CpuNaive);
 	EXPECT_FALSE(ok);
 }
+
+TEST(GpuFallbackExecutionTests, MissingGpuRunnerReturnsFalse)
+{
+	const bool ok = execute_gpu_with_fallback(
+		[]() { return true; },
+		nullptr,
+		[](ExecutionMode) { return true; },
+		ExecutionMode::CpuNaive);
+	EXPECT_FALSE(ok);
+}
+
+TEST(GpuFallbackExecutionTests, MissingFallbackReturnsFalse)
+{
+	const bool ok = execute_gpu_with_fallback(
+		[]() { return true; },
+		[]() { return false; },
+		nullptr,
+		ExecutionMode::CpuAvx2);
+	EXPECT_FALSE(ok);
+}
