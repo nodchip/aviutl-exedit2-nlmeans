@@ -2121,16 +2121,19 @@ inline bool process_dx12_poc_compute_path(
 		return false;
 	}
 
-	// TODO: D3D12 compute 実行本体は次段で実装する。
-	// 先にデバイス初期化/シェーダーコンパイル/コマンド生成/パイプライン生成/バッファ生成/descriptor+同期/最小dispatch往復可否を実測し、失敗時は既存の CPU 経路へフォールバックする。
-	(void)try_create_dx12_device_for_poc();
-	(void)try_compile_dx12_poc_shader_for_poc();
-	(void)try_create_dx12_command_objects_for_poc();
-	(void)try_create_dx12_compute_pipeline_for_poc();
-	(void)try_create_dx12_buffer_resources_for_poc();
-	(void)try_create_dx12_descriptor_and_sync_for_poc();
-	(void)try_execute_dx12_dispatch_roundtrip_for_poc();
-	(void)try_execute_dx12_dispatch_with_io_roundtrip_for_poc();
+	// 初期化段の preflight は最初の 1 回だけ実行し、毎フレームのオーバーヘッドを避ける。
+	static bool dx12PreflightDone = false;
+	if (!dx12PreflightDone) {
+		(void)try_create_dx12_device_for_poc();
+		(void)try_compile_dx12_poc_shader_for_poc();
+		(void)try_create_dx12_command_objects_for_poc();
+		(void)try_create_dx12_compute_pipeline_for_poc();
+		(void)try_create_dx12_buffer_resources_for_poc();
+		(void)try_create_dx12_descriptor_and_sync_for_poc();
+		(void)try_execute_dx12_dispatch_roundtrip_for_poc();
+		(void)try_execute_dx12_dispatch_with_io_roundtrip_for_poc();
+		dx12PreflightDone = true;
+	}
 	if (try_execute_dx12_fullframe_compute_for_poc(inputPixels, outputPixels, width, height)) {
 		return true;
 	}
