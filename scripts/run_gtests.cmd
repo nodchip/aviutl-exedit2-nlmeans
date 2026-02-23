@@ -12,6 +12,7 @@ if exist nlmeans_filter\aviutl2_sdk\filter2.h (
     third_party\googletest\googletest\src\gtest_main.cc ^
     nlmeans_filter\tests\BackendSelectionTests.cpp ^
     nlmeans_filter\tests\Dx12PocBackendTests.cpp ^
+    nlmeans_filter\tests\Dx12PocProcessorTests.cpp ^
     nlmeans_filter\tests\ExecutionPolicyTests.cpp ^
     nlmeans_filter\tests\FastModeConfigTests.cpp ^
     nlmeans_filter\tests\FastNlmTests.cpp ^
@@ -51,6 +52,7 @@ if exist nlmeans_filter\aviutl2_sdk\filter2.h (
     third_party\googletest\googletest\src\gtest_main.cc ^
     nlmeans_filter\tests\BackendSelectionTests.cpp ^
     nlmeans_filter\tests\Dx12PocBackendTests.cpp ^
+    nlmeans_filter\tests\Dx12PocProcessorTests.cpp ^
     nlmeans_filter\tests\ExecutionPolicyTests.cpp ^
     nlmeans_filter\tests\FastModeConfigTests.cpp ^
     nlmeans_filter\tests\FastNlmTests.cpp ^
