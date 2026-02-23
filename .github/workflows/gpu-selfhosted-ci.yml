@@ -59,6 +59,10 @@ jobs:
         shell: cmd
         run: scripts\check_gpu_coop_regression.cmd
 
+      - name: Check GPU Coop Async Efficiency
+        shell: cmd
+        run: scripts\check_gpu_coop_async_efficiency.cmd
+
       - name: Upload GPU Reports
         uses: actions/upload-artifact@v4
         with:

@@ -68,6 +68,7 @@ cmd.exe /c $cmd
 - GitHub Actions CI では同レポートを artifact (`gpu-coop-benchmark`) として保存します。
 - `scripts/update_gpu_coop_history.cmd` で `docs/reports/gpu-coop-history.csv` に追記できます。
 - `scripts/check_gpu_coop_regression.cmd` で直近2件の履歴を比較し、しきい値悪化を検出できます。
+- `scripts/check_gpu_coop_async_efficiency.cmd` で `async dispatch` の性能が `sequential dispatch` 比で劣化していないか確認できます。
 
 ## Pull Request
 
@@ -84,4 +85,5 @@ cmd.exe /c $cmd
 - GPU 品質比較と協調ベンチを含む結果を artifact (`gpu-selfhosted-reports`) に保存します。
 - 同ワークフローでは `scripts/update_gpu_coop_history.cmd` を実行し、`gpu-coop-history.csv` も artifact に含めます。
 - 同ワークフローでは `scripts/check_gpu_coop_regression.cmd` で悪化監視を行います。
+- 同ワークフローでは `scripts/check_gpu_coop_async_efficiency.cmd` で async 効率も監視します。
 - 運用手順は `docs/operations/gpu-selfhosted-runner.md` を参照してください。

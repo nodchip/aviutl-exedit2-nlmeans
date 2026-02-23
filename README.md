@@ -71,6 +71,13 @@ $cmd='"C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Buil
 cmd.exe /c $cmd
 ```
 
+GPU 協調の async 効率チェック例:
+
+```powershell
+$cmd='"C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat" && .\scripts\check_gpu_coop_async_efficiency.cmd'
+cmd.exe /c $cmd
+```
+
 GPU self-hosted ランナー前提チェック例:
 
 ```powershell
