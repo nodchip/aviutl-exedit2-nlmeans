@@ -321,7 +321,10 @@ inline bool try_create_dx12_compute_pipeline_for_poc(
 		"[numthreads(1,1,1)]\n"
 		"void main(uint3 tid : SV_DispatchThreadID)\n"
 		"{\n"
-		"	(void)tid;\n"
+		"	uint keep = tid.x;\n"
+		"	if (keep == 0xffffffffu) {\n"
+		"		return;\n"
+		"	}\n"
 		"}\n";
 
 	ID3DBlob* shaderBlob = nullptr;
@@ -800,7 +803,10 @@ inline bool try_execute_dx12_dispatch_roundtrip_for_poc(
 		"[numthreads(1,1,1)]\n"
 		"void main(uint3 tid : SV_DispatchThreadID)\n"
 		"{\n"
-		"	(void)tid;\n"
+		"	uint keep = tid.x;\n"
+		"	if (keep == 0xffffffffu) {\n"
+		"		return;\n"
+		"	}\n"
 		"	outputData[0] = 123u;\n"
 		"}\n";
 
@@ -1263,7 +1269,10 @@ inline bool try_execute_dx12_dispatch_with_io_roundtrip_for_poc(
 		"[numthreads(1,1,1)]\n"
 		"void main(uint3 tid : SV_DispatchThreadID)\n"
 		"{\n"
-		"	(void)tid;\n"
+		"	uint keep = tid.x;\n"
+		"	if (keep == 0xffffffffu) {\n"
+		"		return;\n"
+		"	}\n"
 		"	outputData[0] = inputData[0] + 1u;\n"
 		"}\n";
 
