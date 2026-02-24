@@ -11,11 +11,11 @@ cbuffer Constants : register(b0)
     uint ReservedU0;
     uint ReservedU1;
     float InvSigma;
-    float TemporalDecay;
+    float TemporalWeightAtT0;
+    float TemporalWeightStep;
     float ReservedF0;
     float ReservedF1;
     float ReservedF2;
-    float ReservedF3;
 };
 
 StructuredBuffer<uint> InputPixels : register(t0);
@@ -91,11 +91,10 @@ void main(uint3 tid : SV_DispatchThreadID)
     float sumR = 0.0f;
     float sumG = 0.0f;
     float sumB = 0.0f;
+    float temporalWeight = TemporalWeightAtT0;
 
     for (uint t = 0; t < FrameCount; ++t)
     {
-        const int dt = abs((int)t - (int)CurrentFrameIndex);
-        const float temporalWeight = exp(-TemporalDecay * (float)dt);
         for (int dy = -((int)SearchRadius); dy <= (int)SearchRadius; dy += (int)SpatialStep)
         {
             const int sy = clampi(y + dy, 0, (int)Height - 1);
@@ -127,6 +126,7 @@ void main(uint3 tid : SV_DispatchThreadID)
                 sumB += w * sample.b;
             }
         }
+        temporalWeight *= TemporalWeightStep;
     }
 
     float3 outRgb = center;

@@ -62,11 +62,11 @@ private:
 		UINT reservedU0;
 		UINT reservedU1;
 		float invSigma;
-		float temporalDecay;
+		float temporalWeightAtT0;
+		float temporalWeightStep;
 		float reservedF0;
 		float reservedF1;
 		float reservedF2;
-		float reservedF3;
 	};
 
 	bool ensurePipeline();

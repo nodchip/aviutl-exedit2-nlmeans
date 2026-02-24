@@ -130,13 +130,20 @@ bool Exedit2GpuRunner::process(
 	const double sigma = std::max(0.001, sigmaValue);
 	const int clampedSpatialStep = std::max(1, spatialStep);
 	const float clampedTemporalDecay = static_cast<float>(std::max(0.0, temporalDecay));
+	const float currentFrameIndexF = static_cast<float>(std::max(0, frameCount - 1));
+	float temporalWeightAtT0 = 1.0f;
+	float temporalWeightStep = 1.0f;
+	if (clampedTemporalDecay > 0.0f) {
+		temporalWeightStep = std::exp(clampedTemporalDecay);
+		temporalWeightAtT0 = std::exp(-clampedTemporalDecay * currentFrameIndexF);
+	}
 	constants.invSigma = static_cast<float>(1.0 / sigma);
-	constants.temporalDecay = clampedTemporalDecay;
+	constants.temporalWeightAtT0 = temporalWeightAtT0;
+	constants.temporalWeightStep = temporalWeightStep;
 	constants.spatialStep = static_cast<UINT>(clampedSpatialStep);
 	constants.reservedF0 = 0.0f;
 	constants.reservedF1 = 0.0f;
 	constants.reservedF2 = 0.0f;
-	constants.reservedF3 = 0.0f;
 	if (FAILED(map_write_discard_buffer(context, constantBuffer, &constants, sizeof(constants)))) {
 		return false;
 	}
@@ -177,11 +184,11 @@ bool Exedit2GpuRunner::ensurePipeline()
 		"	uint ReservedU0;\n"
 		"	uint ReservedU1;\n"
 		"	float InvSigma;\n"
-		"	float TemporalDecay;\n"
+		"	float TemporalWeightAtT0;\n"
+		"	float TemporalWeightStep;\n"
 		"	float ReservedF0;\n"
 		"	float ReservedF1;\n"
 		"	float ReservedF2;\n"
-		"	float ReservedF3;\n"
 		"};\n"
 		"StructuredBuffer<uint> InputPixels : register(t0);\n"
 		"RWStructuredBuffer<uint> OutputPixels : register(u0);\n"
@@ -229,9 +236,8 @@ bool Exedit2GpuRunner::ensurePipeline()
 		"	float sumR = 0.0f;\n"
 		"	float sumG = 0.0f;\n"
 		"	float sumB = 0.0f;\n"
+		"	float temporalWeight = TemporalWeightAtT0;\n"
 		"	for (uint t = 0; t < FrameCount; ++t){\n"
-		"		const int dt = abs((int)t - (int)CurrentFrameIndex);\n"
-		"		const float temporalWeight = exp(-TemporalDecay * (float)dt);\n"
 		"		for (int dy = -((int)SearchRadius); dy <= (int)SearchRadius; dy += (int)SpatialStep){\n"
 		"			const int sy = clampi(y + dy, 0, (int)Height - 1);\n"
 		"			for (int dx = -((int)SearchRadius); dx <= (int)SearchRadius; dx += (int)SpatialStep){\n"
@@ -257,6 +263,7 @@ bool Exedit2GpuRunner::ensurePipeline()
 		"				sumB += w * sample.b;\n"
 		"			}\n"
 		"		}\n"
+		"		temporalWeight *= TemporalWeightStep;\n"
 		"	}\n"
 		"	float3 outRgb = center;\n"
 		"	if (sumW > 0.0f){\n"
