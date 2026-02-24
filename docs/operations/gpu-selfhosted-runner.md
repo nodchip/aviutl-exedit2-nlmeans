@@ -123,7 +123,7 @@ cmd.exe /c $cmd
 ## ワークフロー失敗時の確認順序
 
 1. `Check GPU Runner Prerequisites` のログで欠落要件を確認する。
-2. `Build Release Win32` の失敗時は `MSBuild.exe` と `filter2.h` の存在を再確認する。
+2. `Build Release x64` の失敗時は `MSBuild.exe` と `filter2.h` の存在を再確認する。
 3. `Run GoogleTest Suite` の失敗時はローカルで `scripts/run_gtests.cmd` を再実行する。
 4. `Check GPU Coop Regression Threshold` の失敗時は `docs/reports/gpu-coop-history.csv` の直近2行を確認する。
 5. `Check GPU Coop Async Efficiency` の失敗時は `docs/reports/gpu-coop-benchmark.md` の `sequential/async` 行を確認する。
