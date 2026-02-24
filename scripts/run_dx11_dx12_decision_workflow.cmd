@@ -32,6 +32,9 @@ if errorlevel 1 (
   echo [run_dx11_dx12_decision_workflow] exedit2 e2e gate is PASS.
 )
 
+call "%~dp0generate_exedit2_e2e_report.cmd" 30
+if errorlevel 1 exit /b 1
+
 call "%~dp0generate_dx11_dx12_decision_report.cmd"
 if errorlevel 1 exit /b 1
 

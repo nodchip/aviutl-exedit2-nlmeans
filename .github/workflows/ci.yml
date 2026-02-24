@@ -57,6 +57,12 @@ jobs:
           name: dx11-dx12-decision
           path: docs/reports/dx11-dx12-decision.md
 
+      - name: Upload ExEdit2 E2E Status Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: exedit2-e2e-status
+          path: docs/reports/exedit2-e2e-status.md
+
       - name: Run GPU Coop Decision Workflow
         shell: cmd
         run: scripts\run_gpu_coop_decision_workflow.cmd
