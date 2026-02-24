@@ -75,6 +75,21 @@ int main()
 		}
 
 		const VariantCase& variant = variants[i];
+		// 初回実行に含まれるシェーダー生成やバッファ確保のコストを除外する。
+		if (!runner.process(
+			frame.data(),
+			output.data(),
+			width,
+			height,
+			searchRadius,
+			timeRadius,
+			sigma,
+			variant.spatialStep,
+			variant.temporalDecay)) {
+			std::cerr << "Warmup failed at variant index " << i << std::endl;
+			return 1;
+		}
+
 		timings[i] = benchmark_ms([&]() {
 			return runner.process(
 				frame.data(),
@@ -100,6 +115,7 @@ int main()
 	std::cout << "- Search Radius: " << searchRadius << "\n";
 	std::cout << "- Time Radius: " << timeRadius << "\n";
 	std::cout << "- Iterations: " << iterations << "\n\n";
+	std::cout << "- Warmup: 1 run per variant\n\n";
 	std::cout << "| Variant | Spatial Step | Temporal Decay | Mean Time (ms/frame) | Relative to Baseline |\n";
 	std::cout << "|---|---:|---:|---:|---:|\n";
 	std::cout << std::fixed << std::setprecision(3);
