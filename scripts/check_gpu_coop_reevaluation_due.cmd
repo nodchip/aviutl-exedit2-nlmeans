@@ -1,6 +1,12 @@
 @echo off
 setlocal
 
+set "GPU_COOP_ADOPTION_POLICY=DISABLED"
+if /I "%GPU_COOP_ADOPTION_POLICY%"=="DISABLED" (
+  echo [check_gpu_coop_reevaluation_due] reevaluation is not scheduled because GPU coop adoption policy is DISABLED.
+  exit /b 0
+)
+
 set "REEVALUATION_DATE=2026-03-31"
 
 powershell -NoProfile -ExecutionPolicy Bypass -Command ^

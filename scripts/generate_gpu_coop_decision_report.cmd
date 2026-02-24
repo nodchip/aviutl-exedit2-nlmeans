@@ -28,9 +28,13 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command ^
   "$gate='%GATE_RESULT%';" ^
   "$e2eGate='%E2E_GATE_RESULT%';" ^
   "$target='%TARGET_PROFILE%';" ^
+  "$decision='NOT_ADOPTED';" ^
+  "$policy='Keep single-GPU as the default indefinitely. Multi-GPU coop remains non-adopted.';" ^
   "$fixedStart='2026-02-23';" ^
-  "$fixedEnd='2026-03-31';" ^
-  "$reevalDate='2026-03-31';" ^
+  "$fixedEnd='indefinite';" ^
+  "$reevalDate='none';" ^
+  "$reevalStatus='not scheduled (policy disabled)';" ^
+  "$reevalTriggers='explicit project decision is required to reopen GPU coop adoption review';" ^
   "$rows=@();" ^
   "if(Test-Path $historyPath){" ^
   "  foreach($line in Get-Content $historyPath){" ^
@@ -74,22 +78,17 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command ^
   "if($foundBench -and $single -gt 0 -and $seq -gt 0 -and $async -gt 0){" ^
   "  $benchSummary=('frame=' + $frame + ', single=' + $single.ToString('F3') + ', seq=' + $seq.ToString('F3') + ', async=' + $async.ToString('F3') + ', async_fallback=' + $fallback.ToString('F3'))" ^
   "}" ^
-  "$today=(Get-Date).Date;" ^
-  "$reeval=[datetime]::ParseExact($reevalDate,'yyyy-MM-dd',$null);" ^
-  "$days=[int]($reeval - $today).TotalDays;" ^
-  "$reevalStatus='due today';" ^
-  "if($days -gt 0){ $reevalStatus=('in ' + $days + ' days') }" ^
-  "if($days -lt 0){ $reevalStatus=('overdue by ' + (-1*$days) + ' days') }" ^
   "$lines=@();" ^
   "$lines += '# GPU Coop Adoption Decision Report';" ^
   "$lines += '';" ^
+  "$lines += '- decision: ' + $decision;" ^
+  "$lines += '- policy: ' + $policy;" ^
   "$lines += '- adoption_gate: ' + $gate;" ^
   "$lines += '- exedit2_e2e_gate: ' + $e2eGate;" ^
   "$lines += '- benchmark_profile: ' + $target;" ^
   "$lines += '- single_gpu_fixed_window: ' + $fixedStart + ' to ' + $fixedEnd;" ^
   "$lines += '- next_gpu_coop_reevaluation: ' + $reevalDate + ' (' + $reevalStatus + ')';" ^
-  "$lines += '- policy: keep single-GPU default until adoption_gate becomes PASS.';" ^
-  "$lines += '- adoption_triggers: last 3 history ratios <= 1.500, async/single <= 1.200, no regression check failure (target profile only).';" ^
+  "$lines += '- adoption_triggers: ' + $reevalTriggers;" ^
   "$lines += '- recent_ratio(3): ' + $recentSummary;" ^
   "$lines += '- latest_benchmark: ' + $benchSummary;" ^
   "$lines | Set-Content -Encoding utf8 $outPath;"

@@ -12,6 +12,7 @@ if (-not (Test-Path "docs/reports")) {
 $dx11Gate = "UNKNOWN"
 $dx11Decision = "UNKNOWN"
 $dx11Next = "N/A"
+$coopDecision = "UNKNOWN"
 $coopGate = "UNKNOWN"
 $coopNext = "N/A"
 $e2eGate = "UNKNOWN"
@@ -34,6 +35,9 @@ if (Test-Path $dx11Path) {
 
 if (Test-Path $coopPath) {
     foreach ($line in Get-Content $coopPath) {
+        if ($line -match "^- decision: (.+)$") {
+            $coopDecision = $Matches[1].Trim()
+        }
         if ($line -match "^- adoption_gate: (.+)$") {
             $coopGate = $Matches[1].Trim()
         }
@@ -64,7 +68,7 @@ if ($e2eGate -ne "PASS") {
 if ($dx11Decision -ne "NOT_ADOPTED" -and $dx11Gate -ne "PASS") {
     $remaining += "DX11/DX12 adoption gate is FAIL. Continue benchmark/quality monitoring and keep DX11 default until criteria are satisfied."
 }
-if ($coopGate -ne "PASS") {
+if ($coopDecision -ne "NOT_ADOPTED" -and $coopGate -ne "PASS") {
     $remaining += "GPU coop adoption gate is FAIL. Improve ratio and async/single metrics to satisfy thresholds."
 }
 $remaining += "Continue Task 6: optimize GPU side implementations for Fast/Temporal variants."
@@ -78,6 +82,7 @@ $lines += "- generated_on: $today"
 $lines += "- dx11_dx12_decision: $dx11Decision"
 $lines += "- dx11_dx12_adoption_gate: $dx11Gate"
 $lines += "- dx11_dx12_next_reevaluation: $dx11Next"
+$lines += "- gpu_coop_decision: $coopDecision"
 $lines += "- gpu_coop_adoption_gate: $coopGate"
 $lines += "- gpu_coop_next_reevaluation: $coopNext"
 $lines += "- exedit2_e2e_gate: $e2eGate"

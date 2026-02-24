@@ -1,6 +1,12 @@
 @echo off
 setlocal
 
+set "GPU_COOP_ADOPTION_POLICY=DISABLED"
+if /I "%GPU_COOP_ADOPTION_POLICY%"=="DISABLED" (
+  echo [check_gpu_coop_adoption_gate] policy is DISABLED. GPU coop adoption is not allowed.
+  exit /b 1
+)
+
 set "HISTORY=docs\reports\gpu-coop-history.csv"
 set "REPORT=docs\reports\gpu-coop-benchmark.md"
 set "MIN_SAMPLES=3"
