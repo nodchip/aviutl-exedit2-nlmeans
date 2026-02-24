@@ -1,6 +1,12 @@
 @echo off
 setlocal
 
+set "DX12_ADOPTION_POLICY=DISABLED"
+if /I "%DX12_ADOPTION_POLICY%"=="DISABLED" (
+  echo [check_dx11_dx12_reevaluation_due] reevaluation is not scheduled because DX12 adoption policy is DISABLED.
+  exit /b 0
+)
+
 set "REEVALUATION_DATE=2026-03-31"
 
 powershell -NoProfile -ExecutionPolicy Bypass -Command ^

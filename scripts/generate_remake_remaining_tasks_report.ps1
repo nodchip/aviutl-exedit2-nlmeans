@@ -10,6 +10,7 @@ if (-not (Test-Path "docs/reports")) {
 }
 
 $dx11Gate = "UNKNOWN"
+$dx11Decision = "UNKNOWN"
 $dx11Next = "N/A"
 $coopGate = "UNKNOWN"
 $coopNext = "N/A"
@@ -19,6 +20,9 @@ $e2eReason = "N/A"
 
 if (Test-Path $dx11Path) {
     foreach ($line in Get-Content $dx11Path) {
+        if ($line -match "^- decision: (.+)$") {
+            $dx11Decision = $Matches[1].Trim()
+        }
         if ($line -match "^- adoption_gate: (.+)$") {
             $dx11Gate = $Matches[1].Trim()
         }
@@ -57,7 +61,7 @@ $remaining = @()
 if ($e2eGate -ne "PASS") {
     $remaining += "ExEdit2 E2E record is missing. Add host validation results via scripts/append_exedit2_e2e_result.cmd."
 }
-if ($dx11Gate -ne "PASS") {
+if ($dx11Decision -ne "NOT_ADOPTED" -and $dx11Gate -ne "PASS") {
     $remaining += "DX11/DX12 adoption gate is FAIL. Continue benchmark/quality monitoring and keep DX11 default until criteria are satisfied."
 }
 if ($coopGate -ne "PASS") {
@@ -71,6 +75,7 @@ $lines = @()
 $lines += "# ExEdit2 Remake Remaining Tasks"
 $lines += ""
 $lines += "- generated_on: $today"
+$lines += "- dx11_dx12_decision: $dx11Decision"
 $lines += "- dx11_dx12_adoption_gate: $dx11Gate"
 $lines += "- dx11_dx12_next_reevaluation: $dx11Next"
 $lines += "- gpu_coop_adoption_gate: $coopGate"

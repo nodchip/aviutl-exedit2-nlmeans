@@ -1,6 +1,12 @@
 @echo off
 setlocal
 
+set "DX12_ADOPTION_POLICY=DISABLED"
+if /I "%DX12_ADOPTION_POLICY%"=="DISABLED" (
+  echo [check_dx11_dx12_adoption_gate] policy is DISABLED. DX12 adoption is not allowed.
+  exit /b 1
+)
+
 set "BENCH_HISTORY=docs\reports\dx11-dx12-benchmark-history.csv"
 set "QUALITY_HISTORY=docs\reports\dx11-dx12-quality-history.csv"
 set "MIN_SAMPLES=3"
