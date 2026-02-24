@@ -71,6 +71,11 @@ jobs:
         shell: cmd
         run: scripts\run_gpu_coop_decision_workflow.cmd
 
+      - name: Generate Remake Remaining Tasks Report
+        if: always()
+        shell: cmd
+        run: scripts\generate_remake_remaining_tasks_report.cmd
+
       - name: Upload GPU Coop Benchmark Artifact
         if: always()
         uses: actions/upload-artifact@v4
@@ -84,3 +89,10 @@ jobs:
         with:
           name: gpu-coop-decision
           path: docs/reports/gpu-coop-decision.md
+
+      - name: Upload Remake Remaining Tasks Artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: remake-remaining-tasks
+          path: docs/reports/remake-remaining-tasks.md
