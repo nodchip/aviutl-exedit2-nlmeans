@@ -61,7 +61,7 @@ private:
 		UINT processYEnd;
 		UINT reservedU0;
 		UINT reservedU1;
-		float invSigma2;
+		float invSigma;
 		float temporalDecay;
 		float reservedF0;
 		float reservedF1;

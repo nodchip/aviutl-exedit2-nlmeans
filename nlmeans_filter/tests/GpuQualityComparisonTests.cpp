@@ -3,6 +3,7 @@
 
 #if __has_include("../aviutl2_sdk/filter2.h")
 
+#include <array>
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
@@ -53,6 +54,17 @@ inline int clampi(int value, int low, int high)
 	return std::min(high, std::max(low, value));
 }
 
+// nlm.psh と同じ 3x3 ガウシアン係数。
+inline float patch_weight_3x3(int index)
+{
+	static const float kWeights[9] = {
+		0.07f, 0.12f, 0.07f,
+		0.12f, 0.20f, 0.12f,
+		0.07f, 0.12f, 0.07f
+	};
+	return kWeights[index];
+}
+
 // Exedit2GpuRunner のシェーダー実装と同じ式で CPU 参照出力を作る。
 std::vector<PIXEL_RGBA> build_cpu_reference(
 	const std::vector<std::vector<PIXEL_RGBA>>& history_frames,
@@ -65,7 +77,7 @@ std::vector<PIXEL_RGBA> build_cpu_reference(
 {
 	const int frame_count = static_cast<int>(history_frames.size());
 	const int current_frame_index = frame_count - 1;
-	const float inv_sigma2 = static_cast<float>(1.0 / (sigma * sigma));
+	const float inv_sigma = static_cast<float>(1.0 / std::max(0.001, sigma));
 	const int step = std::max(1, spatial_step);
 	const float temporal_decay_value = static_cast<float>(std::max(0.0, temporal_decay));
 	const size_t pixel_count = static_cast<size_t>(width) * static_cast<size_t>(height);
@@ -79,6 +91,18 @@ std::vector<PIXEL_RGBA> build_cpu_reference(
 			float sum_g = 0.0f;
 			float sum_b = 0.0f;
 
+			std::array<PIXEL_RGBA, 9> current_patch_rgb{};
+			int patch_index = 0;
+			for (int py = -1; py <= 1; ++py) {
+				for (int px = -1; px <= 1; ++px) {
+					const int cx = clampi(x + px, 0, width - 1);
+					const int cy = clampi(y + py, 0, height - 1);
+					current_patch_rgb[static_cast<size_t>(patch_index)] =
+						history_frames[static_cast<size_t>(current_frame_index)][static_cast<size_t>(cy * width + cx)];
+					++patch_index;
+				}
+			}
+
 			for (int t = 0; t < frame_count; ++t) {
 				const int dt = std::abs(t - current_frame_index);
 				const float temporal_weight = std::exp(-temporal_decay_value * static_cast<float>(dt));
@@ -86,12 +110,25 @@ std::vector<PIXEL_RGBA> build_cpu_reference(
 					const int sy = clampi(y + dy, 0, height - 1);
 					for (int dx = -search_radius; dx <= search_radius; dx += step) {
 						const int sx = clampi(x + dx, 0, width - 1);
-						const PIXEL_RGBA& sample = history_frames[static_cast<size_t>(t)][static_cast<size_t>(sy * width + sx)];
-						const float dr = static_cast<float>(sample.r) - static_cast<float>(center.r);
-						const float dg = static_cast<float>(sample.g) - static_cast<float>(center.g);
-						const float db = static_cast<float>(sample.b) - static_cast<float>(center.b);
-						const float dist2 = dr * dr + dg * dg + db * db;
-						const float w = std::exp(-dist2 * inv_sigma2) * temporal_weight;
+						float dist2 = 0.0f;
+						int idx = 0;
+						for (int py = -1; py <= 1; ++py) {
+							for (int px = -1; px <= 1; ++px) {
+								const int tx = clampi(sx + px, 0, width - 1);
+								const int ty = clampi(sy + py, 0, height - 1);
+								const PIXEL_RGBA& sample_patch =
+									history_frames[static_cast<size_t>(t)][static_cast<size_t>(ty * width + tx)];
+								const PIXEL_RGBA& current_patch_pixel = current_patch_rgb[static_cast<size_t>(idx)];
+								const float dr = static_cast<float>(sample_patch.r) - static_cast<float>(current_patch_pixel.r);
+								const float dg = static_cast<float>(sample_patch.g) - static_cast<float>(current_patch_pixel.g);
+								const float db = static_cast<float>(sample_patch.b) - static_cast<float>(current_patch_pixel.b);
+								dist2 += (dr * dr + dg * dg + db * db) * patch_weight_3x3(idx);
+								++idx;
+							}
+						}
+						const float w = std::exp(-std::sqrt(dist2) * inv_sigma) * temporal_weight;
+						const PIXEL_RGBA& sample =
+							history_frames[static_cast<size_t>(t)][static_cast<size_t>(sy * width + sx)];
 						sum_w += w;
 						sum_r += w * static_cast<float>(sample.r);
 						sum_g += w * static_cast<float>(sample.g);

@@ -10,7 +10,7 @@ cbuffer Constants : register(b0)
     uint ProcessYEnd;
     uint ReservedU0;
     uint ReservedU1;
-    float InvSigma2;
+    float InvSigma;
     float TemporalDecay;
     float ReservedF0;
     float ReservedF1;
@@ -20,6 +20,18 @@ cbuffer Constants : register(b0)
 
 StructuredBuffer<uint> InputPixels : register(t0);
 RWStructuredBuffer<uint> OutputPixels : register(u0);
+
+static const int2 kPatchOffsets[9] = {
+    int2(-1, -1), int2(0, -1), int2(1, -1),
+    int2(-1,  0), int2(0,  0), int2(1,  0),
+    int2(-1,  1), int2(0,  1), int2(1,  1)
+};
+
+static const float kPatchWeights[9] = {
+    0.07f, 0.12f, 0.07f,
+    0.12f, 0.20f, 0.12f,
+    0.07f, 0.12f, 0.07f
+};
 
 int clampi(int v, int low, int high)
 {
@@ -65,6 +77,15 @@ void main(uint3 tid : SV_DispatchThreadID)
     const uint centerPacked = InputPixels[centerIndex];
     const float3 center = unpack_rgb(centerPacked);
     const uint alpha = unpack_a(centerPacked);
+    float3 currentPatch[9];
+
+    [unroll]
+    for (int i = 0; i < 9; ++i)
+    {
+        const int cx = clampi(x + kPatchOffsets[i].x, 0, (int)Width - 1);
+        const int cy = clampi(y + kPatchOffsets[i].y, 0, (int)Height - 1);
+        currentPatch[i] = unpack_rgb(InputPixels[frameIndex(CurrentFrameIndex, (uint)cx, (uint)cy)]);
+    }
 
     float sumW = 0.0f;
     float sumR = 0.0f;
@@ -81,12 +102,20 @@ void main(uint3 tid : SV_DispatchThreadID)
             for (int dx = -((int)SearchRadius); dx <= (int)SearchRadius; dx += (int)SpatialStep)
             {
                 const int sx = clampi(x + dx, 0, (int)Width - 1);
+                float patchDistance = 0.0f;
+
+                [unroll]
+                for (int i = 0; i < 9; ++i)
+                {
+                    const int tx = clampi(sx + kPatchOffsets[i].x, 0, (int)Width - 1);
+                    const int ty = clampi(sy + kPatchOffsets[i].y, 0, (int)Height - 1);
+                    const float3 samplePatch = unpack_rgb(InputPixels[frameIndex(t, (uint)tx, (uint)ty)]);
+                    const float3 diff = currentPatch[i] - samplePatch;
+                    patchDistance += dot(diff, diff) * kPatchWeights[i];
+                }
+
                 const float3 sample = unpack_rgb(InputPixels[frameIndex(t, (uint)sx, (uint)sy)]);
-                const float dr = sample.r - center.r;
-                const float dg = sample.g - center.g;
-                const float db = sample.b - center.b;
-                const float dist2 = dr * dr + dg * dg + db * db;
-                const float w = exp(-dist2 * InvSigma2) * temporalWeight;
+                const float w = exp(-sqrt(max(patchDistance, 0.0f)) * InvSigma) * temporalWeight;
                 sumW += w;
                 sumR += w * sample.r;
                 sumG += w * sample.g;

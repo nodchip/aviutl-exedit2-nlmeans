@@ -95,6 +95,117 @@ bool is_avx2_available()
 	return (cpuInfo[1] & (1 << 5)) != 0;
 }
 
+// nlm.psh と同じ 3x3 ガウシアンパッチ係数。
+constexpr std::array<float, 9> kPatchGaussianWeights = {
+	0.07f, 0.12f, 0.07f,
+	0.12f, 0.20f, 0.12f,
+	0.07f, 0.12f, 0.07f
+};
+
+constexpr std::array<int, 9> kPatchOffsetX = { -1, 0, 1, -1, 0, 1, -1, 0, 1 };
+constexpr std::array<int, 9> kPatchOffsetY = { -1, -1, -1, 0, 0, 0, 1, 1, 1 };
+
+alignas(32) constexpr std::array<float, 8> kPatchGaussianWeights8 = {
+	0.07f, 0.12f, 0.07f,
+	0.12f, 0.20f, 0.12f,
+	0.07f, 0.12f
+};
+
+// 3x3 パッチ距離から nlm.psh 相当の空間重みを計算する。
+inline double nlm_spatial_weight_from_patch_distance(double patchDistance, double sigma)
+{
+	const double clampedDistance = std::max(0.0, patchDistance);
+	const double invSigma = 1.0 / std::max(0.001, sigma);
+	return std::exp(-std::sqrt(clampedDistance) * invSigma);
+}
+
+// 現在フレームパッチと対象フレームパッチの RGB 距離を 3x3 ガウシアンで集約する（Scalar）。
+double compute_patch_distance_rgb_scalar(
+	const std::vector<PIXEL_RGBA>& currentFrame,
+	const std::vector<PIXEL_RGBA>& targetFrame,
+	int width,
+	int height,
+	int x,
+	int y,
+	int sx,
+	int sy)
+{
+	double patchDistance = 0.0;
+	for (int i = 0; i < 9; ++i) {
+		const int cx = std::clamp(x + kPatchOffsetX[static_cast<size_t>(i)], 0, width - 1);
+		const int cy = std::clamp(y + kPatchOffsetY[static_cast<size_t>(i)], 0, height - 1);
+		const int tx = std::clamp(sx + kPatchOffsetX[static_cast<size_t>(i)], 0, width - 1);
+		const int ty = std::clamp(sy + kPatchOffsetY[static_cast<size_t>(i)], 0, height - 1);
+
+		const PIXEL_RGBA& current = currentFrame[static_cast<size_t>(cy * width + cx)];
+		const PIXEL_RGBA& target = targetFrame[static_cast<size_t>(ty * width + tx)];
+		const double dr = static_cast<double>(current.r) - static_cast<double>(target.r);
+		const double dg = static_cast<double>(current.g) - static_cast<double>(target.g);
+		const double db = static_cast<double>(current.b) - static_cast<double>(target.b);
+		const double rgbDistance2 = dr * dr + dg * dg + db * db;
+		patchDistance += rgbDistance2 * static_cast<double>(kPatchGaussianWeights[static_cast<size_t>(i)]);
+	}
+	return patchDistance;
+}
+
+// 現在フレームパッチと対象フレームパッチの RGB 距離を 3x3 ガウシアンで集約する（AVX2）。
+double compute_patch_distance_rgb_avx2(
+	const std::vector<PIXEL_RGBA>& currentFrame,
+	const std::vector<PIXEL_RGBA>& targetFrame,
+	int width,
+	int height,
+	int x,
+	int y,
+	int sx,
+	int sy)
+{
+	alignas(32) std::array<float, 8> dr{};
+	alignas(32) std::array<float, 8> dg{};
+	alignas(32) std::array<float, 8> db{};
+
+	for (int i = 0; i < 8; ++i) {
+		const int cx = std::clamp(x + kPatchOffsetX[static_cast<size_t>(i)], 0, width - 1);
+		const int cy = std::clamp(y + kPatchOffsetY[static_cast<size_t>(i)], 0, height - 1);
+		const int tx = std::clamp(sx + kPatchOffsetX[static_cast<size_t>(i)], 0, width - 1);
+		const int ty = std::clamp(sy + kPatchOffsetY[static_cast<size_t>(i)], 0, height - 1);
+
+		const PIXEL_RGBA& current = currentFrame[static_cast<size_t>(cy * width + cx)];
+		const PIXEL_RGBA& target = targetFrame[static_cast<size_t>(ty * width + tx)];
+		dr[static_cast<size_t>(i)] = static_cast<float>(static_cast<int>(current.r) - static_cast<int>(target.r));
+		dg[static_cast<size_t>(i)] = static_cast<float>(static_cast<int>(current.g) - static_cast<int>(target.g));
+		db[static_cast<size_t>(i)] = static_cast<float>(static_cast<int>(current.b) - static_cast<int>(target.b));
+	}
+
+	const __m256 vdr = _mm256_load_ps(dr.data());
+	const __m256 vdg = _mm256_load_ps(dg.data());
+	const __m256 vdb = _mm256_load_ps(db.data());
+	__m256 vdist2 = _mm256_mul_ps(vdr, vdr);
+	vdist2 = _mm256_add_ps(vdist2, _mm256_mul_ps(vdg, vdg));
+	vdist2 = _mm256_add_ps(vdist2, _mm256_mul_ps(vdb, vdb));
+	const __m256 vweights = _mm256_load_ps(kPatchGaussianWeights8.data());
+	vdist2 = _mm256_mul_ps(vdist2, vweights);
+
+	alignas(32) std::array<float, 8> weighted{};
+	_mm256_store_ps(weighted.data(), vdist2);
+	double patchDistance = 0.0;
+	for (int i = 0; i < 8; ++i) {
+		patchDistance += static_cast<double>(weighted[static_cast<size_t>(i)]);
+	}
+
+	const int cx9 = std::clamp(x + kPatchOffsetX[8], 0, width - 1);
+	const int cy9 = std::clamp(y + kPatchOffsetY[8], 0, height - 1);
+	const int tx9 = std::clamp(sx + kPatchOffsetX[8], 0, width - 1);
+	const int ty9 = std::clamp(sy + kPatchOffsetY[8], 0, height - 1);
+	const PIXEL_RGBA& current9 = currentFrame[static_cast<size_t>(cy9 * width + cx9)];
+	const PIXEL_RGBA& target9 = targetFrame[static_cast<size_t>(ty9 * width + tx9)];
+	const double dr9 = static_cast<double>(current9.r) - static_cast<double>(target9.r);
+	const double dg9 = static_cast<double>(current9.g) - static_cast<double>(target9.g);
+	const double db9 = static_cast<double>(current9.b) - static_cast<double>(target9.b);
+	patchDistance += (dr9 * dr9 + dg9 * dg9 + db9 * db9) * static_cast<double>(kPatchGaussianWeights[8]);
+
+	return patchDistance;
+}
+
 // ExEdit2 の画像バッファへ CPU Naive な NLM を適用する。
 PIXEL_RGBA process_pixel_scalar(
 	const std::vector<PIXEL_RGBA>& input,
@@ -103,7 +214,7 @@ PIXEL_RGBA process_pixel_scalar(
 	int x,
 	int y,
 	int search_radius,
-	double sigma2)
+	double sigma)
 {
 	const int center_index = y * width + x;
 	const PIXEL_RGBA& center = input[static_cast<size_t>(center_index)];
@@ -118,12 +229,8 @@ PIXEL_RGBA process_pixel_scalar(
 		for (int dx = -search_radius; dx <= search_radius; ++dx) {
 			const int sx = std::clamp(x + dx, 0, width - 1);
 			const PIXEL_RGBA& sample = input[static_cast<size_t>(sy * width + sx)];
-
-			const double dr = static_cast<double>(sample.r) - static_cast<double>(center.r);
-			const double dg = static_cast<double>(sample.g) - static_cast<double>(center.g);
-			const double db = static_cast<double>(sample.b) - static_cast<double>(center.b);
-			const double dist2 = dr * dr + dg * dg + db * db;
-			const double w = std::exp(-dist2 / sigma2);
+			const double patchDistance = compute_patch_distance_rgb_scalar(input, input, width, height, x, y, sx, sy);
+			const double w = nlm_spatial_weight_from_patch_distance(patchDistance, sigma);
 
 			sum_r += w * static_cast<double>(sample.r);
 			sum_g += w * static_cast<double>(sample.g);
@@ -149,7 +256,7 @@ PIXEL_RGBA process_pixel_fast(
 	int x,
 	int y,
 	int search_radius,
-	double sigma2,
+	double sigma,
 	int spatial_step)
 {
 	const int step = std::max(1, spatial_step);
@@ -166,12 +273,8 @@ PIXEL_RGBA process_pixel_fast(
 		for (int dx = -search_radius; dx <= search_radius; dx += step) {
 			const int sx = std::clamp(x + dx, 0, width - 1);
 			const PIXEL_RGBA& sample = input[static_cast<size_t>(sy * width + sx)];
-
-			const double dr = static_cast<double>(sample.r) - static_cast<double>(center.r);
-			const double dg = static_cast<double>(sample.g) - static_cast<double>(center.g);
-			const double db = static_cast<double>(sample.b) - static_cast<double>(center.b);
-			const double dist2 = dr * dr + dg * dg + db * db;
-			const double w = std::exp(-dist2 / sigma2);
+			const double patchDistance = compute_patch_distance_rgb_scalar(input, input, width, height, x, y, sx, sy);
+			const double w = nlm_spatial_weight_from_patch_distance(patchDistance, sigma);
 
 			sum_r += w * static_cast<double>(sample.r);
 			sum_g += w * static_cast<double>(sample.g);
@@ -209,12 +312,11 @@ bool apply_nlm_cpu_naive(FILTER_PROC_VIDEO* video)
 
 	const int search_radius = std::max(1, static_cast<int>(item_search_radius.value));
 	const double sigma = std::max(0.001, static_cast<double>(item_sigma.value));
-	const double sigma2 = sigma * sigma;
 
 	for (int y = 0; y < height; ++y) {
 		for (int x = 0; x < width; ++x) {
 			g_output_pixels[static_cast<size_t>(y * width + x)] =
-				process_pixel_scalar(g_input_pixels, width, height, x, y, search_radius, sigma2);
+				process_pixel_scalar(g_input_pixels, width, height, x, y, search_radius, sigma);
 		}
 	}
 
@@ -243,13 +345,12 @@ bool apply_nlm_cpu_fast(FILTER_PROC_VIDEO* video)
 
 	const int search_radius = std::max(1, static_cast<int>(item_search_radius.value));
 	const double sigma = std::max(0.001, static_cast<double>(item_sigma.value));
-	const double sigma2 = sigma * sigma;
 	const int spatial_step = resolve_fast_spatial_step(static_cast<int>(item_fast_spatial_step.value));
 
 	for (int y = 0; y < height; ++y) {
 		for (int x = 0; x < width; ++x) {
 			g_output_pixels[static_cast<size_t>(y * width + x)] =
-				process_pixel_fast(g_input_pixels, width, height, x, y, search_radius, sigma2, spatial_step);
+				process_pixel_fast(g_input_pixels, width, height, x, y, search_radius, sigma, spatial_step);
 		}
 	}
 
@@ -265,10 +366,11 @@ PIXEL_RGBA process_pixel_temporal(
 	int x,
 	int y,
 	int search_radius,
-	double sigma2,
+	double sigma,
 	double temporal_decay)
 {
 	const PIXEL_RGBA& center = historyFrames.back()[static_cast<size_t>(y * width + x)];
+	const std::vector<PIXEL_RGBA>& currentFrame = historyFrames.back();
 	double sum_r = 0.0;
 	double sum_g = 0.0;
 	double sum_b = 0.0;
@@ -283,12 +385,16 @@ PIXEL_RGBA process_pixel_temporal(
 			for (int dx = -search_radius; dx <= search_radius; ++dx) {
 				const int sx = std::clamp(x + dx, 0, width - 1);
 				const PIXEL_RGBA& sample = frame[static_cast<size_t>(sy * width + sx)];
-
-				const double dr = static_cast<double>(sample.r) - static_cast<double>(center.r);
-				const double dg = static_cast<double>(sample.g) - static_cast<double>(center.g);
-				const double db = static_cast<double>(sample.b) - static_cast<double>(center.b);
-				const double dist2 = dr * dr + dg * dg + db * db;
-				const double w = std::exp(-dist2 / sigma2) * temporalWeight;
+				const double patchDistance = compute_patch_distance_rgb_scalar(
+					currentFrame,
+					frame,
+					width,
+					height,
+					x,
+					y,
+					sx,
+					sy);
+				const double w = nlm_spatial_weight_from_patch_distance(patchDistance, sigma) * temporalWeight;
 
 				sum_r += w * static_cast<double>(sample.r);
 				sum_g += w * static_cast<double>(sample.g);
@@ -329,7 +435,6 @@ bool apply_nlm_cpu_temporal(FILTER_PROC_VIDEO* video)
 	const int time_radius = std::max(0, static_cast<int>(item_time_radius.value));
 	const int required_history = time_radius + 1;
 	const double sigma = std::max(0.001, static_cast<double>(item_sigma.value));
-	const double sigma2 = sigma * sigma;
 	const double temporal_decay = std::max(0.0, static_cast<double>(item_temporal_decay.value));
 
 	if (g_cpu_temporal_history.empty() ||
@@ -350,7 +455,7 @@ bool apply_nlm_cpu_temporal(FILTER_PROC_VIDEO* video)
 				x,
 				y,
 				search_radius,
-				sigma2,
+				sigma,
 				temporal_decay);
 		}
 	}
@@ -360,6 +465,47 @@ bool apply_nlm_cpu_temporal(FILTER_PROC_VIDEO* video)
 }
 
 // ExEdit2 の画像バッファへ CPU AVX2 な NLM を適用する。
+PIXEL_RGBA process_pixel_avx2(
+	const std::vector<PIXEL_RGBA>& input,
+	int width,
+	int height,
+	int x,
+	int y,
+	int search_radius,
+	double sigma)
+{
+	const int center_index = y * width + x;
+	const PIXEL_RGBA& center = input[static_cast<size_t>(center_index)];
+
+	double sum_r = 0.0;
+	double sum_g = 0.0;
+	double sum_b = 0.0;
+	double sum_w = 0.0;
+
+	for (int dy = -search_radius; dy <= search_radius; ++dy) {
+		const int sy = std::clamp(y + dy, 0, height - 1);
+		for (int dx = -search_radius; dx <= search_radius; ++dx) {
+			const int sx = std::clamp(x + dx, 0, width - 1);
+			const PIXEL_RGBA& sample = input[static_cast<size_t>(sy * width + sx)];
+			const double patchDistance = compute_patch_distance_rgb_avx2(input, input, width, height, x, y, sx, sy);
+			const double w = nlm_spatial_weight_from_patch_distance(patchDistance, sigma);
+
+			sum_r += w * static_cast<double>(sample.r);
+			sum_g += w * static_cast<double>(sample.g);
+			sum_b += w * static_cast<double>(sample.b);
+			sum_w += w;
+		}
+	}
+
+	PIXEL_RGBA out = center;
+	if (sum_w > 0.0) {
+		out.r = static_cast<unsigned char>(std::clamp(sum_r / sum_w, 0.0, 255.0));
+		out.g = static_cast<unsigned char>(std::clamp(sum_g / sum_w, 0.0, 255.0));
+		out.b = static_cast<unsigned char>(std::clamp(sum_b / sum_w, 0.0, 255.0));
+	}
+	return out;
+}
+
 bool apply_nlm_cpu_avx2(FILTER_PROC_VIDEO* video)
 {
 	if (video == nullptr || video->scene == nullptr || video->get_image_data == nullptr || video->set_image_data == nullptr) {
@@ -373,111 +519,17 @@ bool apply_nlm_cpu_avx2(FILTER_PROC_VIDEO* video)
 	}
 
 	const int search_radius = std::max(1, static_cast<int>(item_search_radius.value));
-	const float sigma = std::max(0.001f, static_cast<float>(item_sigma.value));
-	const float sigma2 = sigma * sigma;
+	const double sigma = std::max(0.001, static_cast<double>(item_sigma.value));
 	const int pixel_count = width * height;
 
 	g_input_pixels.resize(static_cast<size_t>(pixel_count));
 	g_output_pixels.resize(static_cast<size_t>(pixel_count));
 	video->get_image_data(g_input_pixels.data());
 
-	std::vector<float> r(static_cast<size_t>(pixel_count));
-	std::vector<float> g(static_cast<size_t>(pixel_count));
-	std::vector<float> b(static_cast<size_t>(pixel_count));
-	for (int i = 0; i < pixel_count; ++i) {
-		const PIXEL_RGBA& p = g_input_pixels[static_cast<size_t>(i)];
-		r[static_cast<size_t>(i)] = static_cast<float>(p.r);
-		g[static_cast<size_t>(i)] = static_cast<float>(p.g);
-		b[static_cast<size_t>(i)] = static_cast<float>(p.b);
-	}
-
-	const int x_begin = search_radius;
-	const int x_end_avx = width - search_radius - 8;
-	const int y_begin = search_radius;
-	const int y_end = height - search_radius;
-
-	const __m256 zero = _mm256_set1_ps(0.0f);
-	const __m256 max255 = _mm256_set1_ps(255.0f);
-	const __m256 inv_sigma2 = _mm256_set1_ps(-1.0f / sigma2);
-
-	// 端は境界クランプが必要なためスカラーで処理する。
 	for (int y = 0; y < height; ++y) {
 		for (int x = 0; x < width; ++x) {
-			if (y >= y_begin && y < y_end && x >= x_begin && x <= x_end_avx) {
-				x = x_end_avx;
-				continue;
-			}
 			g_output_pixels[static_cast<size_t>(y * width + x)] =
-				process_pixel_scalar(g_input_pixels, width, height, x, y, search_radius, sigma2);
-		}
-	}
-
-	// 内部領域は 8 ピクセルずつ AVX2 で処理する。
-	for (int y = y_begin; y < y_end; ++y) {
-		for (int x = x_begin; x <= x_end_avx; x += 8) {
-			const int center_base = y * width + x;
-			const __m256 center_r = _mm256_loadu_ps(&r[static_cast<size_t>(center_base)]);
-			const __m256 center_g = _mm256_loadu_ps(&g[static_cast<size_t>(center_base)]);
-			const __m256 center_b = _mm256_loadu_ps(&b[static_cast<size_t>(center_base)]);
-
-			__m256 sum_r = _mm256_setzero_ps();
-			__m256 sum_g = _mm256_setzero_ps();
-			__m256 sum_b = _mm256_setzero_ps();
-			__m256 sum_w = _mm256_setzero_ps();
-
-			for (int dy = -search_radius; dy <= search_radius; ++dy) {
-				const int sy = y + dy;
-				for (int dx = -search_radius; dx <= search_radius; ++dx) {
-					const int sample_base = sy * width + (x + dx);
-					const __m256 sample_r = _mm256_loadu_ps(&r[static_cast<size_t>(sample_base)]);
-					const __m256 sample_g = _mm256_loadu_ps(&g[static_cast<size_t>(sample_base)]);
-					const __m256 sample_b = _mm256_loadu_ps(&b[static_cast<size_t>(sample_base)]);
-
-					const __m256 dr = _mm256_sub_ps(sample_r, center_r);
-					const __m256 dg = _mm256_sub_ps(sample_g, center_g);
-					const __m256 db = _mm256_sub_ps(sample_b, center_b);
-					__m256 dist2 = _mm256_mul_ps(dr, dr);
-					dist2 = _mm256_add_ps(dist2, _mm256_mul_ps(dg, dg));
-					dist2 = _mm256_add_ps(dist2, _mm256_mul_ps(db, db));
-
-					const __m256 exponent = _mm256_mul_ps(dist2, inv_sigma2);
-					alignas(32) std::array<float, 8> exponent_scalar;
-					alignas(32) std::array<float, 8> weight_scalar;
-					_mm256_store_ps(exponent_scalar.data(), exponent);
-					for (int lane = 0; lane < 8; ++lane) {
-						weight_scalar[static_cast<size_t>(lane)] = std::exp(exponent_scalar[static_cast<size_t>(lane)]);
-					}
-					const __m256 weight = _mm256_load_ps(weight_scalar.data());
-
-					sum_r = _mm256_add_ps(sum_r, _mm256_mul_ps(weight, sample_r));
-					sum_g = _mm256_add_ps(sum_g, _mm256_mul_ps(weight, sample_g));
-					sum_b = _mm256_add_ps(sum_b, _mm256_mul_ps(weight, sample_b));
-					sum_w = _mm256_add_ps(sum_w, weight);
-				}
-			}
-
-			__m256 out_r = _mm256_div_ps(sum_r, sum_w);
-			__m256 out_g = _mm256_div_ps(sum_g, sum_w);
-			__m256 out_b = _mm256_div_ps(sum_b, sum_w);
-			out_r = _mm256_min_ps(max255, _mm256_max_ps(zero, out_r));
-			out_g = _mm256_min_ps(max255, _mm256_max_ps(zero, out_g));
-			out_b = _mm256_min_ps(max255, _mm256_max_ps(zero, out_b));
-
-			alignas(32) std::array<float, 8> out_r_scalar;
-			alignas(32) std::array<float, 8> out_g_scalar;
-			alignas(32) std::array<float, 8> out_b_scalar;
-			_mm256_store_ps(out_r_scalar.data(), out_r);
-			_mm256_store_ps(out_g_scalar.data(), out_g);
-			_mm256_store_ps(out_b_scalar.data(), out_b);
-
-			for (int lane = 0; lane < 8; ++lane) {
-				const int idx = center_base + lane;
-				PIXEL_RGBA p = g_input_pixels[static_cast<size_t>(idx)];
-				p.r = static_cast<unsigned char>(out_r_scalar[static_cast<size_t>(lane)]);
-				p.g = static_cast<unsigned char>(out_g_scalar[static_cast<size_t>(lane)]);
-				p.b = static_cast<unsigned char>(out_b_scalar[static_cast<size_t>(lane)]);
-				g_output_pixels[static_cast<size_t>(idx)] = p;
-			}
+				process_pixel_avx2(g_input_pixels, width, height, x, y, search_radius, sigma);
 		}
 	}
 
