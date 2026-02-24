@@ -1,293 +1,126 @@
-# AviUtl ExEdit2 NL-Means Filter by nodchip
+# NL-Means Filter (ExEdit2)
 
-- Original site: http://kishibe.dyndns.tv/
-- License: Apache License 2.0
+AviUtl ExEdit2 用のノイズ除去フィルタです。  
+NL-Means による空間方向のノイズ低減に加えて、時間方向（過去フレーム参照）のノイズ低減も選べます。
 
-## プロジェクト状況（2026-02-22）
+- フィルタ名: `NL-Means Filter (ExEdit2)`（表示名） / `NL-Means`（短縮名）
+- Original: `AviUtl NL-Means filter by nodchip`（http://kishibe.dyndns.tv/）
+- License: Apache License 2.0（`LICENSE`）
 
-このリポジトリは `AviUtl NL-Means filter by nodchip` の ExEdit2 向けリメイク作業中の状態です。
-現時点では以下を実施済みです。
+## できること
 
-- ExEdit2 専用プロジェクトへ移行（AviUtl1 対応は破棄）
-- 旧 SDK (`aviutl_plugin_sdk`) の削除
-- DirectX 11 Compute Shader バックエンドの導入
-- GPU の空間 + 時間方向 NL-Means（暫定実装）
-- 複数 GPU 協調に向けた行タイル分割ロジックを追加
+- ノイズ除去（ディテール保持寄り）
+- CPU/GPU の切り替え（`計算モード`）
+- 時間方向の参照（`時間範囲`）によるちらつき低減（`CPU (Temporal)` / `GPU (DirectX 11)`）
 
-## リリース方針（2026-02-24）
+## NL-Means とは
 
-- Task 6（GPU 側 Fast/Temporal 相当の最適化）は、現時点の到達版で凍結してリリースする。
-- GPU 非搭載環境 fallback は `SKIP` をリリース仕様として許容する。
+NL-Means は、探索範囲内の「似ている画素（パッチ）」ほど重く、異なるほど軽く重み付けして平均化することでノイズを低減する手法です。  
+エッジや模様を比較的保ちやすい一方、設定次第では処理が重くなります。
 
-## ビルド環境
+## 動作環境
 
-- Windows
-- Visual Studio 2022 Community
-- MSBuild 17.x
-- DirectX 11.3 以降対応 GPU / ドライバ（`ID3D11Device3` が取得できること）
-- GoogleTest（`third_party/googletest` に同梱）
+- Windows 10 以降（64bit）
+- AviUtl ExEdit2
+- ExEdit2 専用です（AviUtl1 / 拡張編集では動作しません）
+- AVX2 対応 CPU（ExEdit2 の要件に準拠）
+- GPU モード利用時: DirectX 11.3 以降に対応した GPU / ドライバ（ExEdit2 の要件に準拠）
 
-PowerShell からのビルド例:
+## 導入（インストール）
 
-```powershell
-$cmd='"C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat" && "C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\MSBuild.exe" C:\home\nodchip\nlmeans\nlmeans_filter.sln /p:Configuration=Release /p:Platform=x64'
-cmd.exe /c $cmd
+1. ExEdit2 を終了します。
+2. 配布された `.zip` を任意の場所に展開します。
+3. 展開してできた `nlmeans_filter_exedit2` フォルダを、`C:\ProgramData\aviutl2\Plugin\` 配下にコピーします。
+4. ExEdit2 を起動します。
+
+ヒント:
+
+- `C:\ProgramData` は隠しフォルダです。エクスプローラーのアドレスバーに `C:\ProgramData\aviutl2\Plugin\`（または `%ProgramData%\aviutl2\Plugin`）を貼り付けると開けます。
+
+配置例:
+
+```text
+C:\ProgramData\aviutl2\Plugin\nlmeans_filter_exedit2\
+  nlmeans_filter_exedit2.auf2
+  nlmeans_exedit2_cs.hlsl
+  nlmeans_exedit2_cs.cso    (任意)
+  README.md
+  LICENSE
 ```
 
-PowerShell からのテスト/ベンチ実行例（`vcvars64.bat` 初期化つき）:
+## 使い方（設定画面の開き方）
 
-```powershell
-$cmd='"C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat" && cl /nologo /utf-8 /EHsc /O2 /I .\nlmeans_filter .\nlmeans_filter\tests\NlmKernelBenchmark.cpp /Fe:NlmKernelBenchmark.exe && NlmKernelBenchmark.exe'
-cmd.exe /c $cmd
-```
+1. ノイズ除去したいオブジェクト（映像/画像など）を選択します。
+2. 「オブジェクト設定」内のフィルタ追加から `NL-Means Filter (ExEdit2)` を追加します。
+3. 追加したフィルタの項目（トラックバー/リスト）で設定を調整します。
 
-GoogleTest テスト実行例:
+ポイント:
 
-```powershell
-$cmd='"C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat" && .\scripts\run_gtests.cmd'
-cmd.exe /c $cmd
-```
+- 迷ったら `計算モード=GPU (DirectX 11)`、`空間範囲=3`、`時間範囲=0`、`分散=50` から始めてください。
+- ノイズ除去は素材の上流（加工の早い段階）に入れると調整しやすいです。
 
-NLM 亜種ベンチレポート生成例:
+## 設定項目
 
-```powershell
-$cmd='"C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat" && .\scripts\generate_nlm_variants_report.cmd'
-cmd.exe /c $cmd
-```
+### 計算モード（`計算モード`）
 
-GPU 協調 PoC ベンチレポート生成例:
+- `GPU (DirectX 11)`: GPU（Compute Shader）で処理します。高速です。GPU が利用できない場合は CPU へ自動フォールバックします。
+- `CPU (AVX2)`: CPU（AVX2）で処理します。`CPU (Naive)` と同等画質を目標にしています。
+- `CPU (Naive)`: 参照実装です。最も遅いですが比較用に使えます。
+- `CPU (Fast)`: 近似（間引き）で高速化した CPU 版です。画質より速度重視のときに使います。
+- `CPU (Temporal)`: 過去フレームも参照する CPU 版です。ノイズが強い素材やちらつき低減に有効な場合があります。
 
-```powershell
-$cmd='"C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat" && .\scripts\generate_gpu_coop_report.cmd'
-cmd.exe /c $cmd
-```
+### 画質/性能（共通）
 
-GPU 亜種（間引き/時間減衰）ベンチレポート生成例:
+- `空間範囲`: 探索範囲の半径です。大きいほどノイズは減りやすい一方、処理は重くなります。
+- `分散`: 平均化の強さです。大きいほど強くノイズをならします（目安 45-55）。
+- `Fast間引き`: `CPU (Fast)` の探索ステップです。上げると高速化しやすい一方、画質は低下しやすくなります。
 
-```powershell
-$cmd='"C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat" && .\scripts\generate_gpu_variants_report.cmd'
-cmd.exe /c $cmd
-```
+### 時間方向（Temporal）
 
-GPU 協調ベンチ履歴を CSV 更新する例:
+- `時間範囲`: 参照する過去フレーム数です。`0` で時間方向の参照なしになります。
+- `Temporal減衰`: `CPU (Temporal)` の過去フレームの重み減衰です。大きいほど過去フレームの影響が弱くなります。
 
-```powershell
-$cmd='"C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat" && .\scripts\update_gpu_coop_history.cmd'
-cmd.exe /c $cmd
-```
+注意:
 
-GPU 協調ベンチの悪化しきい値を確認する例:
+- 動きが大きい素材やカット切り替え付近では、時間方向参照により残像が出ることがあります。`時間範囲` を下げるか、減衰を上げてください。
 
-```powershell
-$cmd='"C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat" && .\scripts\check_gpu_coop_regression.cmd'
-cmd.exe /c $cmd
-```
+### GPU 関連
 
-GPU 協調の async 効率チェック例:
+- `GPUアダプタ`: 使用する GPU を選びます。`Auto` は自動選択です。複数 GPU 環境では明示指定もできます。
+- `GPU間引き`: `GPU (DirectX 11)` の近似（探索ステップ）です。上げると高速化しやすい一方、画質は低下しやすくなります。
+- `GPU時間減衰`: `GPU (DirectX 11)` の過去フレームの重み減衰です。
+- `GPU協調数`: 実験的項目です。通常は `1` を推奨します（複数 GPU 協調はサポート対象外です）。
 
-```powershell
-$cmd='"C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat" && .\scripts\check_gpu_coop_async_efficiency.cmd'
-cmd.exe /c $cmd
-```
+## おすすめ設定（目安）
 
-GPU self-hosted ランナー前提チェック例:
+- 標準（まずはここから）
+  - `計算モード=GPU (DirectX 11)`
+  - `空間範囲=3`
+  - `時間範囲=0`
+  - `分散=50`
+- 強め（ノイズが強い素材）
+  - `空間範囲=4-6`
+  - `分散=55-70`
+- ちらつき低減（Temporal）
+  - `時間範囲=1-2`
+  - `GPU時間減衰=0.5-1.5` または `Temporal減衰=0.5-1.5`
 
-```powershell
-$cmd='"C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat" && .\scripts\check_gpu_runner_prereq.cmd'
-cmd.exe /c $cmd
-```
+## トラブルシューティング
 
-GPU self-hosted ランナー情報レポート生成例:
+- フィルタが一覧に出ない
+  - `C:\ProgramData\aviutl2\Plugin\nlmeans_filter_exedit2\nlmeans_filter_exedit2.auf2` が存在するか確認し、ExEdit2 を再起動してください。
+- `LoadLibrary()` 失敗 / 「有効な Win32 アプリケーションではありません」
+  - ExEdit2（64bit）用プラグインです。AviUtl1 で読み込んでいないか、`.auf2` を配置しているか確認してください。
+- `GPU (DirectX 11)` で動かない/落ちる
+  - `CPU (AVX2)` に切り替えて回避してください。GPU ドライバ更新、`GPUアダプタ` の変更で改善する場合があります。
+- 初回だけ処理開始が遅い
+  - シェーダーの読み込み/（必要なら）コンパイルが走る場合があります。`nlmeans_exedit2_cs.hlsl` を同梱しておくと確実です。
 
-```powershell
-$cmd='"C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat" && .\scripts\generate_gpu_runner_health_report.cmd'
-cmd.exe /c $cmd
-```
+## アンインストール
 
-GPU 非搭載環境で前提チェックの文法確認のみ行う例:
+ExEdit2 を終了し、`C:\ProgramData\aviutl2\Plugin\nlmeans_filter_exedit2\` フォルダを削除してください。
 
-```powershell
-$cmd='"C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat" && set ALLOW_NO_GPU=1 && .\scripts\check_gpu_runner_prereq.cmd'
-cmd.exe /c $cmd
-```
+## ライセンスとクレジット
 
-ExEdit2 実ホスト E2E 結果を履歴へ追記する例:
-
-```powershell
-$cmd='"C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat" && .\scripts\append_exedit2_e2e_result.cmd nodchip nlmeans_filter_exedit2.auf2 "GPU-NAME" PASS PASS PASS PASS PASS "manual validation"'
-cmd.exe /c $cmd
-```
-
-ExEdit2 実ホスト E2E 判定ゲートを確認する例:
-
-```powershell
-$cmd='"C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat" && .\scripts\check_exedit2_e2e_gate.cmd 30'
-cmd.exe /c $cmd
-```
-
-ExEdit2 実ホスト E2E レポート生成例:
-
-```powershell
-$cmd='"C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat" && .\scripts\generate_exedit2_e2e_report.cmd 30'
-cmd.exe /c $cmd
-```
-
-リメイク残タスクレポート生成例:
-
-```powershell
-$cmd='"C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat" && .\scripts\generate_remake_remaining_tasks_report.cmd'
-cmd.exe /c $cmd
-```
-
-## オプション解説
-
-### 空間範囲
-
-右に行くほど計算範囲が増え、画質が向上します。計算量は `(値*2+1)^2` に比例します。
-
-### 時間範囲
-
-前後フレームを参照してフィルタリングします。計算量は `(値*2+1)` に比例します。
-
-### 分散
-
-右に行くほど平均化（ぼかし）が強くなります。45〜55程度が目安です。
-
-### Fast間引き
-
-`CPU (Fast)` 使用時の探索間引きステップです。値を上げると高速化しやすく、画質はやや低下します。
-
-### Temporal減衰
-
-`CPU (Temporal)` 使用時の時間方向重みの減衰係数です。値を上げるほど過去フレームの寄与が小さくなります。
-
-### GPU間引き
-
-`GPU (DirectX 11)` 使用時の空間探索ステップです。`1` で従来相当、`2` 以上で近似高速化します。
-
-### GPU時間減衰
-
-`GPU (DirectX 11)` 使用時の時間方向重みの減衰係数です。`0` は従来相当です。
-
-### GPU協調数
-
-`GPUアダプタ=Auto` のときに使用する GPU 台数です。2以上で行タイル分割による協調実行を試みます（PoC）。
-各 GPU は担当タイル行のみを計算します。
-
-### 計算モード（ExEdit2 現行）
-
-- `CPU (Naive)`
-- `CPU (AVX2)`
-- `CPU (Fast)`
-- `CPU (Temporal)`
-- `GPU (DirectX 11)`
-
-## シェーダー配布方式（確定）
-
-- 方式: `プリコンパイルCSO優先 + 外部 HLSL 同梱 + 実行時コンパイル`
-- フォールバック:
-  - `nlmeans_exedit2_cs.cso` が存在すれば優先使用
-  - `CSO` がない場合は外部 `HLSL` を実行時コンパイル
-  - 外部 `HLSL` 読み込み失敗時は埋め込みシェーダーを実行時コンパイル
-- 対象ファイル:
-  - `nlmeans_filter/exedit2/nlmeans_exedit2_cs.cso`（任意）
-  - `nlmeans_filter/exedit2/nlmeans_exedit2_cs.hlsl`
-
-この方式により、配布後のシェーダー調整（差し替え）と、単体配布時の自己完結性を両立します。
-
-CSO 生成例:
-
-```powershell
-$cmd='"C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat" && .\scripts\generate_exedit2_shader_cso.cmd'
-cmd.exe /c $cmd
-```
-
-## DirectX 12 PoC
-
-- DX12 PoC の検討メモ: `docs/notes/dx12-poc-2026-02-23.md`
-- 現時点ではランタイム検出の最小実装まで導入し、本番経路は DX11.3 を継続しています。
-
-DX12 PoC 可否レポート生成例:
-
-```powershell
-$cmd='"C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat" && .\scripts\generate_dx12_poc_report.cmd'
-cmd.exe /c $cmd
-```
-
-DX12 PoC ベンチレポート生成例:
-
-```powershell
-$cmd='"C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat" && .\scripts\generate_dx12_poc_benchmark.cmd'
-cmd.exe /c $cmd
-```
-
-DX12 PoC ベンチ履歴 CSV 更新例:
-
-```powershell
-$cmd='"C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat" && .\scripts\update_dx12_poc_benchmark_history.cmd'
-cmd.exe /c $cmd
-```
-
-DX12 PoC ベンチ回帰チェック例:
-
-```powershell
-$cmd='"C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat" && .\scripts\check_dx12_poc_regression.cmd'
-cmd.exe /c $cmd
-```
-
-DX11 vs DX12 品質比較レポート生成例:
-
-```powershell
-$cmd='"C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat" && .\scripts\generate_dx11_dx12_quality_report.cmd'
-cmd.exe /c $cmd
-```
-
-DX11 vs DX12 品質しきい値チェック例:
-
-```powershell
-$cmd='"C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat" && .\scripts\check_dx11_dx12_quality_threshold.cmd'
-cmd.exe /c $cmd
-```
-
-DX11 vs DX12 品質履歴 CSV 更新例:
-
-```powershell
-$cmd='"C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat" && .\scripts\update_dx11_dx12_quality_history.cmd'
-cmd.exe /c $cmd
-```
-
-## 注意
-
-- 現在の GPU 実装は最適化途上です。
-- 指定モードが実行環境に合わない場合は CPU 処理へ自動フォールバックします。
-- 複数GPU協調実行で一部タイルが失敗した場合は、失敗タイルのみ単一GPU実行で再試行します。
-- 協調再試行でも回復できない場合は、単一GPU実行へ再試行してから CPU フォールバックします。
-- `aviutl2_sdk` はローカル配置前提で `.gitignore` されています。
-- GPU self-hosted ランナー運用手順は `docs/operations/gpu-selfhosted-runner.md` を参照してください。
-- リリース時の確認手順は `docs/operations/release-checklist.md` を参照してください。
-- ExEdit2 実ホストでの E2E 検証手順は `docs/operations/exedit2-e2e-validation.md` を参照してください。
-
-## 既知の不具合
-
-- AVX2 最適化は継続中です。
-- GPU 実装の品質/速度チューニングは継続中です。
-
-## NL-Means アルゴリズム概要
-
-NL-Means は、設定範囲内の類似領域を探索し、重み付き平均でノイズ除去を行います。
-エッジ近傍ではエッジ情報を比較的保持しやすく、アニメ画像などで効果が高い手法です。
-
-## GPU 並列実行の概要
-
-各画素を独立に計算できる性質を利用し、テクスチャ入力とレンダリング処理で並列化しています。
-
-## 開発・テスト環境（当時）
-
-- PentiumM 1.83GHz + NVIDIA GeForce 6800 Go
-- Intel Core 2 Quad Q6700 + NVIDIA GeForce 9600 GT
-- Intel Core 2 Quad Q6600 + ATI RADEON HD 2400
-
-## 参考文献
-
-- Antoni Buades, Bartomeu Coll, Jean-Michel Morel,
-  "A Non-Local Algorithm for Image Denoising," CVPR 2005.
+- License: Apache License 2.0（`LICENSE`）
+- Original: `AviUtl NL-Means filter by nodchip`（http://kishibe.dyndns.tv/）
