@@ -73,7 +73,9 @@ void main(uint3 tid : SV_DispatchThreadID)
 
     const int x = (int)tid.x;
     const int y = (int)yGlobal;
-    const uint centerIndex = frameIndex(CurrentFrameIndex, tid.x, yGlobal);
+    const uint pixelsPerFrame = Width * Height;
+    const uint currentFrameBase = CurrentFrameIndex * pixelsPerFrame;
+    const uint centerIndex = currentFrameBase + yGlobal * Width + tid.x;
     const uint centerPacked = InputPixels[centerIndex];
     const float3 center = unpack_rgb(centerPacked);
     const uint alpha = unpack_a(centerPacked);
@@ -84,7 +86,7 @@ void main(uint3 tid : SV_DispatchThreadID)
     {
         const int cx = clampi(x + kPatchOffsets[i].x, 0, (int)Width - 1);
         const int cy = clampi(y + kPatchOffsets[i].y, 0, (int)Height - 1);
-        currentPatch[i] = unpack_rgb(InputPixels[frameIndex(CurrentFrameIndex, (uint)cx, (uint)cy)]);
+        currentPatch[i] = unpack_rgb(InputPixels[currentFrameBase + (uint)cy * Width + (uint)cx]);
     }
 
     float sumW = 0.0f;
@@ -95,6 +97,7 @@ void main(uint3 tid : SV_DispatchThreadID)
 
     for (uint t = 0; t < FrameCount; ++t)
     {
+        const uint frameBase = t * pixelsPerFrame;
         for (int dy = -((int)SearchRadius); dy <= (int)SearchRadius; dy += (int)SpatialStep)
         {
             const int sy = clampi(y + dy, 0, (int)Height - 1);
@@ -109,7 +112,7 @@ void main(uint3 tid : SV_DispatchThreadID)
                 {
                     const int tx = clampi(sx + kPatchOffsets[i].x, 0, (int)Width - 1);
                     const int ty = clampi(sy + kPatchOffsets[i].y, 0, (int)Height - 1);
-                    const float3 samplePatch = unpack_rgb(InputPixels[frameIndex(t, (uint)tx, (uint)ty)]);
+                    const float3 samplePatch = unpack_rgb(InputPixels[frameBase + (uint)ty * Width + (uint)tx]);
                     const float3 diff = currentPatch[i] - samplePatch;
                     patchDistance += dot(diff, diff) * kPatchWeights[i];
                     if (i == 4)
