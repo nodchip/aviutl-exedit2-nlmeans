@@ -1,16 +1,11 @@
 # GPU Coop PoC Benchmark
 
-- Frame: 128x72
 - Search Radius: 2
-- Iterations: 12
+- Tile Count: 2
+- Notes: adoption gate should use real-size profile (`fhd`) instead of smoke size.
 
-| Mode | Mean Time (ms/frame) |
-|---|---:|
-| Single GPU Full Frame | 0.171 |
-| Coop PoC (2 tiles, sequential dispatch) | 0.559 |
-| Coop PoC (2 tiles, async dispatch) | 0.304 |
-| Coop PoC (2 tiles, async + single fallback) | 0.520 |
-
-- Relative (CoopSeq/Single): 3.267x
-- Relative (CoopAsync/Single): 1.776x
-- Relative (CoopAsyncFallback/Single): 3.036x
+| Profile | Frame | Iterations | Single GPU Full Frame | Coop PoC (2 tiles, sequential dispatch) | Coop PoC (2 tiles, async dispatch) | Coop PoC (2 tiles, async + single fallback) | Relative (CoopSeq/Single) | Relative (CoopAsync/Single) | Relative (CoopAsyncFallback/Single) |
+|---|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| smoke | 128x72 | 12 | 0.234 | 0.504 | 0.272 | 0.563 | 2.156x | 1.166x | 2.413x |
+| hd | 1280x720 | 6 | 2.998 | 5.174 | 3.359 | 5.874 | 1.726x | 1.120x | 1.959x |
+| fhd | 1920x1080 | 4 | 6.335 | 12.001 | 7.768 | 10.710 | 1.894x | 1.226x | 1.690x |

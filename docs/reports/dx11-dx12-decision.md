@@ -1,7 +1,7 @@
 ﻿# DX11/DX12 Adoption Decision Report
 
 - adoption_gate: FAIL
-- exedit2_e2e_gate: FAIL
+- exedit2_e2e_gate: PASS
 - dx11_fixed_window: 2026-02-23 to 2026-03-31
 - next_dx12_reevaluation: 2026-03-31 (in 35 days)
 - dx12_reevaluation_triggers: adoption_gate PASS x3 on different days, ExEdit2 E2E stable, no fallback anomalies
