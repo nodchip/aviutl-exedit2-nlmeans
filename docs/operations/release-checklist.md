@@ -22,6 +22,7 @@
 8. GPU 環境では `scripts/update_dx12_poc_benchmark_history.cmd` を実行し、DX12 PoC ベンチ履歴 CSV を更新する。
 9. GPU 環境では `scripts/check_dx12_poc_regression.cmd` を実行し、DX12 PoC compute path の回帰を確認する。
 10. 実ホスト検証結果として `scripts/check_exedit2_e2e_gate.cmd` を実行し、E2E 記録の最新性と必須項目 PASS を確認する。
+11. 実ホスト検証結果の要約として `scripts/generate_exedit2_e2e_report.cmd` を実行し、`docs/reports/exedit2-e2e-status.md` を更新する。
 
 ## 成果物確認
 
@@ -29,6 +30,7 @@
 2. `aviutl2_sdk` が成果物に含まれていないことを確認する。
 3. シェーダー配布方針（プリコンパイルCSO優先、外部 HLSL + 実行時コンパイル、埋め込みフォールバック）に沿っていることを確認する。
 4. 主要レポート（`gpu-coop-benchmark.md`, `gpu-coop-decision.md`, `dx12-poc-readiness.md`, `dx12-poc-benchmark.md`, `dx11-dx12-quality.md`, `dx11-dx12-decision.md`）が最新であることを確認する。
+5. ExEdit2 実機検証レポート（`exedit2-e2e-status.md`）が最新であることを確認する。
 
 ## DX11/DX12 判断基準
 

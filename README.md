@@ -113,6 +113,13 @@ $cmd='"C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Buil
 cmd.exe /c $cmd
 ```
 
+ExEdit2 実ホスト E2E レポート生成例:
+
+```powershell
+$cmd='"C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat" && .\scripts\generate_exedit2_e2e_report.cmd 30'
+cmd.exe /c $cmd
+```
+
 ## オプション解説
 
 ### 空間範囲
