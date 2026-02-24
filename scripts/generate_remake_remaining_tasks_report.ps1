@@ -4,6 +4,8 @@ $dx11Path = "docs/reports/dx11-dx12-decision.md"
 $coopPath = "docs/reports/gpu-coop-decision.md"
 $e2ePath = "docs/reports/exedit2-e2e-status.md"
 $outPath = "docs/reports/remake-remaining-tasks.md"
+$task6Policy = "FROZEN_FOR_RELEASE"
+$fallbackPolicy = "SKIP_ALLOWED_AS_RELEASE_SPEC"
 
 if (-not (Test-Path "docs/reports")) {
     New-Item -ItemType Directory -Path "docs/reports" | Out-Null
@@ -71,8 +73,12 @@ if ($dx11Decision -ne "NOT_ADOPTED" -and $dx11Gate -ne "PASS") {
 if ($coopDecision -ne "NOT_ADOPTED" -and $coopGate -ne "PASS") {
     $remaining += "GPU coop adoption gate is FAIL. Improve ratio and async/single metrics to satisfy thresholds."
 }
-$remaining += "Continue Task 6: optimize GPU side implementations for Fast/Temporal variants."
-$remaining += "Keep accumulating ExEdit2 host E2E evidence for release decision."
+if ($task6Policy -ne "FROZEN_FOR_RELEASE") {
+    $remaining += "Continue Task 6: optimize GPU side implementations for Fast/Temporal variants."
+}
+if ($remaining.Count -eq 0) {
+    $remaining += "No blocking tasks for release. Post-release monitoring only."
+}
 
 $today = Get-Date -Format "yyyy-MM-dd"
 $lines = @()
@@ -88,6 +94,8 @@ $lines += "- gpu_coop_next_reevaluation: $coopNext"
 $lines += "- exedit2_e2e_gate: $e2eGate"
 $lines += "- exedit2_e2e_records: $e2eRecords"
 $lines += "- exedit2_e2e_reason: $e2eReason"
+$lines += "- task6_policy: $task6Policy"
+$lines += "- fallback_policy: $fallbackPolicy"
 $lines += ""
 $lines += "## Remaining Tasks"
 

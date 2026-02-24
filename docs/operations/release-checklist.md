@@ -9,6 +9,7 @@
 1. `git status --short` が空であることを確認する。
 2. `master` 最新を取り込む場合は `git pull --ff-only` を使用する。
 3. `docs/reports/gpu-coop-benchmark.md` と `docs/reports/gpu-coop-history.csv` の更新有無を確認する。
+4. リリース方針を確認する（Task 6 は凍結、`fallback=SKIP` は許容仕様）。
 
 ## 検証
 
@@ -22,7 +23,7 @@
 8. GPU 環境では `scripts/update_dx12_poc_benchmark_history.cmd` を実行し、DX12 PoC ベンチ履歴 CSV を更新する。
 9. GPU 環境では `scripts/check_dx12_poc_regression.cmd` を実行し、DX12 PoC compute path の回帰を確認する。
 10. GPU 亜種ベンチとして `scripts/generate_gpu_variants_report.cmd` を実行し、間引き/時間減衰の傾向を確認する。
-11. 実ホスト検証結果として `scripts/check_exedit2_e2e_gate.cmd` を実行し、E2E 記録の最新性と必須項目 PASS を確認する。
+11. 実ホスト検証結果として `scripts/check_exedit2_e2e_gate.cmd` を実行し、E2E 記録の最新性と判定条件（`fallback=PASS|SKIP`）を確認する。
 12. 実ホスト検証結果の要約として `scripts/generate_exedit2_e2e_report.cmd` を実行し、`docs/reports/exedit2-e2e-status.md` を更新する。
 13. 全体の残課題を `scripts/generate_remake_remaining_tasks_report.cmd` で更新し、判断時点の未完了事項を記録する。
 

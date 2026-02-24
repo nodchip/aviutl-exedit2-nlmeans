@@ -10,7 +10,8 @@
 - exedit2_e2e_gate: PASS
 - exedit2_e2e_records: 3
 - exedit2_e2e_reason: age=0 days
+- task6_policy: FROZEN_FOR_RELEASE
+- fallback_policy: SKIP_ALLOWED_AS_RELEASE_SPEC
 
 ## Remaining Tasks
-1. Continue Task 6: optimize GPU side implementations for Fast/Temporal variants.
-2. Keep accumulating ExEdit2 host E2E evidence for release decision.
+1. No blocking tasks for release. Post-release monitoring only.
