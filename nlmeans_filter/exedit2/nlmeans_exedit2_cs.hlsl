@@ -103,6 +103,7 @@ void main(uint3 tid : SV_DispatchThreadID)
             {
                 const int sx = clampi(x + dx, 0, (int)Width - 1);
                 float patchDistance = 0.0f;
+                float3 sample = 0.0f;
 
                 [unroll]
                 for (int i = 0; i < 9; ++i)
@@ -112,9 +113,13 @@ void main(uint3 tid : SV_DispatchThreadID)
                     const float3 samplePatch = unpack_rgb(InputPixels[frameIndex(t, (uint)tx, (uint)ty)]);
                     const float3 diff = currentPatch[i] - samplePatch;
                     patchDistance += dot(diff, diff) * kPatchWeights[i];
+                    if (i == 4)
+                    {
+                        // パッチ中心は候補画素そのものなので、そのまま加算色に使う。
+                        sample = samplePatch;
+                    }
                 }
 
-                const float3 sample = unpack_rgb(InputPixels[frameIndex(t, (uint)sx, (uint)sy)]);
                 const float w = exp(-sqrt(max(patchDistance, 0.0f)) * InvSigma) * temporalWeight;
                 sumW += w;
                 sumR += w * sample.r;
