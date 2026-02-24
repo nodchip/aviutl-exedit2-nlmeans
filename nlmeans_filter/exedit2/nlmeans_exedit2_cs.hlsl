@@ -38,11 +38,6 @@ int clampi(int v, int low, int high)
     return min(high, max(low, v));
 }
 
-uint frameIndex(uint t, uint x, uint y)
-{
-    return (t * Height + y) * Width + x;
-}
-
 float3 unpack_rgb(uint packed)
 {
     return float3(
@@ -73,6 +68,10 @@ void main(uint3 tid : SV_DispatchThreadID)
 
     const int x = (int)tid.x;
     const int y = (int)yGlobal;
+    const int widthMax = (int)Width - 1;
+    const int heightMax = (int)Height - 1;
+    const int searchRadius = (int)SearchRadius;
+    const int spatialStep = (int)SpatialStep;
     const uint pixelsPerFrame = Width * Height;
     const uint currentFrameBase = CurrentFrameIndex * pixelsPerFrame;
     const uint centerIndex = currentFrameBase + yGlobal * Width + tid.x;
@@ -84,8 +83,8 @@ void main(uint3 tid : SV_DispatchThreadID)
     [unroll]
     for (int i = 0; i < 9; ++i)
     {
-        const int cx = clampi(x + kPatchOffsets[i].x, 0, (int)Width - 1);
-        const int cy = clampi(y + kPatchOffsets[i].y, 0, (int)Height - 1);
+        const int cx = clampi(x + kPatchOffsets[i].x, 0, widthMax);
+        const int cy = clampi(y + kPatchOffsets[i].y, 0, heightMax);
         currentPatch[i] = unpack_rgb(InputPixels[currentFrameBase + (uint)cy * Width + (uint)cx]);
     }
 
@@ -98,12 +97,12 @@ void main(uint3 tid : SV_DispatchThreadID)
     for (uint t = 0; t < FrameCount; ++t)
     {
         const uint frameBase = t * pixelsPerFrame;
-        for (int dy = -((int)SearchRadius); dy <= (int)SearchRadius; dy += (int)SpatialStep)
+        for (int dy = -searchRadius; dy <= searchRadius; dy += spatialStep)
         {
-            const int sy = clampi(y + dy, 0, (int)Height - 1);
-            for (int dx = -((int)SearchRadius); dx <= (int)SearchRadius; dx += (int)SpatialStep)
+            const int sy = clampi(y + dy, 0, heightMax);
+            for (int dx = -searchRadius; dx <= searchRadius; dx += spatialStep)
             {
-                const int sx = clampi(x + dx, 0, (int)Width - 1);
+                const int sx = clampi(x + dx, 0, widthMax);
                 float patchDistance = 0.0f;
                 // パッチ中心は候補画素そのものなので、先に読み出して加算色へ使う。
                 const float3 sample = unpack_rgb(InputPixels[frameBase + (uint)sy * Width + (uint)sx]);
@@ -111,8 +110,8 @@ void main(uint3 tid : SV_DispatchThreadID)
                 [unroll]
                 for (int i = 0; i < 9; ++i)
                 {
-                    const int tx = clampi(sx + kPatchOffsets[i].x, 0, (int)Width - 1);
-                    const int ty = clampi(sy + kPatchOffsets[i].y, 0, (int)Height - 1);
+                    const int tx = clampi(sx + kPatchOffsets[i].x, 0, widthMax);
+                    const int ty = clampi(sy + kPatchOffsets[i].y, 0, heightMax);
                     const float3 samplePatch = unpack_rgb(InputPixels[frameBase + (uint)ty * Width + (uint)tx]);
                     const float3 diff = currentPatch[i] - samplePatch;
                     patchDistance += dot(diff, diff) * kPatchWeights[i];
