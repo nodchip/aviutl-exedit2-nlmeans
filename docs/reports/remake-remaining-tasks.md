@@ -7,7 +7,7 @@
 - gpu_coop_adoption_gate: FAIL
 - gpu_coop_next_reevaluation: 2026-03-31 (in 35 days)
 - exedit2_e2e_gate: PASS
-- exedit2_e2e_records: 1
+- exedit2_e2e_records: 2
 - exedit2_e2e_reason: age=0 days
 
 ## Remaining Tasks
