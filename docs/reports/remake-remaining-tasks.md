@@ -8,7 +8,7 @@
 - gpu_coop_adoption_gate: FAIL
 - gpu_coop_next_reevaluation: none (not scheduled (policy disabled))
 - exedit2_e2e_gate: PASS
-- exedit2_e2e_records: 2
+- exedit2_e2e_records: 3
 - exedit2_e2e_reason: age=0 days
 
 ## Remaining Tasks

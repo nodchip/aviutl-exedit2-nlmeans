@@ -1,3 +1,4 @@
 timestamp,operator,build,gpu,cpu_naive,cpu_avx2,gpu_dx11,gpu_coop,fallback,notes
 "2026-02-24T17:12:36+09:00","nodchip","nlmeans_filter_exedit2.auf2","NVIDIA GeForce RTX 4070","PASS","PASS","PASS","SKIP","SKIP","nodchip nlmeans_filter_exedit2.auf2 ""NVIDIA GeForce RTX 4070"" PASS PASS PASS SKIP SKIP GPUアダプタAuto表示が文字化け。fallbackは環境未用意のためSKIP"
 "2026-02-24T21:08:50+09:00","nodchip","nlmeans_filter_exedit2.auf2","NVIDIA GeForce RTX 4070","PASS","PASS","PASS","SKIP","SKIP","nodchip nlmeans_filter_exedit2.auf2 ""NVIDIA GeForce RTX 4070"" PASS PASS PASS SKIP SKIP ""GPUアダプタ=Auto の文字化け解消を実機確認"""
+"2026-02-24T21:30:20+09:00","nodchip","nlmeans_filter_exedit2.auf2","NVIDIA GeForce RTX 4070","PASS","PASS","PASS","SKIP","SKIP","nodchip nlmeans_filter_exedit2.auf2 ""NVIDIA GeForce RTX 4070"" PASS PASS PASS SKIP SKIP 最適化後の画質一致をExEdit2実機で確認"
