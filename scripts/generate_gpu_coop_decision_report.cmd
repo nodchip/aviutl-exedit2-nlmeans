@@ -7,10 +7,16 @@ if not exist docs\reports (
 
 set "REPORT=docs\reports\gpu-coop-decision.md"
 set "GATE_RESULT=FAIL"
+set "E2E_GATE_RESULT=FAIL"
 
 call "%~dp0check_gpu_coop_adoption_gate.cmd" >nul 2>nul
 if not errorlevel 1 (
   set "GATE_RESULT=PASS"
+)
+
+call "%~dp0check_exedit2_e2e_gate.cmd" >nul 2>nul
+if not errorlevel 1 (
+  set "E2E_GATE_RESULT=PASS"
 )
 
 powershell -NoProfile -ExecutionPolicy Bypass -Command ^
@@ -18,6 +24,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command ^
   "$benchPath='docs/reports/gpu-coop-benchmark.md';" ^
   "$outPath='docs/reports/gpu-coop-decision.md';" ^
   "$gate='%GATE_RESULT%';" ^
+  "$e2eGate='%E2E_GATE_RESULT%';" ^
   "$fixedStart='2026-02-23';" ^
   "$fixedEnd='2026-03-31';" ^
   "$reevalDate='2026-03-31';" ^
@@ -54,6 +61,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command ^
   "$lines += '# GPU Coop Adoption Decision Report';" ^
   "$lines += '';" ^
   "$lines += '- adoption_gate: ' + $gate;" ^
+  "$lines += '- exedit2_e2e_gate: ' + $e2eGate;" ^
   "$lines += '- single_gpu_fixed_window: ' + $fixedStart + ' to ' + $fixedEnd;" ^
   "$lines += '- next_gpu_coop_reevaluation: ' + $reevalDate + ' (' + $reevalStatus + ')';" ^
   "$lines += '- policy: keep single-GPU default until adoption_gate becomes PASS.';" ^

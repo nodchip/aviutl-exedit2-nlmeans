@@ -7,10 +7,16 @@ if not exist docs\reports (
 
 set "REPORT=docs\reports\dx11-dx12-decision.md"
 set "GATE_RESULT=FAIL"
+set "E2E_GATE_RESULT=FAIL"
 
 call "%~dp0check_dx11_dx12_adoption_gate.cmd" >nul 2>nul
 if not errorlevel 1 (
   set "GATE_RESULT=PASS"
+)
+
+call "%~dp0check_exedit2_e2e_gate.cmd" >nul 2>nul
+if not errorlevel 1 (
+  set "E2E_GATE_RESULT=PASS"
 )
 
 powershell -NoProfile -ExecutionPolicy Bypass -Command ^
@@ -18,6 +24,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command ^
   "$qualityPath='docs/reports/dx11-dx12-quality-history.csv';" ^
   "$outPath='docs/reports/dx11-dx12-decision.md';" ^
   "$gateResult='%GATE_RESULT%';" ^
+  "$e2eGate='%E2E_GATE_RESULT%';" ^
   "$fixedStart='2026-02-23';" ^
   "$fixedEnd='2026-03-31';" ^
   "$reevalDate='2026-03-31';" ^
@@ -47,6 +54,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command ^
   "$lines += '# DX11/DX12 Adoption Decision Report';" ^
   "$lines += '';" ^
   "$lines += '- adoption_gate: ' + $gateResult;" ^
+  "$lines += '- exedit2_e2e_gate: ' + $e2eGate;" ^
   "$lines += '- dx11_fixed_window: ' + $fixedStart + ' to ' + $fixedEnd;" ^
   "$lines += '- next_dx12_reevaluation: ' + $reevalDate + ' (' + $reevalStatus + ')';" ^
   "$lines += '- dx12_reevaluation_triggers: adoption_gate PASS x3 on different days, ExEdit2 E2E stable, no fallback anomalies';" ^
