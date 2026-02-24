@@ -2,18 +2,31 @@
 setlocal
 
 echo [run_dx11_dx12_decision_workflow] start.
+set "WORKFLOW_RESULT=0"
 
 call "%~dp0generate_dx11_dx12_benchmark.cmd"
-if errorlevel 1 exit /b 1
+if errorlevel 1 (
+  echo [run_dx11_dx12_decision_workflow] benchmark generation is FAIL.
+  set "WORKFLOW_RESULT=1"
+)
 
 call "%~dp0check_dx11_dx12_benchmark_threshold.cmd"
-if errorlevel 1 exit /b 1
+if errorlevel 1 (
+  echo [run_dx11_dx12_decision_workflow] benchmark threshold check is FAIL.
+  set "WORKFLOW_RESULT=1"
+)
 
 if exist nlmeans_filter\aviutl2_sdk\filter2.h (
   call "%~dp0generate_dx11_dx12_quality_report.cmd"
-  if errorlevel 1 exit /b 1
+  if errorlevel 1 (
+    echo [run_dx11_dx12_decision_workflow] quality report generation is FAIL.
+    set "WORKFLOW_RESULT=1"
+  )
   call "%~dp0check_dx11_dx12_quality_threshold.cmd"
-  if errorlevel 1 exit /b 1
+  if errorlevel 1 (
+    echo [run_dx11_dx12_decision_workflow] quality threshold check is FAIL.
+    set "WORKFLOW_RESULT=1"
+  )
 ) else (
   echo [run_dx11_dx12_decision_workflow] skip quality report/check because aviutl2_sdk\filter2.h is missing.
 )
@@ -33,13 +46,27 @@ if errorlevel 1 (
 )
 
 call "%~dp0generate_exedit2_e2e_report.cmd" 30
-if errorlevel 1 exit /b 1
+if errorlevel 1 (
+  echo [run_dx11_dx12_decision_workflow] e2e report generation is FAIL.
+  set "WORKFLOW_RESULT=1"
+)
 
 call "%~dp0generate_dx11_dx12_decision_report.cmd"
-if errorlevel 1 exit /b 1
+if errorlevel 1 (
+  echo [run_dx11_dx12_decision_workflow] dx11 dx12 decision report generation is FAIL.
+  set "WORKFLOW_RESULT=1"
+)
 
 call "%~dp0check_dx11_dx12_reevaluation_due.cmd"
-if errorlevel 1 exit /b 1
+if errorlevel 1 (
+  echo [run_dx11_dx12_decision_workflow] reevaluation due check is FAIL.
+  set "WORKFLOW_RESULT=1"
+)
 
-echo [run_dx11_dx12_decision_workflow] done.
-exit /b 0
+if "%WORKFLOW_RESULT%"=="0" (
+  echo [run_dx11_dx12_decision_workflow] done.
+  exit /b 0
+)
+
+echo [run_dx11_dx12_decision_workflow] done with failure.
+exit /b 1
