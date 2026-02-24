@@ -21,12 +21,6 @@ cbuffer Constants : register(b0)
 StructuredBuffer<uint> InputPixels : register(t0);
 RWStructuredBuffer<uint> OutputPixels : register(u0);
 
-static const int2 kPatchOffsets[9] = {
-    int2(-1, -1), int2(0, -1), int2(1, -1),
-    int2(-1,  0), int2(0,  0), int2(1,  0),
-    int2(-1,  1), int2(0,  1), int2(1,  1)
-};
-
 static const float kPatchWeights[9] = {
     0.07f, 0.12f, 0.07f,
     0.12f, 0.20f, 0.12f,
@@ -78,15 +72,25 @@ void main(uint3 tid : SV_DispatchThreadID)
     const uint centerPacked = InputPixels[centerIndex];
     const float3 center = unpack_rgb(centerPacked);
     const uint alpha = unpack_a(centerPacked);
+    const int cx0 = clampi(x - 1, 0, widthMax);
+    const int cx1 = x;
+    const int cx2 = clampi(x + 1, 0, widthMax);
+    const int cy0 = clampi(y - 1, 0, heightMax);
+    const int cy1 = y;
+    const int cy2 = clampi(y + 1, 0, heightMax);
+    const uint currentRow0Base = currentFrameBase + (uint)cy0 * Width;
+    const uint currentRow1Base = currentFrameBase + (uint)cy1 * Width;
+    const uint currentRow2Base = currentFrameBase + (uint)cy2 * Width;
     float3 currentPatch[9];
-
-    [unroll]
-    for (int i = 0; i < 9; ++i)
-    {
-        const int cx = clampi(x + kPatchOffsets[i].x, 0, widthMax);
-        const int cy = clampi(y + kPatchOffsets[i].y, 0, heightMax);
-        currentPatch[i] = unpack_rgb(InputPixels[currentFrameBase + (uint)cy * Width + (uint)cx]);
-    }
+    currentPatch[0] = unpack_rgb(InputPixels[currentRow0Base + (uint)cx0]);
+    currentPatch[1] = unpack_rgb(InputPixels[currentRow0Base + (uint)cx1]);
+    currentPatch[2] = unpack_rgb(InputPixels[currentRow0Base + (uint)cx2]);
+    currentPatch[3] = unpack_rgb(InputPixels[currentRow1Base + (uint)cx0]);
+    currentPatch[4] = unpack_rgb(InputPixels[currentRow1Base + (uint)cx1]);
+    currentPatch[5] = unpack_rgb(InputPixels[currentRow1Base + (uint)cx2]);
+    currentPatch[6] = unpack_rgb(InputPixels[currentRow2Base + (uint)cx0]);
+    currentPatch[7] = unpack_rgb(InputPixels[currentRow2Base + (uint)cx1]);
+    currentPatch[8] = unpack_rgb(InputPixels[currentRow2Base + (uint)cx2]);
 
     float sumW = 0.0f;
     float sumR = 0.0f;

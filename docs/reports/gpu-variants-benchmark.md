@@ -10,8 +10,8 @@
 
 | Variant | Spatial Step | Temporal Decay | Mean Time (ms/frame) | Relative to Baseline |
 |---|---:|---:|---:|---:|
-| Baseline | 1 | 0.000 | 0.213 | 1.000x |
-| Fast(step=2) | 2 | 0.000 | 0.174 | 0.819x |
-| Fast(step=3) | 3 | 0.000 | 0.190 | 0.890x |
-| Temporal(decay=1.0) | 1 | 1.000 | 0.190 | 0.894x |
-| Fast(step=2)+Temporal(decay=1.0) | 2 | 1.000 | 0.262 | 1.228x |
+| Baseline | 1 | 0.000 | 0.172 | 1.000x |
+| Fast(step=2) | 2 | 0.000 | 0.196 | 1.142x |
+| Fast(step=3) | 3 | 0.000 | 0.189 | 1.104x |
+| Temporal(decay=1.0) | 1 | 1.000 | 0.166 | 0.970x |
+| Fast(step=2)+Temporal(decay=1.0) | 2 | 1.000 | 0.149 | 0.870x |
