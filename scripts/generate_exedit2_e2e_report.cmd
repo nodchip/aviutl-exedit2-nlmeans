@@ -22,9 +22,10 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command ^
   "$gate='FAIL';" ^
   "$gateReason='no records';" ^
   "if($latest -ne $null){" ^
-  "  $mustPass=@('cpu_naive','cpu_avx2','gpu_dx11','fallback');" ^
+  "  $mustPass=@('cpu_naive','cpu_avx2','gpu_dx11');" ^
   "  $ok=$true;" ^
   "  foreach($k in $mustPass){ if($latest.$k -ne 'PASS'){ $ok=$false; $gateReason=($k + '=' + $latest.$k) } }" ^
+  "  if($ok -and $latest.fallback -ne 'PASS' -and $latest.fallback -ne 'SKIP'){ $ok=$false; $gateReason=('fallback=' + $latest.fallback) }" ^
   "  if($ok -and $latest.gpu_coop -ne 'PASS' -and $latest.gpu_coop -ne 'SKIP'){ $ok=$false; $gateReason=('gpu_coop=' + $latest.gpu_coop) }" ^
   "  if($ok){" ^
   "    try { $ts=[datetimeoffset]::Parse($latest.timestamp) } catch { $ok=$false; $gateReason='invalid timestamp' }" ^

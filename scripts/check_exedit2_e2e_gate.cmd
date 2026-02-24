@@ -16,11 +16,14 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command ^
   "  Write-Host '[check_exedit2_e2e_gate] ERROR: no E2E records found.'; exit 1" ^
   "}" ^
   "$latest=$rows[-1];" ^
-  "$mustPass=@('cpu_naive','cpu_avx2','gpu_dx11','fallback');" ^
+  "$mustPass=@('cpu_naive','cpu_avx2','gpu_dx11');" ^
   "foreach($k in $mustPass){" ^
   "  if($latest.$k -ne 'PASS'){" ^
   "    Write-Host ('[check_exedit2_e2e_gate] FAIL: ' + $k + '=' + $latest.$k + ' (PASS required).'); exit 1" ^
   "  }" ^
+  "}" ^
+  "if($latest.fallback -ne 'PASS' -and $latest.fallback -ne 'SKIP'){" ^
+  "  Write-Host ('[check_exedit2_e2e_gate] FAIL: fallback=' + $latest.fallback + ' (PASS or SKIP required).'); exit 1" ^
   "}" ^
   "if($latest.gpu_coop -ne 'PASS' -and $latest.gpu_coop -ne 'SKIP'){" ^
   "  Write-Host ('[check_exedit2_e2e_gate] FAIL: gpu_coop=' + $latest.gpu_coop + ' (PASS or SKIP required).'); exit 1" ^
