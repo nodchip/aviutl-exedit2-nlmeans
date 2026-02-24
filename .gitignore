@@ -19,6 +19,7 @@ vcomp90.dll
 /Dx12PocBenchmark.exe
 /Dx11Dx12QualityReport.exe
 /Dx11Dx12Benchmark.exe
+/GpuVariantsBenchmark.exe
 /nlmeans_filter/exedit2/*.cso
 /docs/reports/gpu-runner-health.md
 /docs/reports/dx12-poc-readiness.md

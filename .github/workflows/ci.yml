@@ -35,6 +35,10 @@ jobs:
         shell: cmd
         run: scripts\generate_nlm_variants_report.cmd
 
+      - name: Generate GPU Variants Benchmark Report
+        shell: cmd
+        run: scripts\generate_gpu_variants_report.cmd
+
       - name: Run DX11 DX12 Decision Workflow
         shell: cmd
         run: scripts\run_dx11_dx12_decision_workflow.cmd
@@ -45,6 +49,13 @@ jobs:
         with:
           name: nlm-variants-benchmark
           path: docs/reports/nlm-variants-benchmark.md
+
+      - name: Upload GPU Variants Benchmark Artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gpu-variants-benchmark
+          path: docs/reports/gpu-variants-benchmark.md
 
       - name: Upload DX11 DX12 Benchmark Artifact
         if: always()
