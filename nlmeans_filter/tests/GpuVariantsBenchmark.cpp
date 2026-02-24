@@ -3,10 +3,19 @@
 #include <chrono>
 #include <iomanip>
 #include <iostream>
+#include <string>
 #include <vector>
 #include "../exedit2/Exedit2GpuRunner.h"
 
 namespace {
+
+struct BenchmarkProfile
+{
+	const char* key;
+	int width;
+	int height;
+	int iterations;
+};
 
 struct VariantCase
 {
@@ -44,16 +53,58 @@ double benchmark_ms(Fn&& fn, int iterations)
 	return elapsed.count() / static_cast<double>(std::max(1, iterations));
 }
 
+// 引数からプロファイルを解決する。未指定時は smoke を使う。
+const BenchmarkProfile* resolve_profile(int argc, char** argv)
+{
+	static const BenchmarkProfile profiles[] = {
+		{ "smoke", 128, 72, 12 },
+		{ "hd", 1280, 720, 6 },
+		{ "fhd", 1920, 1080, 4 }
+	};
+	std::string selected = "smoke";
+
+	for (int i = 1; i < argc; ++i) {
+		const std::string arg = argv[i];
+		if (arg == "--profile" || arg == "-p") {
+			if (i + 1 >= argc) {
+				std::cerr << "Missing value for --profile" << std::endl;
+				return nullptr;
+			}
+			selected = argv[++i];
+			continue;
+		}
+
+		std::cerr << "Unknown argument: " << arg << std::endl;
+		return nullptr;
+	}
+
+	for (const BenchmarkProfile& profile : profiles) {
+		if (selected == profile.key) {
+			return &profile;
+		}
+	}
+
+	std::cerr << "Unknown profile: " << selected << std::endl;
+	std::cerr << "Available profiles: smoke, hd, fhd" << std::endl;
+	return nullptr;
+}
+
 } // namespace
 
-int main()
+int main(int argc, char** argv)
 {
-	const int width = 128;
-	const int height = 72;
+	const BenchmarkProfile* profile = resolve_profile(argc, argv);
+	if (profile == nullptr) {
+		std::cerr << "Usage: GpuVariantsBenchmark.exe [--profile smoke|hd|fhd]" << std::endl;
+		return 2;
+	}
+
+	const int width = profile->width;
+	const int height = profile->height;
 	const int searchRadius = 2;
 	const int timeRadius = 1;
 	const double sigma = 55.0;
-	const int iterations = 12;
+	const int iterations = profile->iterations;
 
 	const std::vector<VariantCase> variants = {
 		{ "Baseline", 1, 0.0 },
@@ -111,6 +162,7 @@ int main()
 	const double baseline = timings.front();
 
 	std::cout << "# GPU Variants Benchmark\n\n";
+	std::cout << "- Profile: " << profile->key << "\n";
 	std::cout << "- Frame: " << width << "x" << height << "\n";
 	std::cout << "- Search Radius: " << searchRadius << "\n";
 	std::cout << "- Time Radius: " << timeRadius << "\n";

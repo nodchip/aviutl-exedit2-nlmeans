@@ -24,7 +24,10 @@ cl /nologo /utf-8 /EHsc /O2 /std:c++17 /wd4828 ^
   /link d3d11.lib d3dcompiler.lib dxgi.lib
 if errorlevel 1 exit /b 1
 
-GpuVariantsBenchmark.exe > docs\reports\gpu-variants-benchmark.md
+set "GPU_VARIANTS_PROFILE_ARG="
+if not "%GPU_VARIANTS_PROFILE%"=="" set "GPU_VARIANTS_PROFILE_ARG=--profile %GPU_VARIANTS_PROFILE%"
+
+GpuVariantsBenchmark.exe %GPU_VARIANTS_PROFILE_ARG% > docs\reports\gpu-variants-benchmark.md
 if errorlevel 1 exit /b 1
 
 exit /b 0
