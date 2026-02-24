@@ -14,12 +14,68 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Ensure AviUtl2 SDK availability
+        id: ensure_sdk
+        shell: pwsh
+        env:
+          AVIUTL2_SDK_URL_VAR: ${{ vars.AVIUTL2_SDK_URL }}
+          AVIUTL2_SDK_URL_SECRET: ${{ secrets.AVIUTL2_SDK_URL }}
+        run: |
+          $sdkHeader = "nlmeans_filter/aviutl2_sdk/filter2.h"
+          if (Test-Path $sdkHeader) {
+            "sdk_available=true" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+            Write-Host "AviUtl2 SDK found."
+            exit 0
+          }
+
+          $sdkUrl = $env:AVIUTL2_SDK_URL_VAR
+          if ([string]::IsNullOrWhiteSpace($sdkUrl)) {
+            $sdkUrl = $env:AVIUTL2_SDK_URL_SECRET
+          }
+          if ([string]::IsNullOrWhiteSpace($sdkUrl)) {
+            "sdk_available=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+            Write-Host "AviUtl2 SDK URL is not configured. Release x64 plugin build will be skipped."
+            exit 0
+          }
+
+          $zipPath = Join-Path $env:RUNNER_TEMP "aviutl2_sdk.zip"
+          $extractRoot = Join-Path $env:RUNNER_TEMP "aviutl2_sdk_extract"
+          if (Test-Path $extractRoot) {
+            Remove-Item -Recurse -Force $extractRoot
+          }
+
+          Write-Host "Downloading AviUtl2 SDK from configured URL."
+          Invoke-WebRequest -Uri $sdkUrl -OutFile $zipPath
+          Expand-Archive -Path $zipPath -DestinationPath $extractRoot -Force
+
+          $header = Get-ChildItem -Path $extractRoot -Recurse -Filter "filter2.h" -File | Select-Object -First 1
+          if (-not $header) {
+            "sdk_available=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+            Write-Host "Downloaded SDK archive does not contain filter2.h. Release x64 plugin build will be skipped."
+            exit 0
+          }
+
+          $headerDir = Split-Path -Parent $header.FullName
+          New-Item -ItemType Directory -Path "nlmeans_filter/aviutl2_sdk" -Force | Out-Null
+          Get-ChildItem -Path $headerDir -File | ForEach-Object {
+            Copy-Item -Path $_.FullName -Destination "nlmeans_filter/aviutl2_sdk" -Force
+          }
+
+          if (Test-Path $sdkHeader) {
+            "sdk_available=true" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+            Write-Host "AviUtl2 SDK downloaded and extracted."
+          } else {
+            "sdk_available=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+            Write-Host "AviUtl2 SDK extraction failed. Release x64 plugin build will be skipped."
+          }
+
       - name: Setup MSVC
         uses: ilammy/msvc-dev-cmd@v1
         with:
           arch: x64
 
       - name: Build Release x64
+        if: steps.ensure_sdk.outputs.sdk_available == 'true'
         shell: cmd
         run: >
           MSBuild.exe nlmeans_filter.sln
