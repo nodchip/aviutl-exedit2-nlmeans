@@ -103,18 +103,31 @@ void main(uint3 tid : SV_DispatchThreadID)
             for (int dx = -searchRadius; dx <= searchRadius; dx += spatialStep)
             {
                 const int sx = clampi(x + dx, 0, widthMax);
+                const int x0 = clampi(sx - 1, 0, widthMax);
+                const int x1 = sx;
+                const int x2 = clampi(sx + 1, 0, widthMax);
+                const int y0 = clampi(sy - 1, 0, heightMax);
+                const int y1 = sy;
+                const int y2 = clampi(sy + 1, 0, heightMax);
+                const int patchX[3] = { x0, x1, x2 };
+                const int patchY[3] = { y0, y1, y2 };
                 float patchDistance = 0.0f;
                 // パッチ中心は候補画素そのものなので、先に読み出して加算色へ使う。
                 const float3 sample = unpack_rgb(InputPixels[frameBase + (uint)sy * Width + (uint)sx]);
 
+                int patchIndex = 0;
                 [unroll]
-                for (int i = 0; i < 9; ++i)
+                for (int py = 0; py < 3; ++py)
                 {
-                    const int tx = clampi(sx + kPatchOffsets[i].x, 0, widthMax);
-                    const int ty = clampi(sy + kPatchOffsets[i].y, 0, heightMax);
-                    const float3 samplePatch = unpack_rgb(InputPixels[frameBase + (uint)ty * Width + (uint)tx]);
-                    const float3 diff = currentPatch[i] - samplePatch;
-                    patchDistance += dot(diff, diff) * kPatchWeights[i];
+                    const uint rowBase = frameBase + (uint)patchY[py] * Width;
+                    [unroll]
+                    for (int px = 0; px < 3; ++px)
+                    {
+                        const float3 samplePatch = unpack_rgb(InputPixels[rowBase + (uint)patchX[px]]);
+                        const float3 diff = currentPatch[patchIndex] - samplePatch;
+                        patchDistance += dot(diff, diff) * kPatchWeights[patchIndex];
+                        ++patchIndex;
+                    }
                 }
 
                 const float w = exp(-sqrt(max(patchDistance, 0.0f)) * InvSigma) * temporalWeight;
