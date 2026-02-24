@@ -45,6 +45,7 @@
 #include "GpuRunnerDispatch.h"
 #include "MultiGpuCompose.h"
 #include "MultiGpuTiling.h"
+#include "SelectItemBuilder.h"
 #include "UiToDispatcherIntegration.h"
 #include "../DxgiAdapterUtil.h"
 
@@ -785,11 +786,10 @@ void rebuild_gpu_adapter_list()
 	g_gpu_adapter_items.clear();
 
 	g_gpu_adapter_names.emplace_back(L"Auto");
-	g_gpu_adapter_items.push_back({ g_gpu_adapter_names.back().c_str(), 0 });
 
 	CComPtr<IDXGIFactory1> factory;
 	if (FAILED(CreateDXGIFactory1(__uuidof(IDXGIFactory1), reinterpret_cast<void**>(&factory)))) {
-		g_gpu_adapter_items.push_back({ nullptr, 0 });
+		rebuild_select_items_from_names(g_gpu_adapter_names, &g_gpu_adapter_items);
 		item_gpu_adapter.list = g_gpu_adapter_items.data();
 		item_gpu_adapter.value = 0;
 		return;
@@ -798,15 +798,12 @@ void rebuild_gpu_adapter_list()
 	std::vector<CComPtr<IDXGIAdapter1>> hardwareAdapters;
 	std::vector<DXGI_ADAPTER_DESC1> hardwareAdapterDescs;
 	enumerate_hardware_adapters(factory, hardwareAdapters, &hardwareAdapterDescs);
+	g_gpu_adapter_names.reserve(1 + hardwareAdapterDescs.size());
 	for (size_t i = 0; i < hardwareAdapterDescs.size(); ++i) {
 		g_gpu_adapter_names.emplace_back(hardwareAdapterDescs[i].Description);
-		g_gpu_adapter_items.push_back({
-			g_gpu_adapter_names.back().c_str(),
-			static_cast<int>(g_gpu_adapter_items.size())
-		});
 	}
 
-	g_gpu_adapter_items.push_back({ nullptr, 0 });
+	rebuild_select_items_from_names(g_gpu_adapter_names, &g_gpu_adapter_items);
 	item_gpu_adapter.list = g_gpu_adapter_items.data();
 	item_gpu_adapter.value = 0;
 }
