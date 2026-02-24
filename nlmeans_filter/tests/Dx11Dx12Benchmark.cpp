@@ -268,8 +268,8 @@ Dx12Diagnostics collect_dx12_diagnostics()
 
 int main()
 {
-	const int width = 1280;
-	const int height = 720;
+	const int width = 1920;
+	const int height = 1080;
 	const int iterations = 20;
 	const int breakdownIterations = 10;
 	const int searchRadius = 2;
