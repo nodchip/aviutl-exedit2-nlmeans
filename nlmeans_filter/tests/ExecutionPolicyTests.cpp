@@ -36,3 +36,10 @@ TEST(ExecutionPolicyTests, NoAvx2FallsBackToCpuNaive)
 	EXPECT_EQ(p.mode, ExecutionMode::CpuNaive);
 	EXPECT_EQ(p.gpuAdapterOrdinal, -1);
 }
+
+TEST(ExecutionPolicyTests, UnknownModeFallsBackToCpuAvx2)
+{
+	const ExecutionPolicy p = resolve_execution_policy(kModeGpuDx11 + 1, 1, 2, true);
+	EXPECT_EQ(p.mode, ExecutionMode::CpuAvx2);
+	EXPECT_EQ(p.gpuAdapterOrdinal, 0);
+}

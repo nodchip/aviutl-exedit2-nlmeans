@@ -12,8 +12,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command ^
   "$cl=(Get-Command cl.exe -ErrorAction SilentlyContinue);" ^
   "$sdkHeader='nlmeans_filter/aviutl2_sdk/filter2.h';" ^
   "$sdkExists=Test-Path $sdkHeader;" ^
-  "$dx12DllPath=Join-Path $env:WINDIR 'System32/d3d12.dll';" ^
-  "$dx12DllExists=Test-Path $dx12DllPath;" ^
+  "$d3d11DllPath=Join-Path $env:WINDIR 'System32/d3d11.dll';" ^
+  "$d3d11DllExists=Test-Path $d3d11DllPath;" ^
   "$lines=@();" ^
   "$lines += '# GPU Runner Health Report';" ^
   "$lines += '';" ^
@@ -23,7 +23,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command ^
   "$lines += ('- ExEdit2 SDK header: ' + ($(if($sdkExists){'found'}else{'missing'})));" ^
   "$lines += ('- MSBuild.exe: ' + ($(if($msbuild){$msbuild.Source}else{'not found'})));" ^
   "$lines += ('- cl.exe: ' + ($(if($cl){$cl.Source}else{'not found'})));" ^
-  "$lines += ('- d3d12.dll: ' + ($(if($dx12DllExists){'found (' + $dx12DllPath + ')'}else{'missing'})));" ^
+  "$lines += ('- d3d11.dll: ' + ($(if($d3d11DllExists){'found (' + $d3d11DllPath + ')'}else{'missing'})));" ^
   "$lines += ('- GPU count: ' + $gpus.Count);" ^
   "$lines += '';" ^
   "$lines += '## GPU Adapters';" ^

@@ -62,14 +62,14 @@ TEST(UiSelectionRouteTests, NegativeModeDefaultsToCpuNaive)
 	EXPECT_EQ(route.gpuFallbackMode, ExecutionMode::CpuAvx2);
 }
 
-TEST(UiSelectionRouteTests, UnknownModeFallsBackToGpuSelectionPath)
+TEST(UiSelectionRouteTests, UnknownModeFallsBackToCpuAvx2)
 {
 	UiSelectionSnapshot ui{};
 	ui.modeValue = 999;
 	ui.gpuAdapterValue = 1;
 
 	const ProcessingRoute route = resolve_route_from_ui_selection(ui, 2, true);
-	EXPECT_EQ(route.mode, ExecutionMode::GpuDx11);
+	EXPECT_EQ(route.mode, ExecutionMode::CpuAvx2);
 	EXPECT_EQ(route.gpuAdapterOrdinal, 0);
 	EXPECT_EQ(route.gpuFallbackMode, ExecutionMode::CpuAvx2);
 }

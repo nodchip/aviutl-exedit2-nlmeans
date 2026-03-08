@@ -34,3 +34,8 @@ TEST(BackendSelectionTests, CpuTemporalModeResolvesToCpuTemporal)
 	EXPECT_EQ(resolve_execution_mode_for_test(kModeCpuTemporal, false, false, false), kModeCpuTemporal);
 	EXPECT_EQ(resolve_execution_mode_for_test(kModeCpuTemporal, true, true, true), kModeCpuTemporal);
 }
+
+TEST(BackendSelectionTests, UnknownModeDoesNotResolveToGpu)
+{
+	EXPECT_EQ(resolve_execution_mode_for_test(kModeGpuDx11 + 1, true, true, true), kModeCpuAvx2);
+}

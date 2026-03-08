@@ -13,6 +13,12 @@ enum class ExecutionMode : int {
 	GpuDx11 = kModeGpuDx11
 };
 
+// GPU 実行として受け付けるのは DX11 モードのみ。
+inline bool is_gpu_execution_mode_requested(int requestedMode)
+{
+	return requestedMode == static_cast<int>(ExecutionMode::GpuDx11);
+}
+
 // 要求モードと環境能力から、実際に実行するモードを決定する。
 inline ExecutionMode resolve_execution_mode(
 	int requestedMode,
@@ -20,7 +26,7 @@ inline ExecutionMode resolve_execution_mode(
 	bool isSelectedGpuAdapterAvailable,
 	bool isAvx2Available)
 {
-	if (requestedMode >= static_cast<int>(ExecutionMode::GpuDx11) &&
+	if (is_gpu_execution_mode_requested(requestedMode) &&
 		hasGpuAdapter &&
 		isSelectedGpuAdapterAvailable) {
 		return ExecutionMode::GpuDx11;

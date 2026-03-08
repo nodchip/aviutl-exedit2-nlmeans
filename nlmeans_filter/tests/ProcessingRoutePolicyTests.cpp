@@ -25,3 +25,11 @@ TEST(ProcessingRoutePolicyTests, CpuAvx2WithoutSupportFallsBackToCpuNaive)
 	EXPECT_EQ(route.gpuAdapterOrdinal, -1);
 	EXPECT_EQ(route.gpuFallbackMode, ExecutionMode::CpuNaive);
 }
+
+TEST(ProcessingRoutePolicyTests, UnknownModeFallsBackToCpuAvx2InsteadOfGpu)
+{
+	const ProcessingRoute route = resolve_processing_route(kModeGpuDx11 + 1, 0, 2, true);
+	EXPECT_EQ(route.mode, ExecutionMode::CpuAvx2);
+	EXPECT_EQ(route.gpuAdapterOrdinal, -1);
+	EXPECT_EQ(route.gpuFallbackMode, ExecutionMode::CpuAvx2);
+}

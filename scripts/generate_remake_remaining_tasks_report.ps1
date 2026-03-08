@@ -1,6 +1,5 @@
 $ErrorActionPreference = "Stop"
 
-$dx11Path = "docs/reports/dx11-dx12-decision.md"
 $coopPath = "docs/reports/gpu-coop-decision.md"
 $e2ePath = "docs/reports/exedit2-e2e-status.md"
 $outPath = "docs/reports/remake-remaining-tasks.md"
@@ -11,29 +10,12 @@ if (-not (Test-Path "docs/reports")) {
     New-Item -ItemType Directory -Path "docs/reports" | Out-Null
 }
 
-$dx11Gate = "UNKNOWN"
-$dx11Decision = "UNKNOWN"
-$dx11Next = "N/A"
 $coopDecision = "UNKNOWN"
 $coopGate = "UNKNOWN"
 $coopNext = "N/A"
 $e2eGate = "UNKNOWN"
 $e2eRecords = "N/A"
 $e2eReason = "N/A"
-
-if (Test-Path $dx11Path) {
-    foreach ($line in Get-Content $dx11Path) {
-        if ($line -match "^- decision: (.+)$") {
-            $dx11Decision = $Matches[1].Trim()
-        }
-        if ($line -match "^- adoption_gate: (.+)$") {
-            $dx11Gate = $Matches[1].Trim()
-        }
-        if ($line -match "^- next_dx12_reevaluation: (.+)$") {
-            $dx11Next = $Matches[1].Trim()
-        }
-    }
-}
 
 if (Test-Path $coopPath) {
     foreach ($line in Get-Content $coopPath) {
@@ -67,9 +49,6 @@ $remaining = @()
 if ($e2eGate -ne "PASS") {
     $remaining += "ExEdit2 E2E record is missing. Add host validation results via scripts/append_exedit2_e2e_result.cmd."
 }
-if ($dx11Decision -ne "NOT_ADOPTED" -and $dx11Gate -ne "PASS") {
-    $remaining += "DX11/DX12 adoption gate is FAIL. Continue benchmark/quality monitoring and keep DX11 default until criteria are satisfied."
-}
 if ($coopDecision -ne "NOT_ADOPTED" -and $coopGate -ne "PASS") {
     $remaining += "GPU coop adoption gate is FAIL. Improve ratio and async/single metrics to satisfy thresholds."
 }
@@ -85,9 +64,7 @@ $lines = @()
 $lines += "# ExEdit2 Remake Remaining Tasks"
 $lines += ""
 $lines += "- generated_on: $today"
-$lines += "- dx11_dx12_decision: $dx11Decision"
-$lines += "- dx11_dx12_adoption_gate: $dx11Gate"
-$lines += "- dx11_dx12_next_reevaluation: $dx11Next"
+$lines += "- gpu_backend_policy: DX11_ONLY"
 $lines += "- gpu_coop_decision: $coopDecision"
 $lines += "- gpu_coop_adoption_gate: $coopGate"
 $lines += "- gpu_coop_next_reevaluation: $coopNext"

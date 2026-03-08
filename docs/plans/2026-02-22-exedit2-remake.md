@@ -21,36 +21,18 @@
   - Task 3 CPU 再編（Naive/AVX2 のみ、GoogleTest 整備）
   - Task 7 GitHub 公開準備（CI、公開、運用ドキュメント）
 - 進行中:
-  - Task 4 GPU バックエンド再設計（DX11 実装 + DX12 PoC 比較/ベンチ拡張 + 履歴CSV/回帰チェック自動化 + compute経路GPU優先化 + fullframe 3x3 compute 実装 + DX11/DX12ベンチ履歴収集 + DX12内訳計測 + HRESULT診断で無効HLSL修正 + preflight一回化 + DLLロードキャッシュ + D3D12Device再利用 + DX11/DX12採用判定ゲート追加 + GPU協調採用判定ゲート追加 + シェーダー解決順をCSO優先へ拡張 + 協調判定失敗時も判定レポートを継続更新 + DX11/DX12判定失敗時も判定レポートを継続更新）
+  - Task 4 GPU バックエンド再設計（DX11 実装固定 + compute経路GPU優先化 + GPU協調採用判定ゲート追加 + シェーダー解決順をCSO優先へ拡張 + 協調判定失敗時も判定レポートを継続更新）
   - Task 5 ExEdit2 UI 統合（モード選択とルーティングは実装済み、実機E2Eの継続検証基盤とステータスレポートを追加、判定ワークフローでE2Eステータス自動更新、残タスクレポート自動生成を追加、実測蓄積が必要）
   - Task 6 亜種アルゴリズム実装（Fast/Temporal はCPU中心で実装、GPU 側最適化は継続、GPU 亜種ベンチレポート追加）
 - 未完了の主要項目:
-  - DX12 PoC を PoC 段階から本実装（外部HLSL/CSO運用・最適化・エラーハンドリング）へ移行するか、DX11 継続かの最終判断
   - 複数 GPU 協調の性能しきい値と運用判定基準の確定
   - ExEdit2 実ホストでの E2E 検証結果を継続蓄積し、リリース判定を固定化
 
-## DX11/DX12 最終判断ルール（2026-02-23 固定）
+## GPU バックエンド方針（2026-03-08 更新）
 
-- 現在判定（2026-02-23）:
-  - `scripts/check_dx11_dx12_adoption_gate.cmd` は FAIL（直近3件の `dx12_compute_ms / dx11_ms` が 1.0 を大幅超過）。
-  - 当面の既定実装は DX11 継続とする。
-- DX11 固定運用期間:
-  - 2026-02-23 から 2026-03-31 までは DX11 を既定実装として固定し、DX12 は検証用途に限定する。
-- DX11 継続条件:
-  - `scripts/check_dx11_dx12_benchmark_threshold.cmd` が継続 PASS。
-  - `scripts/run_gtests.cmd` が継続 PASS。
-  - `scripts/generate_dx11_dx12_decision_report.cmd` の `adoption_gate` が FAIL のまま。
-- DX12 再判定条件:
-  - `scripts/check_dx11_dx12_adoption_gate.cmd` が PASS に到達。
-  - 連続3回（別日時）で PASS を再現。
-  - ExEdit2 実ホスト E2E でクラッシュ/フォールバック異常がないことを確認。
-- DX12 再評価トリガー（2026-03-31 以前でも再評価可能）:
-  - `dx12_compute_ms / dx11_ms <= 1.0` を直近3件で満たしたとき。
-  - `scripts/check_dx11_dx12_quality_threshold.cmd` が継続 PASS のとき。
-  - GPU フォールバック関連テストで不安定挙動が観測されないとき。
-- 判定運用:
-  - `scripts/run_dx11_dx12_decision_workflow.cmd` を実行し、`docs/reports/dx11-dx12-decision.md` を判断記録として更新する。
-  - `scripts/check_dx11_dx12_reevaluation_due.cmd` で次回再評価日の到来状況を確認する。
+- DX12 PoC は撤去し、GPU 実装は DX11 のみに固定する。
+- 今後の検証は `scripts/run_gtests.cmd`、GPU 協調レポート、ExEdit2 実ホスト E2E を中心に継続する。
+- GPU バックエンドの改善対象は、DX11 経路の品質・速度・フォールバック安定性に限定する。
 
 ## GPU協調 判定ルール（2026-02-23 追加）
 
