@@ -21,7 +21,7 @@ jobs:
       - name: Setup MSVC
         uses: ilammy/msvc-dev-cmd@v1
         with:
-          arch: x86
+          arch: x64
 
       - name: Check GPU Runner Prerequisites
         shell: cmd
@@ -31,40 +31,12 @@ jobs:
         shell: cmd
         run: scripts\generate_gpu_runner_health_report.cmd
 
-      - name: Generate DX12 PoC Readiness Report
-        shell: cmd
-        run: scripts\generate_dx12_poc_report.cmd
-
-      - name: Generate DX12 PoC Benchmark Report
-        shell: cmd
-        run: scripts\generate_dx12_poc_benchmark.cmd
-
-      - name: Update DX12 PoC Benchmark History CSV
-        shell: cmd
-        run: scripts\update_dx12_poc_benchmark_history.cmd
-
-      - name: Check DX12 PoC Regression Threshold
-        shell: cmd
-        run: scripts\check_dx12_poc_regression.cmd
-
-      - name: Generate DX11 vs DX12 Quality Report
-        shell: cmd
-        run: scripts\generate_dx11_dx12_quality_report.cmd
-
-      - name: Check DX11 vs DX12 Quality Threshold
-        shell: cmd
-        run: scripts\check_dx11_dx12_quality_threshold.cmd
-
-      - name: Update DX11 vs DX12 Quality History CSV
-        shell: cmd
-        run: scripts\update_dx11_dx12_quality_history.cmd
-
-      - name: Build Release Win32
+      - name: Build Release x64
         shell: cmd
         run: >
           MSBuild.exe nlmeans_filter.sln
           /p:Configuration=Release
-          /p:Platform=Win32
+          /p:Platform=x64
           /m:1
 
       - name: Run GoogleTest Suite
@@ -91,6 +63,15 @@ jobs:
         shell: cmd
         run: scripts\check_gpu_coop_async_efficiency.cmd
 
+      - name: Run GPU Coop Decision Workflow
+        shell: cmd
+        run: scripts\run_gpu_coop_decision_workflow.cmd
+
+      - name: Generate Remake Remaining Tasks Report
+        if: always()
+        shell: cmd
+        run: scripts\generate_remake_remaining_tasks_report.cmd
+
       - name: Upload GPU Reports
         uses: actions/upload-artifact@v4
         with:
@@ -99,9 +80,7 @@ jobs:
             docs/reports/nlm-variants-benchmark.md
             docs/reports/gpu-coop-benchmark.md
             docs/reports/gpu-coop-history.csv
+            docs/reports/gpu-coop-decision.md
             docs/reports/gpu-runner-health.md
-            docs/reports/dx12-poc-readiness.md
-            docs/reports/dx12-poc-benchmark.md
-            docs/reports/dx12-poc-benchmark-history.csv
-            docs/reports/dx11-dx12-quality.md
-            docs/reports/dx11-dx12-quality-history.csv
+            docs/reports/exedit2-e2e-status.md
+            docs/reports/remake-remaining-tasks.md
